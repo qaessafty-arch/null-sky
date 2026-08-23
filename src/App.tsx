@@ -12,7 +12,8 @@ import {
   OpeningInfo,
   RespectProfile
 } from './types/chess';
-import { BOT_PROFILES, TIME_CONTROLS, getBotMove, evaluateBoard, getCapturedMaterial, classifyMove, findBestMove } from './utils/chessEngine';
+import { BOT_PROFILES, TIME_CONTROLS, evaluateBoard, getCapturedMaterial, classifyMove } from './utils/chessEngine';
+import { engine } from './engine/client';
 import { detectOpening } from './utils/openings';
 import { soundManager } from './utils/audio';
 import { getActiveTheme, applyThemeToDOM } from './utils/themePresets';
@@ -80,8 +81,12 @@ export default function App() {
   const [activeMode, setActiveMode] = useState<GameMode>('ai');
 
   // Match Configuration
-  const [currentBot, setCurrentBot] = useState<BotProfile>(BOT_PROFILES[2]); // Bishop Tactician (1400 Elo)
-  const [timeControl, setTimeControl] = useState<TimeControl>(TIME_CONTROLS[5]); // Rapid 10 min
+  const [currentBot, setCurrentBot] = useState<BotProfile>(
+    () => BOT_PROFILES.find(bot => bot.id === 'bot-bishop') ?? BOT_PROFILES[3]
+  ); // Bishop Tactician (~1450 Elo)
+  const [timeControl, setTimeControl] = useState<TimeControl>(
+    () => TIME_CONTROLS.find(control => control.id === 'rapid-10') ?? TIME_CONTROLS[6]
+  ); // Rapid 10 min
   const [playerColor, setPlayerColor] = useState<PieceColor>('w');
 
   // Chess Game State
@@ -111,6 +116,20 @@ export default function App() {
   const [isJudgmentModalOpen, setIsJudgmentModalOpen] = useState(false);
   const [pendingCheckmateResult, setPendingCheckmateResult] = useState<GameResult | null>(null);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
+
+  // Join a match directly from an invite link (?match=<id>)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const linkedMatch = params.get('match');
+      if (linkedMatch) {
+        setActiveOnlineMatchId(linkedMatch);
+        setActiveMode('online_match');
+      }
+    } catch {
+      // URL parsing is best-effort
+    }
+  }, []);
 
   // Synchronize audio sound toggle with soundManager
   useEffect(() => {
@@ -294,7 +313,9 @@ export default function App() {
     [game, evalScore, timeControl, isClockRunning, checkGameOver, activeMode, playerColor]
   );
 
-  // Trigger AI Move when it's bot's turn
+  // Trigger AI Move when it's the bot's turn.
+  // The search runs in a Web Worker, so a 2600-rated bot thinking for three
+  // seconds never freezes the board or the clocks.
   useEffect(() => {
     if (activeMode !== 'ai' || gameResult || isJudgmentModalOpen) {
       setIsAiThinking(false);
@@ -305,31 +326,40 @@ export default function App() {
       (playerColor === 'w' && game.turn() === 'b') ||
       (playerColor === 'b' && game.turn() === 'w');
 
-    if (!isAiTurn) {
+    if (!isAiTurn || game.isGameOver()) {
       setIsAiThinking(false);
       return;
     }
 
+    let cancelled = false;
     setIsAiThinking(true);
+    const startedAt = Date.now();
+    const fen = game.fen();
 
-    // Natural bot think delay (300ms - 750ms)
-    const delay = Math.min(800, Math.max(300, 200 + currentBot.depth * 100));
-
-    const timeoutId = setTimeout(() => {
-      try {
-        const botMove = getBotMove(game, currentBot);
-        if (botMove) {
-          executeMove(botMove.from as Square, botMove.to as Square, botMove.promotion as PieceType | undefined);
+    engine
+      .botMove({ fen }, currentBot.id)
+      .then(async result => {
+        if (cancelled || !result.bestMove) return;
+        // Keep a natural minimum think time for the fast/weak bots.
+        const minimumDelay = 260;
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < minimumDelay) {
+          await new Promise(resolve => setTimeout(resolve, minimumDelay - elapsed));
         }
-      } catch (err) {
-        console.error('AI Move calculation error:', err);
-      } finally {
-        setIsAiThinking(false);
-      }
-    }, delay);
+        if (cancelled) return;
+        executeMove(
+          result.bestMove.slice(0, 2) as Square,
+          result.bestMove.slice(2, 4) as Square,
+          result.bestMove[4] as PieceType | undefined
+        );
+      })
+      .catch(err => console.error('AI move calculation error:', err))
+      .finally(() => {
+        if (!cancelled) setIsAiThinking(false);
+      });
 
     return () => {
-      clearTimeout(timeoutId);
+      cancelled = true;
     };
   }, [activeMode, game, playerColor, gameResult, currentBot, executeMove, isJudgmentModalOpen]);
 
@@ -484,21 +514,33 @@ export default function App() {
     }
   };
 
-  // Provide engine tactical hint
-  const handleGetHint = () => {
+  // Provide an engine tactical hint (searched off the main thread)
+  const handleGetHint = async () => {
     if (gameResult || isAiThinking) return;
+    setHintMessage('💡 Engine is calculating…');
     try {
-      const isWhite = game.turn() === 'w';
-      const best = findBestMove(game, 3, isWhite);
-      if (best.move) {
-        soundManager.playCheck();
-        setHintMessage(`💡 Engine Recommendation: Play ${best.move.san} (${best.move.from} to ${best.move.to})`);
-        setTimeout(() => {
-          setHintMessage(null);
-        }, 5000);
+      const result = await engine.search({ fen: game.fen() }, { depth: 12, timeMs: 900 });
+      if (!result.bestMove) {
+        setHintMessage(null);
+        return;
       }
+      const probe = new Chess(game.fen());
+      const applied = probe.move({
+        from: result.bestMove.slice(0, 2) as Square,
+        to: result.bestMove.slice(2, 4) as Square,
+        promotion: (result.bestMove[4] as PieceType | undefined) ?? 'q'
+      });
+      soundManager.playCheck();
+      const evaluation =
+        result.mateIn !== null
+          ? `mate in ${Math.abs(result.mateIn)}`
+          : `${result.scoreWhite >= 0 ? '+' : ''}${(result.scoreWhite / 100).toFixed(2)}`;
+      setHintMessage(
+        `💡 Engine (depth ${result.depth}): play ${applied?.san ?? result.bestMove} — evaluation ${evaluation}`
+      );
+      setTimeout(() => setHintMessage(null), 6000);
     } catch {
-      // Ignore
+      setHintMessage(null);
     }
   };
 
@@ -559,9 +601,17 @@ export default function App() {
           <OnlineMatchView
             matchId={activeOnlineMatchId}
             settings={settings}
+            onSwitchMatch={newMatchId => setActiveOnlineMatchId(newMatchId)}
             onClose={() => {
               setActiveOnlineMatchId(null);
               setActiveMode('ai');
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('match');
+                window.history.replaceState({}, '', url.toString());
+              } catch {
+                // ignore
+              }
             }}
           />
         ) : activeMode === 'puzzle' ? (

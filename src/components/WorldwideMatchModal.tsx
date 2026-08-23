@@ -118,7 +118,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
     setSearchStatus(
       matchmakingMode === 'instant_bot'
         ? 'Connecting to Worldwide Grandmaster AI...'
-        : 'Searching worldwide queue for live human opponents...'
+        : 'Searching the worldwide queue for live opponents…'
     );
     setMatchedOpponent(null);
 
@@ -130,7 +130,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
       elo: profile?.elo || 1200,
       honorRank: profile?.honorRank || 'Peshmerga Tactician',
       rankBadge: profile?.rankBadge || '🌿',
-      avatar: profile?.photoURL || user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'
+      avatar: profile?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(profile?.uid || 'guest')}&backgroundColor=1b2416`
     };
 
     const { cancel, pairWithBotNow } = await joinWorldwideMatchmaking(
@@ -212,7 +212,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
               </span>
             </div>
             <p className="text-xs text-[#DFD0B0]/70">
-              Battle real human players globally across Kurdistan, Europe, the Americas, and Asia
+              Play live opponents worldwide — or take on a rated engine challenger while you wait
             </p>
           </div>
         </div>
@@ -237,7 +237,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
               <div className="animate-in zoom-in-95 duration-300 flex flex-col items-center gap-2 my-2">
                 <div className="flex items-center gap-3 bg-emerald-950/60 border border-emerald-400/50 px-4 py-2 rounded-2xl shadow-lg">
                   <img
-                    src={matchedOpponent.player.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'}
+                    src={matchedOpponent.player.avatar || `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(matchedOpponent.player.uid)}&backgroundColor=1b2416`}
                     alt={matchedOpponent.player.displayName}
                     className="w-10 h-10 rounded-full object-cover border-2 border-emerald-400"
                   />
@@ -247,7 +247,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
                       <span>{matchedOpponent.player.flag}</span>
                       {matchedOpponent.isBot ? (
                         <span className="text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded border border-amber-500/40">
-                          AI BOT
+                          ENGINE BOT
                         </span>
                       ) : (
                         <span className="text-[10px] bg-emerald-500/30 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/40">
@@ -288,7 +288,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
                 {/* Real-time human search info */}
                 {matchmakingMode === 'human_first' && searchSeconds < 20 && (
                   <p className="text-[11px] text-[#DFD0B0]/60 max-w-xs mt-1">
-                    Searching for online human players... If no human joins within {20 - searchSeconds}s, will pair with a Grandmaster Bot.
+                    Searching for live players… if nobody joins within {Math.max(0, 20 - searchSeconds)}s you will be paired with a rated engine challenger.
                   </p>
                 )}
               </div>
@@ -307,7 +307,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
                 <button
                   onClick={handleForcePlayBot}
                   className="px-5 py-2 rounded-xl bg-[#52673A]/60 hover:bg-[#52673A] border border-[#F5C453]/40 text-[#F5C453] text-xs font-bold transition-all hover:scale-105 cursor-pointer shadow-md flex items-center gap-1.5"
-                  title="Skip waiting and play a Grandmaster Bot immediately"
+                  title="Skip the queue and play a rated engine challenger now"
                 >
                   <Bot className="w-3.5 h-3.5" />
                   <span>Play Bot Now</span>
@@ -334,7 +334,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
                 >
                   <div className="flex items-center justify-center gap-1.5 text-xs font-black mb-0.5">
                     <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Real Human First</span>
+                    <span>Humans first</span>
                   </div>
                   <div className="text-[10px] text-[#DFD0B0]/60 leading-tight">
                     Human queue (bot fallback after 20s)
@@ -354,7 +354,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
                     <span>Humans Only</span>
                   </div>
                   <div className="text-[10px] text-[#DFD0B0]/60 leading-tight">
-                    Strict real human matchmaking
+                    Humans only — never pair with an engine
                   </div>
                 </button>
 
@@ -427,8 +427,8 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
                 <Globe className="w-5 h-5 text-[#F5C453] animate-pulse" />
                 <span>
                   {matchmakingMode === 'instant_bot'
-                    ? `Play Grandmaster Bot (${selectedTimeControl.name})`
-                    : `Find Real Human Match (${selectedTimeControl.name})`}
+                    ? `Play engine challenger (${selectedTimeControl.name})`
+                    : `Find live opponent (${selectedTimeControl.name})`}
                 </span>
               </button>
             </div>

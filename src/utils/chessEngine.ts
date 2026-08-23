@@ -1,83 +1,49 @@
-import { Chess, Square, Move } from 'chess.js';
-import { BotProfile, TimeControl, PieceType, PieceColor, MoveClassification } from '../types/chess';
+/**
+ * Compatibility facade over the new engine core (`src/engine`).
+ *
+ * The UI speaks chess.js (SAN, PGN, move objects); the engine speaks its own
+ * fast 0x88 representation. Everything in this file translates between the two.
+ *
+ * Prefer `engine` (src/engine/client.ts) for anything that can be asynchronous —
+ * it runs the search in a Web Worker and never blocks the board.
+ */
 
-export const BOT_PROFILES: BotProfile[] = [
-  {
-    id: 'bot-pawn',
-    name: 'Pawn Cadet',
-    title: 'Novice',
-    elo: 400,
-    avatar: '🐣',
-    description: 'Enthusiastic beginner. Plays quickly with basic captures, occasionally misses tactics.',
-    depth: 1,
-    randomness: 0.45,
-    style: 'Casual & Relaxed',
-    badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-  },
-  {
-    id: 'bot-knight',
-    name: 'Knight Errant',
-    title: 'Apprentice',
-    elo: 900,
-    avatar: '🛡️',
-    description: 'Understands basic forks and development. Solid defender against direct attacks.',
-    depth: 2,
-    randomness: 0.25,
-    style: 'Active Pieces',
-    badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-  },
-  {
-    id: 'bot-bishop',
-    name: 'Bishop Tactician',
-    title: 'Intermediate',
-    elo: 1400,
-    avatar: '⚔️',
-    description: 'Sharp eye for pins, skewers, and diagonal assaults. Controls central outposts.',
-    depth: 3,
-    randomness: 0.1,
-    style: 'Tactical & Aggressive',
-    badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-  },
-  {
-    id: 'bot-rook',
-    name: 'Rook Mastermind',
-    title: 'Master',
-    elo: 1850,
-    avatar: '🏰',
-    description: 'Deep strategic planning, open file control, king safety calculations.',
-    depth: 4,
-    randomness: 0.02,
-    style: 'Positional Precision',
-    badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-  },
-  {
-    id: 'bot-queen',
-    name: 'Grandmaster DeepAI',
-    title: 'Grandmaster',
-    elo: 2300,
-    avatar: '👑',
-    description: 'Ruthless positional and tactical calculation with alpha-beta pruning & endgame mastery.',
-    depth: 5,
-    randomness: 0.0,
-    style: 'Universal Champion',
-    badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-  }
-];
+import { Chess, Move, Square } from 'chess.js';
+import {
+  BotProfile,
+  MoveClassification,
+  PieceColor,
+  PieceType,
+  TimeControl
+} from '../types/chess';
+import { Position } from '../engine/board';
+import { evaluate } from '../engine/evaluate';
+import { BOT_DEFINITIONS, chooseBotMove, getBotDefinition } from '../engine/bots';
+import { search } from '../engine/search';
+
+export { BOT_DEFINITIONS, getBotDefinition };
+export type { BotDefinition } from '../engine/bots';
+
+/** The bot ladder, typed for existing UI components. */
+export const BOT_PROFILES: BotProfile[] = BOT_DEFINITIONS;
 
 export const TIME_CONTROLS: TimeControl[] = [
   { id: 'bullet-1', name: '1 min', initialSeconds: 60, incrementSeconds: 0, category: 'bullet' },
   { id: 'bullet-2-1', name: '2 | 1', initialSeconds: 120, incrementSeconds: 1, category: 'bullet' },
   { id: 'blitz-3', name: '3 min', initialSeconds: 180, incrementSeconds: 0, category: 'blitz' },
+  { id: 'blitz-3-2', name: '3 | 2', initialSeconds: 180, incrementSeconds: 2, category: 'blitz' },
   { id: 'blitz-5', name: '5 min', initialSeconds: 300, incrementSeconds: 0, category: 'blitz' },
   { id: 'blitz-5-3', name: '5 | 3', initialSeconds: 300, incrementSeconds: 3, category: 'blitz' },
   { id: 'rapid-10', name: '10 min', initialSeconds: 600, incrementSeconds: 0, category: 'rapid' },
+  { id: 'rapid-10-5', name: '10 | 5', initialSeconds: 600, incrementSeconds: 5, category: 'rapid' },
   { id: 'rapid-15-10', name: '15 | 10', initialSeconds: 900, incrementSeconds: 10, category: 'rapid' },
   { id: 'classical-30', name: '30 min', initialSeconds: 1800, incrementSeconds: 0, category: 'classical' },
+  { id: 'classical-45-15', name: '45 | 15', initialSeconds: 2700, incrementSeconds: 15, category: 'classical' },
   { id: 'unlimited', name: 'Unlimited', initialSeconds: 0, incrementSeconds: 0, category: 'unlimited' }
 ];
 
-// Piece values in centipawns
-const PIECE_VALUES: Record<PieceType, number> = {
+/** Piece values in centipawns (UI + material counting). */
+export const PIECE_VALUES: Record<PieceType, number> = {
   p: 100,
   n: 320,
   b: 330,
@@ -86,303 +52,193 @@ const PIECE_VALUES: Record<PieceType, number> = {
   k: 20000
 };
 
-// Piece Square Tables (White's perspective; Black's is inverted)
-const PAWN_TABLE = [
-  0,  0,  0,  0,  0,  0,  0,  0,
-  50, 50, 50, 50, 50, 50, 50, 50,
-  10, 10, 20, 30, 30, 20, 10, 10,
-   5,  5, 10, 25, 25, 10,  5,  5,
-   0,  0,  0, 20, 20,  0,  0,  0,
-   5, -5,-10,  0,  0,-10, -5,  5,
-   5, 10, 10,-20,-20, 10, 10,  5,
-   0,  0,  0,  0,  0,  0,  0,  0
-];
+/* ------------------------------------------------------------------ *
+ * Evaluation
+ * ------------------------------------------------------------------ */
 
-const KNIGHT_TABLE = [
-  -50,-40,-30,-30,-30,-30,-40,-50,
-  -40,-20,  0,  0,  0,  0,-20,-40,
-  -30,  0, 10, 15, 15, 10,  0,-30,
-  -30,  5, 15, 20, 20, 15,  5,-30,
-  -30,  0, 15, 20, 20, 15,  0,-30,
-  -30,  5, 10, 15, 15, 10,  5,-30,
-  -40,-20,  0,  5,  5,  0,-20,-40,
-  -50,-40,-30,-30,-30,-30,-40,-50
-];
-
-const BISHOP_TABLE = [
-  -20,-10,-10,-10,-10,-10,-10,-20,
-  -10,  0,  0,  0,  0,  0,  0,-10,
-  -10,  0,  5, 10, 10,  5,  0,-10,
-  -10,  5,  5, 10, 10,  5,  5,-10,
-  -10,  0, 10, 10, 10, 10,  0,-10,
-  -10, 10, 10, 10, 10, 10, 10,-10,
-  -10,  5,  0,  0,  0,  0,  5,-10,
-  -20,-10,-10,-10,-10,-10,-10,-20
-];
-
-const ROOK_TABLE = [
-  0,  0,  0,  0,  0,  0,  0,  0,
-  5, 10, 10, 10, 10, 10, 10,  5,
- -5,  0,  0,  0,  0,  0,  0, -5,
- -5,  0,  0,  0,  0,  0,  0, -5,
- -5,  0,  0,  0,  0,  0,  0, -5,
- -5,  0,  0,  0,  0,  0,  0, -5,
- -5,  0,  0,  0,  0,  0,  0, -5,
-  0,  0,  0,  5,  5,  0,  0,  0
-];
-
-const QUEEN_TABLE = [
-  -20,-10,-10, -5, -5,-10,-10,-20,
-  -10,  0,  0,  0,  0,  0,  0,-10,
-  -10,  0,  5,  5,  5,  5,  0,-10,
-   -5,  0,  5,  5,  5,  5,  0, -5,
-    0,  0,  5,  5,  5,  5,  0, -5,
-  -10,  5,  5,  5,  5,  5,  0,-10,
-  -10,  0,  5,  0,  0,  0,  0,-10,
-  -20,-10,-10, -5, -5,-10,-10,-20
-];
-
-const KING_TABLE_MID = [
-  -30,-40,-40,-50,-50,-40,-40,-30,
-  -30,-40,-40,-50,-50,-40,-40,-30,
-  -30,-40,-40,-50,-50,-40,-40,-30,
-  -30,-40,-40,-50,-50,-40,-40,-30,
-  -20,-30,-30,-40,-40,-30,-30,-20,
-  -10,-20,-20,-20,-20,-20,-20,-10,
-   20, 20,  0,  0,  0,  0, 20, 20,
-   20, 30, 10,  0,  0, 10, 30, 20
-];
-
-function getSquareIndex(square: Square): number {
-  const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
-  const rank = 8 - parseInt(square[1], 10);
-  return rank * 8 + file;
-}
-
+/** Static evaluation in pawns, positive = White is better. */
 export function evaluateBoard(game: Chess): number {
-  if (game.isCheckmate()) {
-    return game.turn() === 'w' ? -99999 : 99999;
-  }
-  if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
-    return 0;
-  }
-
-  let whiteScore = 0;
-  let blackScore = 0;
-  const board = game.board();
-
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const piece = board[r][f];
-      if (!piece) continue;
-
-      const pieceVal = PIECE_VALUES[piece.type as PieceType];
-      const sqIndexWhite = r * 8 + f;
-      const sqIndexBlack = (7 - r) * 8 + f;
-
-      let posBonus = 0;
-      switch (piece.type) {
-        case 'p':
-          posBonus = piece.color === 'w' ? PAWN_TABLE[sqIndexWhite] : PAWN_TABLE[sqIndexBlack];
-          break;
-        case 'n':
-          posBonus = piece.color === 'w' ? KNIGHT_TABLE[sqIndexWhite] : KNIGHT_TABLE[sqIndexBlack];
-          break;
-        case 'b':
-          posBonus = piece.color === 'w' ? BISHOP_TABLE[sqIndexWhite] : BISHOP_TABLE[sqIndexBlack];
-          break;
-        case 'r':
-          posBonus = piece.color === 'w' ? ROOK_TABLE[sqIndexWhite] : ROOK_TABLE[sqIndexBlack];
-          break;
-        case 'q':
-          posBonus = piece.color === 'w' ? QUEEN_TABLE[sqIndexWhite] : QUEEN_TABLE[sqIndexBlack];
-          break;
-        case 'k':
-          posBonus = piece.color === 'w' ? KING_TABLE_MID[sqIndexWhite] : KING_TABLE_MID[sqIndexBlack];
-          break;
-      }
-
-      if (piece.color === 'w') {
-        whiteScore += pieceVal + posBonus;
-      } else {
-        blackScore += pieceVal + posBonus;
-      }
-    }
-  }
-
-  return (whiteScore - blackScore) / 100;
+  const pos = new Position(game.fen());
+  return evaluate(pos, true) / 100;
 }
 
-// Alpha-Beta search for best move
+/* ------------------------------------------------------------------ *
+ * Search helpers (synchronous — prefer the worker client where possible)
+ * ------------------------------------------------------------------ */
+
+const applyUciToChessJs = (game: Chess, uci: string | null): Move | null => {
+  if (!uci) return null;
+  const probe = new Chess(game.fen());
+  try {
+    return probe.move({
+      from: uci.slice(0, 2) as Square,
+      to: uci.slice(2, 4) as Square,
+      promotion: (uci[4] as PieceType | undefined) ?? 'q'
+    });
+  } catch {
+    return null;
+  }
+};
+
+export interface BestMoveResult {
+  move: Move | null;
+  score: number;
+  depth: number;
+  nodes: number;
+  mateIn: number | null;
+  pv: string[];
+}
+
+/**
+ * Best move for the current position.
+ *
+ * `isWhite` is accepted for backwards compatibility but is no longer needed —
+ * the engine always searches from the side to move and reports the score from
+ * White's perspective.
+ */
 export function findBestMove(
   game: Chess,
-  depth: number,
-  isWhite: boolean,
-  alpha: number = -Infinity,
-  beta: number = Infinity
-): { move: Move | null; score: number } {
-  if (depth <= 0 || game.isGameOver()) {
-    return { move: null, score: evaluateBoard(game) };
-  }
-
-  const legalMoves = game.moves({ verbose: true });
-  if (legalMoves.length === 0) {
-    return { move: null, score: evaluateBoard(game) };
-  }
-
-  // Move ordering: sort captures and checks first to optimize alpha-beta cutoff
-  legalMoves.sort((a, b) => {
-    const aVal = a.captured ? PIECE_VALUES[a.captured as PieceType] : 0;
-    const bVal = b.captured ? PIECE_VALUES[b.captured as PieceType] : 0;
-    const aCheck = a.san.includes('+') ? 50 : 0;
-    const bCheck = b.san.includes('+') ? 50 : 0;
-    return (bVal + bCheck) - (aVal + aCheck);
-  });
-
-  // Limit moves searched at deeper plies for performance
-  const movesToSearch = depth > 2 ? legalMoves.slice(0, 16) : legalMoves;
-  let bestMove: Move | null = legalMoves[0];
-
-  if (isWhite) {
-    let maxEval = -Infinity;
-    for (const move of movesToSearch) {
-      try {
-        game.move({ from: move.from, to: move.to, promotion: move.promotion || 'q' });
-        const evalResult = findBestMove(game, depth - 1, false, alpha, beta);
-        game.undo();
-
-        if (evalResult.score > maxEval) {
-          maxEval = evalResult.score;
-          bestMove = move;
-        }
-        alpha = Math.max(alpha, evalResult.score);
-        if (beta <= alpha) break;
-      } catch {
-        // Safe fallback if move parsing fails
-      }
-    }
-    return { move: bestMove, score: maxEval === -Infinity ? evaluateBoard(game) : maxEval };
-  } else {
-    let minEval = Infinity;
-    for (const move of movesToSearch) {
-      try {
-        game.move({ from: move.from, to: move.to, promotion: move.promotion || 'q' });
-        const evalResult = findBestMove(game, depth - 1, true, alpha, beta);
-        game.undo();
-
-        if (evalResult.score < minEval) {
-          minEval = evalResult.score;
-          bestMove = move;
-        }
-        beta = Math.min(beta, evalResult.score);
-        if (beta <= alpha) break;
-      } catch {
-        // Safe fallback if move parsing fails
-      }
-    }
-    return { move: bestMove, score: minEval === Infinity ? evaluateBoard(game) : minEval };
-  }
+  depth: number = 8,
+  _isWhite?: boolean,
+  timeMs: number = 800
+): BestMoveResult {
+  const pos = new Position(game.fen());
+  const result = search(pos, { depth, timeMs });
+  return {
+    move: applyUciToChessJs(game, result.bestMoveUci),
+    score: result.scoreWhite / 100,
+    depth: result.depth,
+    nodes: result.nodes,
+    mateIn: result.mateIn,
+    pv: result.pv
+  };
 }
 
-// Get AI move based on bot profile
+/** Synchronous bot move. The UI normally uses `engine.botMove()` instead. */
 export function getBotMove(game: Chess, bot: BotProfile): Move | null {
-  const legalMoves = game.moves({ verbose: true });
-  if (legalMoves.length === 0) return null;
-
-  // Add occasional blunders/randomness for lower rated bots
-  if (Math.random() < bot.randomness) {
-    // Prefer captures if available for casual bot
-    const captures = legalMoves.filter(m => !!m.captured);
-    if (captures.length > 0 && Math.random() < 0.6) {
-      return captures[Math.floor(Math.random() * captures.length)];
-    }
-    return legalMoves[Math.floor(Math.random() * legalMoves.length)];
-  }
-
-  const isWhite = game.turn() === 'w';
-  // Clamp depth to 3 plies with move ordering for fast (~30ms) responses
-  const effectiveDepth = Math.min(3, Math.max(1, bot.depth));
-  const engineGame = new Chess(game.fen());
-  const result = findBestMove(engineGame, effectiveDepth, isWhite);
-  return result.move || legalMoves[0];
+  const pos = new Position(game.fen());
+  const definition = getBotDefinition(bot.id);
+  const result = chooseBotMove(pos, definition);
+  return applyUciToChessJs(game, result.uci);
 }
 
-// Calculate captured pieces & material difference
+/* ------------------------------------------------------------------ *
+ * Captured material
+ * ------------------------------------------------------------------ */
+
 export interface CapturedMaterialState {
   capturedByWhite: PieceType[];
   capturedByBlack: PieceType[];
-  materialDifference: number; // Positive = White ahead, Negative = Black ahead
+  /** Positive = White is ahead, in pawns. */
+  materialDifference: number;
 }
 
+/**
+ * Captured pieces derived from the move history.
+ *
+ * The previous implementation diffed the board against the starting army, which
+ * broke on promotions (a promoted queen looked like a captured enemy queen plus
+ * a vanished pawn). Reading the history is exact.
+ */
 export function getCapturedMaterial(game: Chess): CapturedMaterialState {
-  const startingCounts: Record<PieceColor, Record<PieceType, number>> = {
-    w: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 },
-    b: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 }
-  };
-
-  const currentCounts: Record<PieceColor, Record<PieceType, number>> = {
-    w: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
-    b: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 }
-  };
-
-  const board = game.board();
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const piece = board[r][f];
-      if (piece) {
-        currentCounts[piece.color as PieceColor][piece.type as PieceType]++;
-      }
-    }
-  }
-
   const capturedByWhite: PieceType[] = [];
   const capturedByBlack: PieceType[] = [];
 
-  const pieceOrder: PieceType[] = ['q', 'r', 'b', 'n', 'p'];
-
-  let whitePoints = 0;
-  let blackPoints = 0;
-
-  for (const p of pieceOrder) {
-    const blackLost = startingCounts.b[p] - currentCounts.b[p];
-    for (let i = 0; i < blackLost; i++) {
-      capturedByWhite.push(p);
-      whitePoints += PIECE_VALUES[p];
-    }
-
-    const whiteLost = startingCounts.w[p] - currentCounts.w[p];
-    for (let i = 0; i < whiteLost; i++) {
-      capturedByBlack.push(p);
-      blackPoints += PIECE_VALUES[p];
-    }
+  let history: Move[] = [];
+  try {
+    history = game.history({ verbose: true }) as Move[];
+  } catch {
+    history = [];
   }
 
-  const materialDiffCentipawns = whitePoints - blackPoints;
-  const materialDiffPawns = Math.round(materialDiffCentipawns / 100);
+  for (const move of history) {
+    if (!move.captured) continue;
+    const piece = move.captured as PieceType;
+    if (move.color === 'w') capturedByWhite.push(piece);
+    else capturedByBlack.push(piece);
+  }
+
+  const order: PieceType[] = ['q', 'r', 'b', 'n', 'p'];
+  const byValue = (a: PieceType, b: PieceType) => order.indexOf(a) - order.indexOf(b);
+  capturedByWhite.sort(byValue);
+  capturedByBlack.sort(byValue);
+
+  // Promotions change the material balance too, so count it from the board.
+  let balance = 0;
+  for (const row of game.board()) {
+    for (const square of row) {
+      if (!square || square.type === 'k') continue;
+      const value = PIECE_VALUES[square.type as PieceType];
+      balance += square.color === 'w' ? value : -value;
+    }
+  }
 
   return {
     capturedByWhite,
     capturedByBlack,
-    materialDifference: materialDiffPawns
+    materialDifference: Math.round(balance / 100)
   };
 }
 
-// Classify move quality
+/* ------------------------------------------------------------------ *
+ * Move classification
+ * ------------------------------------------------------------------ */
+
+export interface ClassificationContext {
+  /** The move actually played matched the engine's best move. */
+  wasBestMove?: boolean;
+  /** The position is still in the opening book. */
+  isBook?: boolean;
+  isCapture?: boolean;
+  isCheckmate?: boolean;
+  /** The move gave away material but the evaluation held or improved. */
+  isSacrifice?: boolean;
+}
+
+/**
+ * Classifies a move from the evaluation swing it caused.
+ *
+ * Both evaluations are in pawns from White's perspective; `isWhite` is the side
+ * that played the move. A drop is always measured against the mover.
+ */
 export function classifyMove(
   prevEval: number,
   newEval: number,
   isWhite: boolean,
-  isCapture: boolean,
-  isCheckmate: boolean
+  isCaptureOrContext?: boolean | ClassificationContext,
+  isCheckmate?: boolean
 ): MoveClassification {
-  if (isCheckmate) return 'brilliant';
+  const context: ClassificationContext =
+    typeof isCaptureOrContext === 'object' && isCaptureOrContext !== null
+      ? isCaptureOrContext
+      : { isCapture: !!isCaptureOrContext, isCheckmate };
 
-  const evalDelta = isWhite ? newEval - prevEval : prevEval - newEval;
+  if (context.isCheckmate) return 'brilliant';
+  if (context.isBook) return 'book';
 
-  if (evalDelta >= 2.5 && isCapture) return 'brilliant';
-  if (evalDelta >= -0.2) return 'best';
-  if (evalDelta >= -0.7) return 'good';
-  if (evalDelta >= -1.8) return 'inaccuracy';
-  if (evalDelta >= -3.5) return 'mistake';
+  // Loss (in pawns) from the mover's point of view. Positive = the position got worse.
+  const loss = isWhite ? prevEval - newEval : newEval - prevEval;
+
+  if (context.isSacrifice && loss <= 0.3) return 'brilliant';
+  if (loss <= 0.05) return context.wasBestMove ? 'best' : 'good';
+  if (loss <= 0.3) return 'good';
+  if (loss <= 0.9) return 'inaccuracy';
+  if (loss <= 2.0) return 'mistake';
   return 'blunder';
 }
+
+/* ------------------------------------------------------------------ *
+ * Elo
+ * ------------------------------------------------------------------ */
+
+/**
+ * Standard Elo update. `score` is 1 for a win, 0.5 for a draw, 0 for a loss.
+ * K-factor follows FIDE-style tapering so new/low-rated players move faster.
+ */
+export function eloDelta(playerElo: number, opponentElo: number, score: number, gamesPlayed = 30): number {
+  const k = gamesPlayed < 30 ? 40 : playerElo >= 2400 ? 10 : 20;
+  const expected = 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
+  return Math.round(k * (score - expected));
+}
+
+export const colorName = (color: PieceColor) => (color === 'w' ? 'White' : 'Black');

@@ -1,74 +1,214 @@
 rules_version = '2';
+
+/**
+ * Chesskys PRO security rules.
+ *
+ * The previous version contained `allow read, write: if isSignedIn() || true;`
+ * on matches, the matchmaking queue and direct messages — which evaluates to
+ * `true`, i.e. the whole internet could read every private chat and overwrite
+ * any game. These rules enforce:
+ *
+ *   - direct messages are readable/writable only by the two participants
+ *   - a match can only be written by one of its two players
+ *   - matches are append-only: the move list grows by exactly one entry per
+ *     update, the players/time control/start position can never change, and a
+ *     finished game cannot be rewritten (only rematch links may be added)
+ *   - matchmaking tickets belong to the player who created them
+ *
+ * Note on guests: the app lets people play without signing in (uid prefix
+ * `guest_`). Unauthenticated writes are therefore still permitted, but only for
+ * documents whose participants are guest ids, and they are subject to exactly
+ * the same append-only invariants. Requiring Firebase Anonymous Auth for guests
+ * would let us drop this exception entirely.
+ */
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    /* ---------------------------------------------------------------- *
+     * Helpers
+     * ---------------------------------------------------------------- */
 
     function isSignedIn() {
       return request.auth != null;
     }
 
+    function uid() {
+      return isSignedIn() ? request.auth.uid : '';
+    }
+
     function isDeveloper() {
       return isSignedIn() && (
-        request.auth.token.email.lower() == 'qayssafty@gmail.com' ||
-        request.auth.token.email.lower() == 'qaessafty@gmail.com' ||
-        (request.auth.token.keys().hasAll(['admin']) && request.auth.token.admin == true)
+        (request.auth.token.keys().hasAll(['admin']) && request.auth.token.admin == true) ||
+        (request.auth.token.email is string && (
+          request.auth.token.email.lower() == 'qayssafty@gmail.com' ||
+          request.auth.token.email.lower() == 'qaessafty@gmail.com'
+        ))
       );
     }
 
-    // User profile documents
+    function isGuestId(id) {
+      return id is string && (id.matches('guest_.*') || id.matches('ww_.*'));
+    }
+
+    /** Either the signed-in user, or an unauthenticated guest acting as a guest id. */
+    function actsAs(id) {
+      return (isSignedIn() && uid() == id) || (!isSignedIn() && isGuestId(id));
+    }
+
+    /* ---------------------------------------------------------------- *
+     * User profiles
+     * ---------------------------------------------------------------- */
+
     match /users/{userId} {
-      allow read: if true;
-      allow create: if isSignedIn() && (request.auth.uid == userId || isDeveloper());
-      allow update: if isSignedIn() && (request.auth.uid == userId || isDeveloper());
+      // Single profile lookups stay public (friend cards, opponent badges);
+      // enumerating the whole collection requires an account.
+      allow get: if true;
+      allow list: if isSignedIn();
+
+      allow create, update: if isSignedIn() && (uid() == userId || isDeveloper());
       allow delete: if isDeveloper();
     }
 
-    // Feedback collection
+    /* ---------------------------------------------------------------- *
+     * Feedback
+     * ---------------------------------------------------------------- */
+
     match /feedbacks/{feedbackId} {
-      // Anyone signed in or guest can create feedback
-      allow create: if true;
-      // Only developer or the author can read
-      allow read: if isDeveloper() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      // Developer can update status or delete
+      allow create: if request.resource.data.message is string
+                    && request.resource.data.message.size() < 5000;
+      allow read: if isDeveloper() || (isSignedIn() && resource.data.userId == uid());
       allow update, delete: if isDeveloper();
     }
 
-    // System Announcements
+    /* ---------------------------------------------------------------- *
+     * Announcements
+     * ---------------------------------------------------------------- */
+
     match /announcements/{announcementId} {
       allow read: if true;
       allow write: if isDeveloper();
     }
 
-    // Match games and records
-    match /games/{gameId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() || true;
-      allow delete: if isDeveloper();
-    }
+    /* ---------------------------------------------------------------- *
+     * Friend requests
+     * ---------------------------------------------------------------- */
 
-    // Friend Requests
     match /friend_requests/{requestId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isSignedIn() &&
+                  (resource.data.fromUserId == uid() || resource.data.toUserId == uid() || isDeveloper());
+      allow create: if isSignedIn() && request.resource.data.fromUserId == uid();
+      // Only the recipient may accept/decline; the sender may withdraw.
+      allow update: if isSignedIn() &&
+                    (resource.data.toUserId == uid() || resource.data.fromUserId == uid());
+      allow delete: if isSignedIn() &&
+                    (resource.data.toUserId == uid() || resource.data.fromUserId == uid());
     }
 
-    // Direct Messages between friends
+    /* ---------------------------------------------------------------- *
+     * Direct messages — chat id is the two uids sorted and joined with "_"
+     * ---------------------------------------------------------------- */
+
     match /direct_messages/{chatId} {
-      allow read, write: if isSignedIn() || true;
+      function inChat() {
+        return isSignedIn() && chatId.split('_').hasAny([uid()]);
+      }
+
+      allow read, write: if inChat() || isDeveloper();
+
       match /messages/{messageId} {
-        allow read, write: if isSignedIn() || true;
+        allow read: if inChat() || isDeveloper();
+        allow create: if inChat() && request.resource.data.senderId == uid();
+        allow update, delete: if isDeveloper();
       }
     }
 
-    // Online Matches
+    /* ---------------------------------------------------------------- *
+     * Online matches
+     * ---------------------------------------------------------------- */
+
     match /online_matches/{matchId} {
-      allow read, write: if isSignedIn() || true;
+      function players(data) {
+        return [data.whitePlayer.uid, data.blackPlayer.uid];
+      }
+
+      function isPlayerOf(data) {
+        return (isSignedIn() && players(data).hasAny([uid()])) ||
+               (!isSignedIn() && (isGuestId(data.whitePlayer.uid) || isGuestId(data.blackPlayer.uid)));
+      }
+
+      function isFinished(data) {
+        return data.status in ['checkmate', 'resigned', 'draw', 'timeout', 'aborted', 'abandoned'];
+      }
+
+      /** Identity of the match may never be rewritten. */
+      function immutableCore() {
+        return request.resource.data.startFen == resource.data.startFen
+               && request.resource.data.whitePlayer.uid == resource.data.whitePlayer.uid
+               && request.resource.data.blackPlayer.uid == resource.data.blackPlayer.uid
+               && request.resource.data.timeControl.id == resource.data.timeControl.id
+               && request.resource.data.hostId == resource.data.hostId;
+      }
+
+      /** Moves are append-only: 0 (offers, clocks, presence) or exactly 1 new move. */
+      function movesAppendOnly() {
+        return request.resource.data.moves is list
+               && (request.resource.data.moves.size() == resource.data.moves.size()
+                   || request.resource.data.moves.size() == resource.data.moves.size() + 1);
+      }
+
+      /** A finished game may only receive rematch/presence bookkeeping. */
+      function finishedUpdateAllowed() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['rematchOfferFrom', 'rematchMatchId', 'whiteSeenAt', 'blackSeenAt',
+                           'updatedAt', 'serverStamp']);
+      }
+
+      // Anyone with the link may watch a game.
+      allow read: if true;
+
+      allow create: if isPlayerOf(request.resource.data)
+                    && request.resource.data.moves.size() == 0
+                    && request.resource.data.startFen is string;
+
+      allow update: if isPlayerOf(resource.data)
+                    && immutableCore()
+                    && movesAppendOnly()
+                    && (!isFinished(resource.data) || finishedUpdateAllowed());
+
+      allow delete: if isDeveloper();
     }
 
-    // Matchmaking Queue for Worldwide Quick Matches
+    /* ---------------------------------------------------------------- *
+     * Matchmaking queue
+     * ---------------------------------------------------------------- */
+
     match /matchmaking_queue/{ticketId} {
-      allow read, write: if isSignedIn() || true;
+      // The queue has to be readable to be searchable, but tickets only carry
+      // public profile data (name, rating, flag).
+      allow read: if true;
+
+      allow create: if actsAs(request.resource.data.player.uid)
+                    && request.resource.data.status == 'waiting';
+
+      // The owner may refresh or cancel; another player may claim the ticket,
+      // and claiming can only set the pairing fields.
+      allow update: if actsAs(resource.data.player.uid)
+                    || (resource.data.status == 'waiting'
+                        && request.resource.data.status == 'matched'
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['status', 'matchId', 'opponent', 'color', 'seenAt']));
+
+      allow delete: if actsAs(resource.data.player.uid) || isDeveloper();
+    }
+
+    /* ---------------------------------------------------------------- *
+     * Legacy games collection
+     * ---------------------------------------------------------------- */
+
+    match /games/{gameId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isDeveloper();
     }
   }
 }
