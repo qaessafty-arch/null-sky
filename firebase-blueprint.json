@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with ELO, respect, role, and badge number",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "username": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 200 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "country": { "type": "string", "maxLength": 100 },
+        "flag": { "type": "string", "maxLength": 20 },
+        "elo": { "type": "number" },
+        "respectPoints": { "type": "number" },
+        "executions": { "type": "number" },
+        "merciesGranted": { "type": "number" },
+        "gamesPlayed": { "type": "number" },
+        "wins": { "type": "number" },
+        "honorRank": { "type": "string", "maxLength": 100 },
+        "rankBadge": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["owner", "developer", "admin", "grandmaster", "moderator", "member"] },
+        "badgeNumber": { "type": "number" },
+        "customStatus": { "type": "string", "maxLength": 300 },
+        "dailyStreak": { "type": "number" },
+        "lastDailySolved": { "type": "string", "maxLength": 20 }
+      },
+      "required": ["uid", "displayName", "elo", "respectPoints"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request invitation between players",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fromUserId": { "type": "string", "maxLength": 128 },
+        "fromUserName": { "type": "string", "maxLength": 100 },
+        "fromUsername": { "type": "string", "maxLength": 50 },
+        "fromUserAvatar": { "type": "string", "maxLength": 1000 },
+        "fromUserElo": { "type": "number" },
+        "fromUserHonorRank": { "type": "string", "maxLength": 100 },
+        "toUserId": { "type": "string", "maxLength": 128 },
+        "toUsername": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "fromUserId", "toUserId", "status"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "Private chat message between friends",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "chatId": { "type": "string", "maxLength": 256 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "senderAvatar": { "type": "string", "maxLength": 1000 },
+        "senderBadge": { "type": "string", "maxLength": 50 },
+        "text": { "type": "string", "maxLength": 2000 },
+        "challengeId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "chatId", "senderId", "text"]
+    },
+    "OnlineMatch": {
+      "title": "OnlineMatch",
+      "description": "Real-time 2-player chess game session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "whitePlayerId": { "type": "string", "maxLength": 128 },
+        "whitePlayerName": { "type": "string", "maxLength": 100 },
+        "whitePlayerAvatar": { "type": "string", "maxLength": 1000 },
+        "blackPlayerId": { "type": "string", "maxLength": 128 },
+        "blackPlayerName": { "type": "string", "maxLength": 100 },
+        "blackPlayerAvatar": { "type": "string", "maxLength": 1000 },
+        "fen": { "type": "string", "maxLength": 200 },
+        "pgn": { "type": "string", "maxLength": 10000 },
+        "turn": { "type": "string", "enum": ["w", "b"] },
+        "status": { "type": "string", "enum": ["waiting", "in_progress", "completed", "aborted"] },
+        "winner": { "type": "string", "enum": ["w", "b", "draw", "none"] },
+        "reason": { "type": "string", "maxLength": 200 },
+        "timeControlName": { "type": "string", "maxLength": 50 },
+        "whiteSeconds": { "type": "number" },
+        "blackSeconds": { "type": "number" }
+      },
+      "required": ["id", "fen", "status", "turn"]
+    },
+    "UserFeedback": {
+      "title": "UserFeedback",
+      "description": "Feedback submitted by users for developer review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 200 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userBadge": { "type": "string", "maxLength": 50 },
+        "category": { "type": "string", "enum": ["feature", "bug", "chess_engine", "theme_lore", "general"] },
+        "rating": { "type": "number" },
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "resolved"] },
+        "developerNote": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "category", "title", "message", "rating"]
+    },
+    "SystemAnnouncement": {
+      "title": "SystemAnnouncement",
+      "description": "Global developer announcements displayed across the app",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "content": { "type": "string", "maxLength": 2000 },
+        "author": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "enum": ["info", "update", "championship", "maintenance"] },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "title", "content", "active"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile with battlefield stats, role, and badge number"
+    },
+    "/friend_requests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Pending and accepted friend requests between users"
+    },
+    "/direct_messages/{chatId}/messages/{messageId}": {
+      "schema": "DirectMessage",
+      "description": "Private direct messages exchanged between friends"
+    },
+    "/online_matches/{matchId}": {
+      "schema": "OnlineMatch",
+      "description": "Real-time multiplayer match state"
+    },
+    "/feedbacks/{feedbackId}": {
+      "schema": "UserFeedback",
+      "description": "User feedback messages accessible to developer and author"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "SystemAnnouncement",
+      "description": "Broadcast announcements posted by the developer"
+    }
+  }
+}

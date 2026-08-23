@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isDeveloper() {
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'qayssafty@gmail.com' ||
+        request.auth.token.email.lower() == 'qaessafty@gmail.com' ||
+        (request.auth.token.keys().hasAll(['admin']) && request.auth.token.admin == true)
+      );
+    }
+
+    // User profile documents
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isSignedIn() && (request.auth.uid == userId || isDeveloper());
+      allow update: if isSignedIn() && (request.auth.uid == userId || isDeveloper());
+      allow delete: if isDeveloper();
+    }
+
+    // Feedback collection
+    match /feedbacks/{feedbackId} {
+      // Anyone signed in or guest can create feedback
+      allow create: if true;
+      // Only developer or the author can read
+      allow read: if isDeveloper() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Developer can update status or delete
+      allow update, delete: if isDeveloper();
+    }
+
+    // System Announcements
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isDeveloper();
+    }
+
+    // Match games and records
+    match /games/{gameId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || true;
+      allow delete: if isDeveloper();
+    }
+
+    // Friend Requests
+    match /friend_requests/{requestId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    // Direct Messages between friends
+    match /direct_messages/{chatId} {
+      allow read, write: if isSignedIn() || true;
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn() || true;
+      }
+    }
+
+    // Online Matches
+    match /online_matches/{matchId} {
+      allow read, write: if isSignedIn() || true;
+    }
+
+    // Matchmaking Queue for Worldwide Quick Matches
+    match /matchmaking_queue/{ticketId} {
+      allow read, write: if isSignedIn() || true;
+    }
+  }
+}

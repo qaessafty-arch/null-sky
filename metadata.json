@@ -1,0 +1,6 @@
+{
+  "name": "Chesskys PRO",
+  "description": "Premier Kurdish Peshmerga chess platform featuring AI bots, Daily Tactics Puzzles, Friends Panel with unique handles, real-time private chat, live online multiplayer matches, and the Respect honor system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

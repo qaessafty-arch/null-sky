@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+:root {
+  --app-bg: #0a0a0c;
+  --primary-accent: #3b82f6;
+  --primary-accent-hover: #2563eb;
+  --secondary-accent: #a855f7;
+  --accent-glow: rgba(59, 130, 246, 0.35);
+  --mesh-1: rgba(59, 130, 246, 0.22);
+  --mesh-2: rgba(139, 92, 246, 0.20);
+  --mesh-3: rgba(236, 72, 153, 0.15);
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-bg-hover: rgba(255, 255, 255, 0.10);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-hover: rgba(96, 165, 250, 0.35);
+  --glass-panel: rgba(15, 18, 28, 0.75);
+  --text-main: #f8fafc;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+  --board-border: #4a6333;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--app-bg, #0a0a0c);
+    color: var(--text-main, #f8fafc);
+    min-height: 100vh;
+    transition: background-color 0.3s ease;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .font-ui {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+}
+
+/* Dynamic Ambient Frosted Glass Mesh Gradient */
+.mesh-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  background: 
+    radial-gradient(circle at 12% 12%, var(--mesh-1, rgba(59, 130, 246, 0.22)) 0px, transparent 48%),
+    radial-gradient(circle at 88% 18%, var(--mesh-2, rgba(139, 92, 246, 0.20)) 0px, transparent 48%),
+    radial-gradient(circle at 50% 85%, var(--mesh-3, rgba(236, 72, 153, 0.15)) 0px, transparent 50%),
+    radial-gradient(circle at 80% 82%, var(--mesh-1, rgba(96, 165, 250, 0.12)) 0px, transparent 40%),
+    var(--app-bg, #0a0a0c);
+  transition: background 0.4s ease;
+}
+
+/* Frosted Glass Card Utilities */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-card-hover {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-hover:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px 0 var(--accent-glow);
+}
+
+.glass-panel {
+  background: var(--glass-panel, rgba(15, 18, 28, 0.75));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-pill {
+  background: var(--glass-bg, rgba(255, 255, 255, 0.08));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+}
+
+.glass-pill:hover {
+  background: var(--glass-bg-hover, rgba(255, 255, 255, 0.14));
+  border-color: var(--glass-border-hover, rgba(255, 255, 255, 0.24));
+}
+
+/* Theme Button Utilities */
+.theme-btn-gradient {
+  background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 18px 0 var(--accent-glow);
+  transition: all 0.2s ease;
+}
+
+.theme-btn-gradient:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 24px 0 var(--accent-glow);
+}
+
+.theme-glow-accent {
+  box-shadow: 0 0 25px 0 var(--accent-glow);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+/* Chess board animations and effects */
+@keyframes piece-drop {
+  0% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.piece-drop-anim {
+  animation: piece-drop 0.15s cubic-bezier(0.2, 0, 0.13, 1.5);
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.pulse-check {
+  animation: pulse-subtle 1.2s infinite ease-in-out;
+}
+
+
