@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { FriendUser, DirectMessageItem, TimeControl } from '../types/chess';
 import { TIME_CONTROLS } from '../utils/chessEngine';
 import { getChatId, sendDirectMessage, listenToDirectMessages } from '../services/chatService';
-import { createOnlineMatchChallenge } from '../services/onlineMatchService';
+import { acceptOnlineMatchChallenge, createOnlineMatchChallenge } from '../services/onlineMatchService';
 import { 
   MessageSquare, 
   Send, 
@@ -136,7 +136,10 @@ export const FriendChatModal: React.FC<FriendChatModalProps> = ({
     }
   };
 
-  const handleAcceptChallengeFromMessage = (matchId: string) => {
+  const handleAcceptChallengeFromMessage = async (matchId: string) => {
+    // Flip the challenge from "waiting" to "in_progress" before entering it,
+    // otherwise the clocks never start for the challenger.
+    await acceptOnlineMatchChallenge(matchId);
     onStartOnlineMatch(matchId);
   };
 
@@ -272,7 +275,7 @@ export const FriendChatModal: React.FC<FriendChatModalProps> = ({
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleAcceptChallengeFromMessage(msg.challengeData!.matchId)}
+                          onClick={() => void handleAcceptChallengeFromMessage(msg.challengeData!.matchId)}
                           className="px-3 py-1 rounded-lg bg-[#8C2425] hover:bg-[#8C2425]/80 text-white font-bold text-[11px] transition-all cursor-pointer border border-[#F5C453]/30"
                         >
                           Join Match

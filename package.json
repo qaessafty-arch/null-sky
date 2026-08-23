@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "chesskys-pro",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "npm run test:engine && npm run test:multiplayer",
+    "test:engine": "tsx src/engine/perft.test.ts && tsx src/engine/bench.ts 600",
+    "test:multiplayer": "tsx src/services/matchRules.test.ts",
+    "bench": "tsx src/engine/bench.ts 3000",
+    "deploy:rules": "firebase deploy --only firestore --non-interactive"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

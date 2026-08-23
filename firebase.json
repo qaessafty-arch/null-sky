@@ -1,0 +1,7 @@
+{
+  "firestore": {
+    "database": "ai-studio-chesskyspro-81bf19f6-839d-4d8e-8c71-e9af0de56150",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

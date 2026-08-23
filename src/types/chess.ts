@@ -65,6 +65,10 @@ export interface DirectMessageItem {
 
 export interface OnlineMatchPlayer {
   uid: string;
+  /** True for engine-driven opponents (worldwide challengers). */
+  isBot?: boolean;
+  /** Elo of the bot personality driving this opponent, when isBot. */
+  botId?: string;
   displayName: string;
   username?: string;
   photoURL?: string;
@@ -77,6 +81,27 @@ export interface OnlineMatchPlayer {
   flag?: string;
 }
 
+export type OnlineMatchStatus =
+  | 'waiting'
+  | 'in_progress'
+  | 'checkmate'
+  | 'resigned'
+  | 'draw'
+  | 'timeout'
+  | 'aborted'
+  | 'abandoned';
+
+/** Authoritative clock state. Everything is milliseconds. */
+export interface OnlineMatchClock {
+  whiteMs: number;
+  blackMs: number;
+  incrementMs: number;
+  /** Server-corrected epoch ms at which the side to move started thinking. */
+  turnStartedAt: number;
+  /** False until both sides have moved (so an unanswered challenge never flags). */
+  running: boolean;
+}
+
 export interface OnlineMatchSession {
   id: string;
   hostId: string;
@@ -86,19 +111,41 @@ export interface OnlineMatchSession {
   fen: string;
   pgn: string;
   turn: 'w' | 'b';
-  status: 'waiting' | 'in_progress' | 'checkmate' | 'resigned' | 'draw' | 'timeout' | 'aborted';
+  status: OnlineMatchStatus;
   winner: 'w' | 'b' | 'draw' | null;
   reason?: string;
   timeControl: TimeControl;
-  whiteSecondsRemaining: number;
-  blackSecondsRemaining: number;
-  lastMoveTimestamp?: number;
+  /** Position the game started from (Chess960/custom ready). */
+  startFen: string;
+  /** SAN move list — replayed by every client to verify `fen` was not forged. */
+  moves: string[];
+  /** The same moves in UCI, for the engine. */
+  ucis: string[];
+  moveCount: number;
+  clock: OnlineMatchClock;
+  lastMoveBy?: string | null;
+  lastMoveSan?: string | null;
   lastMoveFrom?: string;
   lastMoveTo?: string;
+  lastMoveTimestamp?: number;
+  /** Presence heartbeats (server-corrected epoch ms). */
+  whiteSeenAt?: number;
+  blackSeenAt?: number;
   drawOfferFrom?: string | null;
+  drawDeclinedAt?: number | null;
   rematchOfferFrom?: string | null;
+  rematchMatchId?: string | null;
+  /** True when the opponent is an engine personality run by the other client. */
+  vsBot?: boolean;
+  isRated?: boolean;
+  endedAt?: number | null;
+  /** Resolved by the Firestore server; used to correct client clock drift. */
+  serverStamp?: unknown;
   createdAt: string;
   updatedAt?: string;
+  /** Legacy fields kept so old documents still render. */
+  whiteSecondsRemaining?: number;
+  blackSecondsRemaining?: number;
 }
 
 export interface RespectProfile {

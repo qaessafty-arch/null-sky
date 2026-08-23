@@ -4,7 +4,7 @@ import { AppSettings, OpeningInfo } from '../types/chess';
 import { ChessBoard } from './ChessBoard';
 import { EvalBar } from './EvalBar';
 import { MoveHistory } from './MoveHistory';
-import { evaluateBoard, findBestMove } from '../utils/chessEngine';
+import { engine } from '../engine/client';
 import { detectOpening } from '../utils/openings';
 import { soundManager } from '../utils/audio';
 import {
@@ -49,22 +49,52 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [evalScore, setEvalScore] = useState<number>(0);
   const [bestMoveSan, setBestMoveSan] = useState<string | null>(null);
+  const [searchDepth, setSearchDepth] = useState(0);
+  const [mateIn, setMateIn] = useState<number | null>(null);
+  const [isThinking, setIsThinking] = useState(false);
   const [fenInput, setFenInput] = useState('');
   const [showFenModal, setShowFenModal] = useState(false);
 
-  // Re-evaluate on position change
+  // Re-evaluate on position change — the search runs in the engine worker, so
+  // the panel stays responsive while it thinks.
   useEffect(() => {
-    const score = evaluateBoard(analysisGame);
-    setEvalScore(score);
+    let cancelled = false;
+    const fen = analysisGame.fen();
+    setIsThinking(true);
 
-    // Compute best move for current position
-    try {
-      const isWhite = analysisGame.turn() === 'w';
-      const best = findBestMove(analysisGame, 3, isWhite);
-      setBestMoveSan(best.move ? best.move.san : null);
-    } catch {
-      setBestMoveSan(null);
-    }
+    engine
+      .search({ fen }, { depth: 14, timeMs: 1200 })
+      .then(result => {
+        if (cancelled) return;
+        setEvalScore(result.mateIn !== null ? (result.mateIn > 0 ? 1000 : -1000) : result.scoreWhite / 100);
+        setSearchDepth(result.depth);
+        setMateIn(result.mateIn);
+        if (!result.bestMove) {
+          setBestMoveSan(null);
+          return;
+        }
+        try {
+          const probe = new Chess(fen);
+          const applied = probe.move({
+            from: result.bestMove.slice(0, 2) as Square,
+            to: result.bestMove.slice(2, 4) as Square,
+            promotion: (result.bestMove[4] as 'q' | 'r' | 'b' | 'n' | undefined) ?? 'q'
+          });
+          setBestMoveSan(applied ? applied.san : null);
+        } catch {
+          setBestMoveSan(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBestMoveSan(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsThinking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [analysisGame]);
 
   const handleAnalysisMove = (from: Square, to: Square) => {
@@ -149,15 +179,27 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
 
           <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 mb-3 backdrop-blur-md">
             <div>
-              <div className="text-[11px] text-white/50 font-medium">Evaluation</div>
-              <div className="text-lg font-mono font-extrabold text-white">
-                {evalScore > 0 ? `+${evalScore.toFixed(2)}` : evalScore.toFixed(2)}
+              <div className="text-[11px] text-white/50 font-medium flex items-center gap-1.5">
+                Evaluation
+                {isThinking && (
+                  <span className="w-2.5 h-2.5 rounded-full border border-blue-400 border-t-transparent animate-spin" />
+                )}
               </div>
+              <div className="text-lg font-mono font-extrabold text-white">
+                {mateIn !== null
+                  ? `#${mateIn > 0 ? '' : '-'}${Math.abs(mateIn)}`
+                  : evalScore > 0
+                    ? `+${evalScore.toFixed(2)}`
+                    : evalScore.toFixed(2)}
+              </div>
+              {searchDepth > 0 && (
+                <div className="text-[10px] text-white/40 font-mono">depth {searchDepth}</div>
+              )}
             </div>
 
             {bestMoveSan && (
               <div className="text-right">
-                <div className="text-[11px] text-white/50 font-medium">Top Engine Move</div>
+                <div className="text-[11px] text-white/50 font-medium">Top engine move</div>
                 <div className="flex items-center gap-1 text-sm font-mono font-bold text-blue-400">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>{bestMoveSan}</span>
