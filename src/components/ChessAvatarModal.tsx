@@ -53,7 +53,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'Knight',
     primaryColor: '#52673A',
     accentColor: '#F5C453',
-    previewUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Kurdish mountain chess scout holding a carved wooden knight piece against misty Zagros peaks at golden dawn, highly detailed portrait'
   },
   {
@@ -66,7 +66,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'Bishop',
     primaryColor: '#8C2425',
     accentColor: '#F5C453',
-    previewUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Desert scout warrior with red Jamadani scarf holding a glowing golden bishop chess piece in desert wind, dramatic lighting'
   },
   {
@@ -79,7 +79,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'Rook',
     primaryColor: '#2D3748',
     accentColor: '#F5C453',
-    previewUrl: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Armored Kurdish Peshmerga knight sentinel with bronze rook-engraved shield on mountain pass fortress, cinematic 8k render'
   },
   {
@@ -92,7 +92,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'Knight',
     primaryColor: '#52673A',
     accentColor: '#8C2425',
-    previewUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Peshmerga tactical guardian in traditional olive-green uniform holding a carved chess piece with Erbil fortress background'
   },
   {
@@ -105,7 +105,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'Queen',
     primaryColor: '#D97706',
     accentColor: '#F5C453',
-    previewUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Majestic Eagle warrior grandmaster overlooking glowing chessboard at Erbil Citadel sunset, golden plumage regalia'
   },
   {
@@ -118,7 +118,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'King',
     primaryColor: '#B45309',
     accentColor: '#F5C453',
-    previewUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Regal Kurdish lion chess champion with gold embroidered royal cloak, holding a master King piece, cinematic rim lighting'
   },
   {
@@ -131,7 +131,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'King',
     primaryColor: '#F5C453',
     accentColor: '#8C2425',
-    previewUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Celestial Kurdish Grandmaster radiating golden 21-ray sun halo with floating glowing crystal chess pieces, mythic digital art'
   },
   {
@@ -144,7 +144,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'Queen',
     primaryColor: '#0EA5E9',
     accentColor: '#38BDF8',
-    previewUrl: 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Mystical celestial azure warrior with glowing butterfly wings holding a diamond chess queen, starry nebula background'
   },
   {
@@ -157,7 +157,7 @@ export const AVATAR_ARCHETYPES: AvatarArchetype[] = [
     defaultPiece: 'King',
     primaryColor: '#161c12',
     accentColor: '#F5C453',
-    previewUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=80',
+    previewUrl: '/avatars/default.svg',
     promptSuggestion: 'Imperial Founder chess grandmaster wearing a 24k gold crown of the Kurdish Sun, obsidian armor with gold filigree'
   }
 ];

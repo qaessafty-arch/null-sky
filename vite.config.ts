@@ -3,8 +3,11 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+const buildStamp = new Date().toISOString();
+
 export default defineConfig(() => {
   return {
+    define: { 'import.meta.env.VITE_BUILD_STAMP': JSON.stringify(process.env.VITE_BUILD_STAMP || buildStamp) },
     plugins: [react(), tailwindcss()],
     build: {
       // Split the vendor weight out of the app chunk so the board renders

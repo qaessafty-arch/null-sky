@@ -13,7 +13,8 @@
     "test:engine": "tsx src/engine/perft.test.ts && tsx src/engine/bench.ts 600",
     "test:multiplayer": "tsx src/services/matchRules.test.ts",
     "bench": "tsx src/engine/bench.ts 3000",
-    "deploy:rules": "firebase deploy --only firestore --non-interactive"
+    "deploy:rules": "firebase deploy --only firestore --non-interactive",
+    "dev-key": "node scripts-dev-key.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

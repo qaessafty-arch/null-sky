@@ -169,10 +169,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const handleDevPasskeySubmit = (e: React.FormEvent) => {
+  const handleDevPasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDevPassError('');
-    const success = signInWithDeveloperPasskey(devPasskeyInput);
+    const success = await signInWithDeveloperPasskey(devPasskeyInput);
     if (success) {
       setDevPasskeyInput('');
     } else {
@@ -236,17 +236,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const getSkyLoginUrl = () => {
-    const origin = window.location.origin + window.location.pathname;
-    return `${origin}?account=sky`;
-  };
-
-  const handleCopySkyLink = () => {
-    navigator.clipboard.writeText(getSkyLoginUrl());
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl animate-in fade-in duration-200 p-3 sm:p-4">
       <div className="relative glass-panel rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl border border-[#F5C453]/30 overflow-hidden max-h-[92vh] overflow-y-auto">
@@ -284,93 +273,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
           </div>
         </div>
 
-        {/* Dedicated Account [sky] Card (Developer-Locked Access) */}
-        <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-sky-950/70 via-[#0B1726]/90 to-sky-900/50 border border-sky-400/40 shadow-lg relative overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-sky-500/20 border-2 border-sky-400 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(56,189,248,0.4)] shrink-0">
-                🦋
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm font-black text-sky-200">Account: [sky]</h3>
-                  <span className="px-1.5 py-0.5 rounded bg-sky-400/20 text-sky-300 text-[10px] font-black border border-sky-400/30">
-                    CELESTIAL IMMORTAL 🦋
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono border border-amber-400/30 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" /> DEV ONLY
-                  </span>
-                </div>
-                <p className="text-xs text-sky-200/70">
-                  Infinite Celestial ELO (∞) • Infinite Respect (∞) • Protected Developer Identity
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isSkyAccount ? (
-                <span className="px-3 py-1.5 rounded-xl bg-sky-500 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-sky-500/30">
-                  <Check className="w-3.5 h-3.5" />
-                  Active Celestial
-                </span>
-              ) : (
-                <button
-                  onClick={handleSkyLoginClick}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs transition-all shadow-md hover:scale-[1.02] flex items-center gap-1.5 cursor-pointer"
-                  title="Developer authorization required"
-                >
-                  <Lock className="w-3 h-3 text-sky-200" />
-                  <span>Log in as [sky]</span>
-                </button>
-              )}
-
-              <button
-                onClick={handleCopySkyLink}
-                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-sky-300 border border-sky-400/30 transition-all text-xs flex items-center gap-1"
-                title="Copy Direct Login URL for [sky] Account"
-              >
-                {copiedLink ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Link2 className="w-4 h-4" />}
-                <span className="hidden sm:inline">{copiedLink ? 'Copied!' : 'Link'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Sky Passkey Unlock Prompt Modal/Dropdown */}
-          {showSkyPassModal && (
-            <form onSubmit={handleSkyPasskeyUnlock} className="mt-3 pt-3 border-t border-sky-400/30 flex flex-wrap items-center gap-2 animate-in slide-in-from-top-2">
-              <div className="flex items-center gap-1.5 text-xs text-sky-200 font-bold">
-                <KeyRound className="w-3.5 h-3.5 text-amber-300" />
-                <span>Developer Key:</span>
-              </div>
-              <input
-                type="password"
-                placeholder="Enter Developer Passkey (e.g. q.brz)"
-                value={skyPassInput}
-                onChange={e => setSkyPassInput(e.target.value)}
-                className="flex-1 min-w-[180px] px-3 py-1.5 rounded-xl bg-black/50 border border-sky-400/40 text-white text-xs outline-none focus:border-sky-300"
-              />
-              <button
-                type="submit"
-                className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-all shadow"
-              >
-                Verify & Unlock
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSkyPassModal(false)}
-                className="px-2.5 py-1.5 rounded-xl bg-white/10 text-white/70 text-xs font-bold"
-              >
-                Cancel
-              </button>
-              {skyError && (
-                <p className="w-full text-[11px] text-red-300 font-bold mt-1">
-                  {skyError}
-                </p>
-              )}
-            </form>
-          )}
-        </div>
-
         {/* ========================================================
             AUTH STATE: UNLOGGED / MULTI-AUTHORING WAY OPTIONS
             ======================================================== */}
@@ -387,7 +289,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             </div>
 
             {/* Auth Mode Tabs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-black/40 rounded-2xl border border-white/10">
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-black/40 rounded-2xl border border-white/10">
               <button
                 type="button"
                 onClick={() => { setAuthTab('google'); setAuthError(''); }}
@@ -426,18 +328,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <span>Email</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setAuthTab('dev_passkey'); setAuthError(''); }}
-                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  authTab === 'dev_passkey'
-                    ? 'bg-gradient-to-r from-amber-600 to-[#8C2425] text-white shadow-md border border-amber-400'
-                    : 'text-amber-300/80 hover:text-amber-200 hover:bg-white/5'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5 text-amber-300" />
-                <span>Dev Key</span>
-              </button>
+
             </div>
 
             {/* Error Message */}
@@ -567,45 +458,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               </form>
             )}
 
-            {/* TAB 4: DEVELOPER MASTER PASSKEY */}
-            {authTab === 'dev_passkey' && (
-              <form onSubmit={handleDevPasskeySubmit} className="space-y-3 animate-in fade-in duration-150">
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <div className="flex items-center gap-2 text-xs font-black text-amber-300">
-                    <Crown className="w-4 h-4 text-amber-400" />
-                    <span>Founder Direct Passkey Portal</span>
-                  </div>
-                  <p className="text-[11px] text-[#DFD0B0]/70 mt-1">
-                    Instant access to <span className="text-[#F5C453] font-bold">qayssafty@gmail.com</span> Owner #0 credentials from any browser.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-[11px] text-[#DFD0B0]/70 font-bold block mb-1">
-                    Developer Passkey
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter passkey (e.g. q.brz)"
-                    value={devPasskeyInput}
-                    onChange={e => setDevPasskeyInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-amber-400/40 text-white text-xs outline-none focus:border-amber-300 font-mono"
-                  />
-                </div>
-
-                {devPassError && (
-                  <p className="text-[11px] text-red-400 font-bold">{devPassError}</p>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-[#8C2425] hover:from-amber-500 text-white font-black text-xs border border-amber-400 shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
-                >
-                  <Crown className="w-4 h-4 text-[#F5C453]" />
-                  <span>Authenticate as Founder #0</span>
-                </button>
-              </form>
-            )}
           </div>
         ) : (
           /* ========================================================
@@ -627,7 +479,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   title="Click to open Imagen Chess Avatar Studio"
                 >
                   <img
-                    src={profile?.photoURL || (isSkyAccount ? 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=200&auto=format&fit=crop&q=80' : user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60')}
+                    src={profile?.photoURL || (isSkyAccount ? '/avatars/default.svg' : user?.photoURL || '/avatars/default.svg')}
                     alt={profile?.displayName || 'User'}
                     className={`w-14 h-14 rounded-2xl object-cover border-2 shadow-md transition-all group-hover:scale-105 group-hover:border-[#F5C453] ${
                       isSkyAccount ? 'border-sky-400 ring-2 ring-sky-300/40' : 'border-[#F5C453]'

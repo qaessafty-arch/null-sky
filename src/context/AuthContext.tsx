@@ -33,16 +33,15 @@ export const DEVELOPER_EMAILS = [
   'qaessafty@gmail.com'
 ];
 
-export const DEV_PASSKEYS = [
-  'q.brz',
-  'qbrz',
-  'qayssafty',
-  'qaessafty',
-  'peshmerga_dev',
-  'founder#0',
-  'QAESS_MASTER_2026',
-  'dev2026'
-];
+/** Only a digest is shipped. Configure VITE_DEV_PASSKEY_HASH at build time. */
+const DEV_PASSKEY_HASH = (import.meta.env.VITE_DEV_PASSKEY_HASH || '').trim().toLowerCase();
+
+const digestKey = async (key: string): Promise<string> => {
+  const bytes = new TextEncoder().encode(key.trim().toLowerCase());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
 
 export const PRESET_BADGES = [
   { id: 'founder_0', label: '👑 OWNER #0', role: 'owner' as UserRole, badgeNumber: 0, desc: 'Supreme Founder & Architect' },
@@ -115,8 +114,8 @@ interface AuthContextType {
   signUpWithEmail: (email: string, pass: string, displayName?: string) => Promise<void>;
   signInAsSky: (passkey?: string) => Promise<boolean>;
   signInAsDeveloper: () => Promise<void>;
-  signInWithDeveloperPasskey: (key: string) => boolean;
-  toggleDevModeUnlocked: (key?: string) => boolean;
+  signInWithDeveloperPasskey: (key: string) => Promise<boolean>;
+  toggleDevModeUnlocked: (key?: string) => Promise<boolean>;
   setOwnerBadgeAndStatus: (updates: { customBadge?: string; customStatus?: string; badgeNumber?: number; role?: UserRole }) => Promise<void>;
   signOut: () => Promise<void>;
   updateRespectMetrics: (delta: {
@@ -144,7 +143,7 @@ export const SKY_PROFILE_DEFAULT: UserProfileData = {
   displayName: 'sky',
   username: 'sky',
   email: 'sky.celestial@chesskys.pro',
-  photoURL: 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=200&auto=format&fit=crop&q=80',
+  photoURL: '/avatars/sky-butterfly.png',
   country: 'Kurdistan / Sky Realm',
   flag: '🦋',
   elo: '∞ (Celestial)',
@@ -168,7 +167,7 @@ export const DEVELOPER_PROFILE_DEFAULT: UserProfileData = {
   displayName: 'q.brz',
   username: 'q.brz',
   email: 'qayssafty@gmail.com',
-  photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+  photoURL: '/avatars/owner-peshmerga.png',
   country: 'Kurdistan',
   flag: '👑',
   elo: 3000,
@@ -206,10 +205,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEVELOPER_EMAILS.some(e => e.toLowerCase() === lower);
   };
 
-  const isValidDevKey = (key?: string) => {
-    if (!key) return false;
-    const cleanKey = key.trim().toLowerCase();
-    return DEV_PASSKEYS.some(k => k.toLowerCase() === cleanKey);
+  const isValidDevKey = async (key?: string) => {
+    if (!key || !DEV_PASSKEY_HASH) return false;
+    try { return (await digestKey(key)) === DEV_PASSKEY_HASH; } catch { return false; }
   };
 
   const isDeveloper = isEmailDeveloper(user?.email) || 
@@ -223,8 +221,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Seed Sky and Dev profiles
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const accountParam = params.get('account') || params.get('user') || params.get('login');
     const storedSky = localStorage.getItem('chess_active_account') === 'sky';
     const storedDev = localStorage.getItem('chess_active_account') === 'dev';
     const storedGuest = localStorage.getItem('chess_active_account') === 'guest';
@@ -232,9 +228,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Sky account is strictly restricted to developer/owner session
     const hasDevPrivilege = devModeUnlocked || storedDev;
 
-    if ((accountParam?.toLowerCase() === 'sky' || storedSky) && hasDevPrivilege) {
+    if (storedSky && hasDevPrivilege) {
       activateSkyProfile();
-    } else if (accountParam?.toLowerCase() === 'dev' || storedDev) {
+    } else if (storedDev) {
       activateDevProfile();
     } else if (storedGuest) {
       const savedGuest = localStorage.getItem('chess_guest_profile');
@@ -301,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       uid: `guest_${Date.now()}_${randId}`,
       displayName: guestName,
       email: null,
-      photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60',
+      photoURL: '/avatars/default.svg',
       country: customCountry || 'Kurdistan',
       flag: '☀️',
       elo: 1200,
@@ -386,7 +382,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               uid: currentUser.uid,
               displayName: currentUser.displayName || (isDev ? 'q.brz' : 'Peshmerga Warrior'),
               email: currentUser.email || null,
-              photoURL: currentUser.photoURL || (isDev ? DEVELOPER_PROFILE_DEFAULT.photoURL : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'),
+              photoURL: currentUser.photoURL || (isDev ? DEVELOPER_PROFILE_DEFAULT.photoURL : '/avatars/default.svg'),
               country: 'Kurdistan',
               flag: isDev ? '👑' : '☀️',
               elo: isDev ? 3000 : 1200,
@@ -502,7 +498,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInAsSky = async (passkey?: string): Promise<boolean> => {
     // Only Developer & Founder can login as Sky
-    const isAuthorized = isDeveloper || isOwner || devModeUnlocked || isValidDevKey(passkey);
+    const isAuthorized = isDeveloper || isOwner || devModeUnlocked || await isValidDevKey(passkey);
     if (!isAuthorized) {
       throw new Error('Access Denied: The celestial [sky] account is exclusively reserved for the Developer & Founder. Please enter the Developer Master Key to access.');
     }
@@ -530,21 +526,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithDeveloperPasskey = (key: string): boolean => {
-    if (isValidDevKey(key)) {
+  const signInWithDeveloperPasskey = async (key: string): Promise<boolean> => {
+    if (await isValidDevKey(key)) {
       activateDevProfile();
       return true;
     }
     return false;
   };
 
-  const toggleDevModeUnlocked = (key?: string): boolean => {
+  const toggleDevModeUnlocked = async (key?: string): Promise<boolean> => {
     if (devModeUnlocked) {
       setDevModeUnlocked(false);
       localStorage.removeItem('chess_dev_unlocked');
       return false;
     }
-    if (!key || isValidDevKey(key)) {
+    if (!key || await isValidDevKey(key)) {
       setDevModeUnlocked(true);
       localStorage.setItem('chess_dev_unlocked', 'true');
       return true;
@@ -715,7 +711,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           elo: d.elo,
           executions: d.executions,
           mercies: d.merciesGranted,
-          avatar: d.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60',
+          avatar: d.photoURL || '/avatars/default.svg',
           isCurrentUser: currentActiveUid ? d.uid === currentActiveUid : false,
           role: d.role,
           badgeNumber: d.badgeNumber,

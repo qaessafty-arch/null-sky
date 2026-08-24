@@ -483,7 +483,7 @@ export const DeveloperSettingsModal: React.FC<DeveloperSettingsModalProps> = ({ 
                               <td className="p-3">
                                 <div className="flex items-center gap-2.5">
                                   <img
-                                    src={u.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60&auto=format&fit=crop&q=60'}
+                                    src={u.photoURL || '/avatars/default.svg'}
                                     alt={u.displayName}
                                     className="w-8 h-8 rounded-xl object-cover border border-white/20"
                                   />

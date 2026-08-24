@@ -163,3 +163,14 @@
 }
 
 
+
+/* Shared motion and accessibility vocabulary */
+.glass-card, .glass-panel { position: relative; overflow: hidden; }
+.glass-card::before, .glass-panel::before { content: ''; position: absolute; inset: 0 0 auto; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); pointer-events:none; }
+:focus-visible { outline: 2px solid #f5c453; outline-offset: 3px; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; display:grid; place-items:center; padding:1rem; background:rgba(0,0,0,.7); backdrop-filter:blur(14px); }
+.modal-shell { width:min(100%, 42rem); max-height:min(90vh, 54rem); display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(245,196,83,.3); border-radius:1.25rem; background:rgba(15,18,28,.9); box-shadow:0 24px 80px rgba(0,0,0,.55); }
+.modal-header { position:sticky; top:0; z-index:1; display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,.1); }
+.modal-header h2 { margin:0; font-size:1.05rem; font-weight:800; }.modal-close { font-size:1.5rem; color:#fff9; background:none; border:0; cursor:pointer; }.modal-body { overflow:auto; padding:1.25rem; }.modal-footer { position:sticky; bottom:0; padding:1rem 1.25rem; border-top:1px solid rgba(255,255,255,.1); }
+button { position:relative; overflow:hidden; }.gold-gradient-text { background:linear-gradient(90deg,#f5c453,#fff1b0,#d99c2b); -webkit-background-clip:text; color:transparent; }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; } }

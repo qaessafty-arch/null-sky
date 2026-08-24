@@ -152,3 +152,23 @@ Note the deliberate exception documented in the README: guests play
 unauthenticated with `guest_…` ids, so unauthenticated writes are still allowed
 for guest-owned documents under the same append-only invariants. Turning on
 Firebase Anonymous Auth would let you delete that exception.
+
+## Security and multiplayer manual checklist
+
+- Open two authenticated sessions, join the same queue, and confirm neither sees
+  its own ticket as the opponent; repeat with simultaneous clicks to verify only
+  one match is created.
+- In browser devtools attempt to update a match with a forged `fen`, changed
+  players, two SAN moves, or a move after finish. The transaction must reject it;
+  reload from the other client and confirm replay remains authoritative.
+- Verify increment is added to the mover, a clock starts only after both players
+  have moved, and `claimTimeout` settles a flag. Timeout against king-only
+  material is a draw.
+- Promote to knight, rook, and bishop online; the opponent must receive the
+  selected promotion rather than an automatic queen.
+- Verify spectator links, draw offer/decline, abort, rematch colour swap,
+  presence disconnect, history review, and `?match=<id>` invite fallback.
+- Run `npm run dev-key -- "a temporary key"`; set only its digest in a local
+  `.env`, then confirm the raw key is absent from `dist` (`grep -R "temporary key"
+  dist` returns no result). Never treat a client digest as a substitute for a
+  Firebase custom claim.

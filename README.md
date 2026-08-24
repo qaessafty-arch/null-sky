@@ -182,3 +182,37 @@ src/
   context/        auth + profile
   utils/          chessEngine.ts (chess.js <-> engine bridge), audio, themes, puzzles
 ```
+
+## Engine, match protocol, and access model
+
+The search core in `src/engine` is independent of chess.js: a packed 0x88 board
+handles legal moves, make/unmake, hashing, evaluation, iterative PVS search and
+bot error models. chess.js remains the UI adapter for SAN and PGN. Requests from
+the UI use `src/engine/client.ts`; browsers use the worker and test/SSR
+ environments use the in-thread handler.
+
+Online matches are server-authoritative at the protocol boundary. A move
+transaction replays the stored SAN list from the immutable starting FEN, checks
+ownership and turn, then writes at most one move. Clocks are derived from
+`whiteMs`, `blackMs`, `turnStartedAt`, and the server-time offset; `claimTimeout`
+settles a flag. Clients should treat a failed replay as tampering, not repair the
+FEN.
+
+Owner unlock is deliberately not a public login mechanism. The client may be
+built with a salted SHA-256 digest using `VITE_DEV_PASSKEY_HASH` and
+`npm run dev-key -- "key"`; the digest resists reading from a bundle but not
+guessing. The real gate for privileged operations is a Firebase custom claim
+(`admin`/owner), enforced in Firestore rules. Leave the build variable empty for
+normal public deployments. Owner-only profiles are not shown on the public sign-in
+screen and privileged artwork is local, original artwork under `public/avatars`.
+
+### Remaining security gaps
+
+Firestore rules can enforce document-level invariants and participant access, but
+cannot securely replay arbitrary chess SAN or validate elapsed time by themselves.
+The trusted transaction path and opponent replay provide client-side detection;
+production deployments should move move validation, timeout settlement, Elo, and
+custom-claim administration to a callable Cloud Function/App Check boundary.
+Guests remain intentionally supported and therefore have weaker identity than
+Firebase-authenticated players. Queue reads and public spectator reads expose only
+match metadata, not direct messages.

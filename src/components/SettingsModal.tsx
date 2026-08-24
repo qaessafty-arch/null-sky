@@ -117,7 +117,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateSettings,
   onThemeChange
 }) => {
-  const { isDeveloper, isOwner, isAdmin, devModeUnlocked } = useAuth();
+  const { isDeveloper, isOwner, isAdmin, devModeUnlocked, toggleDevModeUnlocked } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('themes');
   const [customThemes, setCustomThemes] = useState<UITheme[]>([]);
   const [activeThemeId, setActiveTheme] = useState<string>('peshmerga');
@@ -125,6 +125,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editingTheme, setEditingTheme] = useState<UITheme | null>(null);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isDevSettingsOpen, setIsDevSettingsOpen] = useState(false);
+  const [buildTaps, setBuildTaps] = useState(0);
+  const [showOwnerUnlock, setShowOwnerUnlock] = useState(false);
+  const [unlockKey, setUnlockKey] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -691,35 +694,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
               </button>
 
-              {/* Developer Setting [Dev Set] Button */}
-              <button
-                type="button"
-                onClick={() => setIsDevSettingsOpen(true)}
-                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between group cursor-pointer ${
-                  isDeveloper || isOwner || devModeUnlocked
-                    ? 'bg-gradient-to-r from-amber-950/40 to-slate-900/60 border-[#F5C453] shadow-md shadow-[#F5C453]/10'
-                    : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-gradient-to-tr from-amber-600 to-[#8C2425] text-amber-300 border border-amber-400/40">
-                    <Crown className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-white flex items-center gap-1.5 group-hover:text-amber-300 transition-colors">
-                      <span>Developer Setting</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold border border-amber-400/40">
-                        [Dev Set]
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-[#DFD0B0]/60">
-                      {isDeveloper || isOwner ? '👑 Founder & Admin Controls' : '🛡️ Manage roles & badges'}
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
-              </button>
             </div>
+          </div>
+
+              {(isDeveloper || isOwner) && <button type="button" onClick={() => setIsDevSettingsOpen(true)} className="w-full p-3 rounded-2xl border border-amber-400/40 bg-amber-950/30 text-left text-xs font-bold text-amber-200 flex items-center gap-2"><Crown className="w-4 h-4" /> Developer console</button>}
+
+          <div className="pt-3 text-center">
+            <button type="button" className="text-[9px] text-white/25 hover:text-white/50" onClick={() => { const taps = buildTaps + 1; setBuildTaps(taps); if (taps >= 7) { setShowOwnerUnlock(true); setBuildTaps(0); } }}>Chesskys PRO build {import.meta.env.VITE_BUILD_STAMP || '2026.08'}</button>
+            {showOwnerUnlock && !isDeveloper && !isOwner && <form className="mt-2 flex gap-2" onSubmit={async e => { e.preventDefault(); if (await toggleDevModeUnlocked(unlockKey)) { setShowOwnerUnlock(false); setUnlockKey(''); } }}><input aria-label="Owner key" type="password" value={unlockKey} onChange={e => setUnlockKey(e.target.value)} placeholder="Owner key" className="min-w-0 flex-1 rounded-lg bg-black/30 border border-white/10 px-2 py-1 text-xs" /><button className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-bold" type="submit">Unlock</button></form>}
+            {(isDeveloper || isOwner) && <div className="mt-2 text-[10px] text-amber-300/80">Owner session active · privileged controls unlocked <button type="button" className="underline" onClick={() => void toggleDevModeUnlocked()}>Lock again</button></div>}
           </div>
 
           {/* Done Button */}

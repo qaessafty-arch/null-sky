@@ -172,7 +172,7 @@ export function getLeaderboardEntries(
     elo: '∞ (Immortal)',
     executions: '∞',
     mercies: '∞',
-    avatar: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=100&auto=format&fit=crop&q=80',
+    avatar: '/avatars/default.svg',
     isImmortal: true,
     role: 'owner',
     badgeTag: '⚡ SUPREME'
@@ -189,7 +189,7 @@ export function getLeaderboardEntries(
     elo: '∞ (Celestial)',
     executions: '∞',
     mercies: '∞',
-    avatar: 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=150&auto=format&fit=crop&q=80',
+    avatar: '/avatars/default.svg',
     isImmortal: true,
     role: 'grandmaster',
     badgeTag: '🦋 CELESTIAL'
@@ -207,7 +207,7 @@ export function getLeaderboardEntries(
       elo: 2851,
       executions: 210,
       mercies: 85,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '🐐 13th Champ',
       badgeNumber: 1
     },
@@ -221,7 +221,7 @@ export function getLeaderboardEntries(
       elo: 2790,
       executions: 195,
       mercies: 110,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '🪄 Magician',
       badgeNumber: 2
     },
@@ -235,7 +235,7 @@ export function getLeaderboardEntries(
       elo: 2882,
       executions: 180,
       mercies: 75,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '👑 Peak 2882',
       badgeNumber: 3
     },
@@ -249,7 +249,7 @@ export function getLeaderboardEntries(
       elo: 2817,
       executions: 140,
       mercies: 90,
-      avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '🐅 5x World Champ',
       badgeNumber: 4
     },
@@ -263,7 +263,7 @@ export function getLeaderboardEntries(
       elo: 2785,
       executions: 165,
       mercies: 40,
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '🦅 11th Champ',
       badgeNumber: 5
     },
@@ -277,7 +277,7 @@ export function getLeaderboardEntries(
       elo: 2875,
       executions: 155,
       mercies: 65,
-      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '⚡ Blitz King',
       badgeNumber: 6
     },
@@ -291,7 +291,7 @@ export function getLeaderboardEntries(
       elo: 2794,
       executions: 125,
       mercies: 55,
-      avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '⭐ Prodigy',
       badgeNumber: 7
     },
@@ -305,7 +305,7 @@ export function getLeaderboardEntries(
       elo: 2658,
       executions: 115,
       mercies: 70,
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '👑 4x World Champ',
       badgeNumber: 8
     },
@@ -319,7 +319,7 @@ export function getLeaderboardEntries(
       elo: 2480,
       executions: 94,
       mercies: 62,
-      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
+      avatar: '/avatars/default.svg',
       badgeTag: '🦁 Kurdish GM',
       badgeNumber: 9
     },
@@ -333,7 +333,7 @@ export function getLeaderboardEntries(
       elo: 2350,
       executions: 78,
       mercies: 45,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=60',
+      avatar: '/avatars/default.svg',
       badgeNumber: 10
     },
     {
@@ -346,7 +346,7 @@ export function getLeaderboardEntries(
       elo: 2280,
       executions: 62,
       mercies: 38,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=60',
+      avatar: '/avatars/default.svg',
       badgeNumber: 11
     },
     {
@@ -359,7 +359,7 @@ export function getLeaderboardEntries(
       elo: 2190,
       executions: 51,
       mercies: 30,
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=60',
+      avatar: '/avatars/default.svg',
       badgeNumber: 12
     },
     {
@@ -372,7 +372,7 @@ export function getLeaderboardEntries(
       elo: 2140,
       executions: 44,
       mercies: 28,
-      avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=60',
+      avatar: '/avatars/default.svg',
       badgeNumber: 13
     },
     {
@@ -384,7 +384,7 @@ export function getLeaderboardEntries(
       elo: 1980,
       executions: 32,
       mercies: 22,
-      avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=60',
+      avatar: '/avatars/default.svg',
       badgeNumber: 14
     },
     {
@@ -396,7 +396,7 @@ export function getLeaderboardEntries(
       elo: 1820,
       executions: 24,
       mercies: 16,
-      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=60',
+      avatar: '/avatars/default.svg',
       badgeNumber: 15
     }
   ];
@@ -411,8 +411,8 @@ export function getLeaderboardEntries(
     executions: currentUserProfile.executions,
     mercies: currentUserProfile.merciesGranted,
     avatar: currentUserProfile.isOwner 
-      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
-      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60',
+      ? '/avatars/default.svg'
+      : '/avatars/default.svg',
     isCurrentUser: true,
     role: currentUserProfile.role || (currentUserProfile.isOwner ? 'owner' : 'member'),
     badgeNumber: currentUserProfile.badgeNumber ?? (currentUserProfile.isOwner ? 0 : 16),
