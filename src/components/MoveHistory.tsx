@@ -66,7 +66,7 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
   return (
     <div className="flex flex-col h-full obsidian-panel overflow-hidden shadow-2xl" dir="ltr">
       {/* Header with Opening Badge */}
-      <div className="p-4 border-b border-[#1F293D] bg-[#111827] flex items-center justify-between backdrop-blur-xl">
+      <div className="p-4 border-b border-white/10 bg-white/[0.04] flex items-center justify-between backdrop-blur-xl">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="p-1.5 rounded-lg bg-[#0B0F19] border border-[#F59E0B]/30 text-[#F59E0B]">
             <BookOpen className="w-4 h-4" />

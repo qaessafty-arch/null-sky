@@ -205,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/55 backdrop-blur-md"
             aria-hidden="true"
           />
 
@@ -222,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{ willChange: 'transform' }}
           >
             {/* Sidebar Header & Brand */}
-            <div className="p-5 border-b border-[#1F293D] flex items-center justify-between bg-[#111827]">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.04]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0B0F19] border border-[#F59E0B]/50 flex items-center justify-center text-xl shadow-inner">
                   <span>☀️</span>
@@ -296,7 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Bottom Theme & Settings Controls (Pinned) */}
-            <div className="p-4 border-t border-[#1F293D] bg-[#111827] space-y-3">
+            <div className="p-4 border-t border-white/10 bg-white/[0.04] space-y-3">
               {/* Switch Theme Button */}
               <button
                 id="sidebar-switch-theme-btn"

@@ -710,11 +710,12 @@ export default function App() {
     settings.blackPieceTheme === 'batman';
 
   return (
-    <div id="app-root-container" className="flex flex-col min-h-screen bg-[#0B0F19] text-white overflow-hidden font-sans selection:bg-[#F59E0B]/30 relative transition-colors duration-500">
-      {/* Background Ambient Glow */}
+    <div id="app-root-container" className="flex flex-col min-h-screen text-white overflow-hidden font-sans selection:bg-[#F59E0B]/30 relative transition-colors duration-500">
+      {/* Background Ambient Glow the glass surfaces refract */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#F59E0B]/5 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#F59E0B]/5 blur-[120px] rounded-full" />
+        <div className="absolute top-[-12%] left-[-8%] w-[45%] h-[45%] bg-[#8B5CF6]/12 blur-[140px] rounded-full" />
+        <div className="absolute top-[10%] right-[-10%] w-[40%] h-[40%] bg-[#38BDF8]/10 blur-[130px] rounded-full" />
+        <div className="absolute bottom-[-12%] left-[25%] w-[45%] h-[40%] bg-[#F59E0B]/10 blur-[140px] rounded-full" />
       </div>
 
       {/* Sleek Tactical Hint Banner */}

@@ -160,10 +160,10 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-[#111827]/85 backdrop-blur-xl border-l border-[#1F293D] shadow-2xl flex flex-col overflow-hidden"
+          className="fixed inset-y-0 right-0 z-50 w-full max-w-sm glass-panel !rounded-none border-l border-white/10 shadow-2xl flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <div className="p-4 border-b border-[#1F293D] flex items-center justify-between shrink-0 bg-[#0B0F19]/50">
+          <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0 bg-white/[0.04]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#0B0F19] border border-[#F59E0B]/30 flex items-center justify-center text-[#F59E0B]">
                 <MessageSquare className="w-5 h-5" />
@@ -282,7 +282,7 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
           </AnimatePresence>
 
           {/* Input Area */}
-          <div className="p-4 bg-[#0B0F19]/80 border-t border-[#1F293D] space-y-4 shrink-0">
+          <div className="p-4 bg-black/25 border-t border-white/10 space-y-4 shrink-0">
             {/* Emotes Bar */}
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
               {EMOTES.map((emote) => (

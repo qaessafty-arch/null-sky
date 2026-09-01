@@ -125,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    className="absolute right-0 mt-3 w-[320px] sm:w-[380px] bg-[#111827] border border-[#1F293D] backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
+                    className="absolute right-0 mt-3 w-[320px] sm:w-[380px] glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
                   >
                     {/* Header */}
                     <div className="p-4 border-b border-[#1F293D] flex items-center justify-between bg-[#0B0F19]/50">
