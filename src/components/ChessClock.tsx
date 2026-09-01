@@ -84,7 +84,11 @@ export const ChessClock: React.FC<ChessClockProps> = ({
                 : 'bg-[#0B0F19] border-[#1F293D] text-[#94A3B8]'
             }`}
           >
-            {avatar || (isWhite ? '♔' : '♚')}
+            {avatar && /^(https?:|data:|\/)/.test(avatar) ? (
+              <img src={avatar} alt="" className="w-full h-full rounded-xl object-cover" />
+            ) : (
+              avatar || (isWhite ? '♔' : '♚')
+            )}
           </div>
           {isActive && (
             <span className="absolute -bottom-1 -right-1 status-dot status-dot-online ring-2 ring-[#111827]" />

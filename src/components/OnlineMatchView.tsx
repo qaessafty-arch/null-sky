@@ -26,6 +26,7 @@ import { VoiceMoveDictator } from './VoiceMoveDictator';
 import { LiveHypeMeter } from './LiveHypeMeter';
 import { soundManager } from '../utils/audio';
 import { socketService } from '../utils/socket';
+import { getLocalPlayerUid } from '../utils/identity';
 import { 
   Swords, 
   Flag, 
@@ -66,6 +67,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
 }) => {
   const { profile, user, updateRespectMetrics } = useAuth();
   const [session, setSession] = useState<OnlineMatchSession | null>(null);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'missing'>('loading');
   const [game, setGame] = useState<Chess>(() => new Chess());
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
 
@@ -89,9 +91,8 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [showWeather, setShowWeather] = useState(false);
   const [showTerritory, setShowTerritory] = useState(false);
 
-  const myUid = profile?.uid || user?.uid || '';
-  const isWhitePlayer = session?.whitePlayer?.uid === myUid || (session?.hostId === myUid && session?.whitePlayer !== null);
-  const isBlackPlayer = session?.blackPlayer?.uid === myUid || (session?.hostId === myUid && session?.blackPlayer !== null);
+  const myUid = profile?.uid || user?.uid || getLocalPlayerUid();
+  const isWhitePlayer = session?.whitePlayer?.uid === myUid;
   const myColor: PieceColor = isWhitePlayer ? 'w' : 'b';
   const isMyTurn = session?.status === 'in_progress' && session?.turn === myColor;
   const capturedMaterial = getCapturedMaterial(game);
@@ -104,7 +105,11 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     if (!matchId) return;
 
     const unsub = listenToOnlineMatchSession(matchId, newSession => {
-      if (!newSession) return;
+      if (!newSession) {
+        setLoadState('missing');
+        return;
+      }
+      setLoadState('ready');
       setSession(newSession);
 
       // Synchronize chess game instance
@@ -419,6 +424,35 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     }
   };
 
+  if (!session) {
+    return (
+      <PanelContainer>
+        <div className="obsidian-panel rounded-3xl p-10 flex flex-col items-center justify-center gap-4 text-center">
+          {loadState === 'missing' ? (
+            <>
+              <AlertTriangle className="w-10 h-10 text-[#F59E0B]" />
+              <h2 className="text-lg font-black text-white">Match not found</h2>
+              <p className="text-xs text-[#94A3B8] max-w-sm">
+                This match room no longer exists or has expired. Head back to the lobby and start a new match.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-full border-4 border-[#F59E0B] border-t-transparent animate-spin" />
+              <h2 className="text-lg font-black text-white">Connecting to the arena…</h2>
+            </>
+          )}
+          <button
+            onClick={onClose}
+            className="mt-2 px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black cursor-pointer"
+          >
+            Back to Lobby
+          </button>
+        </div>
+      </PanelContainer>
+    );
+  }
+
   return (
     <PanelContainer>
       {/* Header Bar */}
@@ -556,10 +590,10 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
             />
 
             {/* Turn Indicator Banner */}
-            <div className="mt-2.5 px-4 py-2 rounded-2xl bg-black/80 backdrop-blur-md border border-[#F5C453]/30 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F5C453] animate-ping" />
-                <span className="font-bold text-white">
+            <div className="mt-2.5 px-4 py-2 rounded-2xl bg-black/80 backdrop-blur-md border border-[#F5C453]/30 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F5C453] animate-ping shrink-0" />
+                <span className="font-bold text-white truncate">
                   {session?.status !== 'in_progress'
                     ? `Match ${session?.status?.toUpperCase()}`
                     : isMyTurn
@@ -567,7 +601,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
                     : `${opponent?.displayName || 'Opponent'} is thinking...`}
                 </span>
               </div>
-              <span className="text-[#DFD0B0]/70 font-mono text-[11px]">
+              <span className="text-[#DFD0B0]/70 font-mono text-[11px] whitespace-nowrap">
                 You play as {isWhitePlayer ? 'White ⚪' : 'Black ⚫'}
               </span>
             </div>
