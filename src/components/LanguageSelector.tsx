@@ -1,9 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe } from 'lucide-react';
+import { ChevronDown, Globe } from 'lucide-react';
 
 export const LanguageSelector: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -12,19 +12,32 @@ export const LanguageSelector: React.FC = () => {
 
   const currentLang = i18n.language;
 
+  const languages = [
+    { code: 'en', native: 'English' },
+    { code: 'ckb', native: 'کوردی سۆرانی' },
+    { code: 'kmr', native: 'Kurdî Kurmancî' },
+    { code: 'ar', native: 'العربية' },
+  ];
+
+  const active =
+    languages.find(l => currentLang?.startsWith(l.code)) ?? languages[0];
+
   return (
-    <div className="flex items-center gap-2 mt-2">
-      <Globe className="w-4 h-4 text-slate-400" />
+    <div className="relative w-full">
+      <Globe className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
       <select
-        value={currentLang}
-        onChange={(e) => changeLanguage(e.target.value)}
-        className="bg-[#111827] border border-[#1F293D] rounded-xl px-2 py-1 text-xs text-white outline-none cursor-pointer hover:border-[#F59E0B]/40 transition-colors"
+        aria-label="Language"
+        value={active.code}
+        onChange={e => changeLanguage(e.target.value)}
+        className="peer appearance-none w-full min-h-[44px] ps-9 pe-7 rounded-xl bg-[#0B0F19] border border-[#1F293D] text-[10px] font-black uppercase tracking-widest text-[#94A3B8] hover:text-[#F59E0B] hover:border-[#F59E0B]/40 cursor-pointer outline-none transition-colors"
       >
-        <option value="en">English (LTR)</option>
-        <option value="ckb">کوردی سۆرانی (RTL)</option>
-        <option value="kmr">Kurdî Kurmancî (LTR)</option>
-        <option value="ar">العربية (RTL)</option>
+        {languages.map(lang => (
+          <option key={lang.code} value={lang.code} className="bg-[#111827] text-white normal-case tracking-normal">
+            {lang.native}
+          </option>
+        ))}
       </select>
+      <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] peer-hover:text-[#F59E0B] transition-colors" />
     </div>
   );
 };

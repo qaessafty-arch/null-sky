@@ -44,7 +44,7 @@ export const EvalBar: React.FC<EvalBarProps> = ({ score, isFlipped }) => {
         className="w-full bg-[#12141c]/95 transition-all duration-300 ease-out flex items-start justify-center pt-2"
         style={{ height: `${100 - whiteBarHeight}%` }}
       >
-        <span className="hidden sm:inline text-[10px] sm:text-xs font-mono font-extrabold text-white/80 tracking-tighter">
+        <span className="hidden md:block w-full text-center px-0.5 text-[9px] leading-none font-mono font-extrabold text-white/80 tracking-tighter">
           {!isFlipped && score < -0.1 ? displayScore : isFlipped && score > 0.1 ? displayScore : ''}
         </span>
       </div>
@@ -54,7 +54,7 @@ export const EvalBar: React.FC<EvalBarProps> = ({ score, isFlipped }) => {
         className="w-full bg-white/95 transition-all duration-300 ease-out flex items-end justify-center pb-2"
         style={{ height: `${whiteBarHeight}%` }}
       >
-        <span className="hidden sm:inline text-[10px] sm:text-xs font-mono font-extrabold text-slate-900 tracking-tighter">
+        <span className="hidden md:block w-full text-center px-0.5 text-[9px] leading-none font-mono font-extrabold text-slate-900 tracking-tighter">
           {!isFlipped && score > 0.1 ? displayScore : isFlipped && score < -0.1 ? displayScore : ''}
         </span>
       </div>

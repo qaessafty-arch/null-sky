@@ -372,7 +372,11 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
           <div>
             <div className="text-xs font-black text-white flex items-center gap-1.5">
               <span>{profile?.displayName || user?.displayName || 'Peshmerga Tactician'}</span>
-              <span className="text-[10px] font-mono text-[#F5C453]">({profile?.rankBadge} {profile?.honorRank})</span>
+              {profile?.honorRank && (
+                <span className="text-[10px] font-mono text-[#F5C453]">
+                  ({profile.rankBadge ? `${profile.rankBadge} ` : ''}{profile.honorRank})
+                </span>
+              )}
             </div>
             <div className="text-[10px] text-[#DFD0B0]/60">
               Live Battle Rating: <strong className="text-white font-mono">{profile?.elo || 1200} Elo</strong> • Respect: <strong className="text-[#F5C453] font-mono">{profile?.respectPoints || 100} pts</strong>

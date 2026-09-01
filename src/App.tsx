@@ -872,11 +872,13 @@ export default function App() {
             <AnalysisPanel settings={settings} initialPgn={game.pgn()} initialFen={game.fen()} />
           ) : (
             /* Live Match View (Play AI / Pass & Play) */
-            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start justify-center">
+            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:px-8 lg:py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start justify-center">
               {/* Center Left: Chess Board & Eval Bar Area */}
-              <div className="lg:col-span-8 flex flex-col items-center justify-center gap-3 sm:gap-5">
+              <div className="lg:col-span-8 flex flex-col items-center justify-center">
+                {/* Board stage: clocks, board and eval bar share one grid so their edges line up */}
+                <div className="w-full max-w-[644px] lg:max-w-[min(644px,calc(100svh-300px))] grid grid-cols-[auto_1fr] gap-x-2 sm:gap-x-4 gap-y-3 items-stretch">
                 {/* Top Player Status / Clock Bar */}
-                <div className="w-full max-w-[600px] flex flex-col gap-3">
+                <div className="col-start-2 flex flex-col gap-3 min-w-0">
                   <ChessClock
                     timeSeconds={isBoardFlipped ? whiteTime : blackTime}
                     isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
@@ -921,13 +923,14 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Main Board Stage with Evaluation Bar */}
-                <div className="flex items-stretch justify-center gap-2 sm:gap-4 w-full">
-                  {settings.showEvalBar && (
+                {settings.showEvalBar && (
+                  <div className="col-start-1 row-start-2 flex">
                     <EvalBar score={evalScore} isFlipped={isBoardFlipped} />
-                  )}
+                  </div>
+                )}
 
-                  <div className="relative group w-full max-w-[600px] lg:max-w-[min(600px,calc(100svh-260px))]">
+                <div className="col-start-2 row-start-2 flex justify-center min-w-0">
+                  <div className="relative group w-full max-w-[600px]">
                     <div className="absolute -inset-4 bg-[#F59E0B]/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     <ChessBoard
                       game={displayGame}
@@ -947,7 +950,7 @@ export default function App() {
                 </div>
 
                 {/* Bottom Player Status / Clock Bar */}
-                <div className="w-full max-w-[600px] flex flex-col gap-3">
+                <div className="col-start-2 row-start-3 flex flex-col gap-3 min-w-0">
                   <div className="px-1 flex items-center justify-between">
                     <CapturedPieces
                       pieces={isBoardFlipped ? capturedMaterial.capturedByWhite : capturedMaterial.capturedByBlack}
@@ -991,6 +994,7 @@ export default function App() {
                     isUnlimited={timeControl.category === 'unlimited'}
                   />
                 </div>
+                </div>
               </div>
 
               {/* Right Sidebar: History & Tactical Controls */}
@@ -1011,7 +1015,7 @@ export default function App() {
                 />
 
                 {/* Move Notation & History Log */}
-                <div className="h-[400px] lg:h-[500px]">
+                <div className="h-[360px] lg:h-[clamp(320px,calc(100svh-320px),560px)]">
                   <MoveHistory
                     moveLogs={moveLogs}
                     currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
