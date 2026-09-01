@@ -838,7 +838,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   }, [handlePointerMove, handlePointerUp]);
 
   return (
-    <div className="relative block w-full max-w-[min(600px,88svh)] select-none touch-none mx-auto p-2 sm:p-4 board-3d-frame rounded-2xl" dir="ltr">
+    <div className="relative block w-full flex-1 min-w-[240px] max-w-[min(600px,88svh)] select-none touch-none mx-auto p-2 sm:p-4 board-3d-frame rounded-2xl" dir="ltr">
       {/* 3D Rim Lighting for tactical feel */}
       <div className="absolute inset-0 rounded-2xl pointer-events-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-2px_4px_rgba(0,0,0,0.4)] z-50" />
       

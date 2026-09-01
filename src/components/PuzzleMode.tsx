@@ -241,7 +241,7 @@ export const PuzzleMode: React.FC<PuzzleModeProps> = ({ settings }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT / CENTER: Chess Board View */}
         <div className="lg:col-span-7 flex flex-col items-center justify-center">
-          <div className="relative p-2.5 sm:p-3.5 rounded-3xl bg-[#10140e] border-2 border-[#F5C453]/30 shadow-2xl">
+          <div className="relative w-full max-w-[640px] p-2.5 sm:p-3.5 rounded-3xl bg-[#10140e] border-2 border-[#F5C453]/30 shadow-2xl">
             <ChessBoard
               game={puzzleGame}
               isFlipped={currentPuzzle.playerColor === 'b'}
