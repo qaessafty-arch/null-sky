@@ -265,6 +265,40 @@ export const BOT_DEFINITIONS: BotDefinition[] = [
 export const getBotDefinition = (id: string): BotDefinition =>
   BOT_DEFINITIONS.find(bot => bot.id === id) ?? BOT_DEFINITIONS[3];
 
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
+
+/**
+ * Search budget and error model calibrated to an arbitrary rating, used by
+ * online challengers whose Elo does not match a named personality.
+ */
+export const botDefinitionForElo = (elo: number): BotDefinition => {
+  const rating = Math.round(clamp(elo || 1200, 700, 2650));
+  const t = (rating - 700) / (2650 - 700);
+  const searchDepth = Math.round(lerp(2, 10, t));
+
+  return {
+    id: `elo-${rating}`,
+    name: `Challenger ${rating}`,
+    title: 'Worldwide Challenger',
+    elo: rating,
+    avatar: '♟️',
+    description: `Adaptive challenger calibrated to ${rating} Elo.`,
+    style: 'Adaptive',
+    badgeColor: 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B]/40',
+    depth: searchDepth,
+    randomness: Number(lerp(0.32, 0, t).toFixed(3)),
+    searchDepth,
+    moveTimeMs: Math.round(lerp(220, 1600, t)),
+    nodeLimit: Math.round(lerp(80_000, 2_000_000, t)),
+    noiseCp: Math.round(lerp(260, 5, t)),
+    blunderChance: Number(lerp(0.32, 0, t).toFixed(3)),
+    blunderMaxLossCp: Math.round(lerp(750, 60, t)),
+    bookVarietyPlies: 8,
+    contempt: 0
+  };
+};
+
 /** Box–Muller gaussian noise. */
 const gaussian = (sigma: number) => {
   if (sigma <= 0) return 0;

@@ -252,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Sidebar Navigation Items */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-6 space-y-2 no-scrollbar overscroll-contain [mask-image:linear-gradient(to_bottom,transparent,black_12px,black_calc(100%-20px),transparent)]">
               <div className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#94A3B8] opacity-50 font-mono">
                 System Main
               </div>

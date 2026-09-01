@@ -17,7 +17,7 @@ import {
   InGameMessage 
 } from '../services/chatService';
 import { advanceTournamentMatch } from '../services/tournamentService';
-import { findBestMove, getCapturedMaterial, evaluateBoard } from '../utils/chessEngine';
+import { getBotMoveForElo, getCapturedMaterial, evaluateBoard } from '../utils/chessEngine';
 import { useAuth } from '../context/AuthContext';
 import { ChessBoard } from './ChessBoard';
 import { CapturedPieces } from './CapturedPieces';
@@ -26,6 +26,7 @@ import { VoiceMoveDictator } from './VoiceMoveDictator';
 import { LiveHypeMeter } from './LiveHypeMeter';
 import { soundManager } from '../utils/audio';
 import { socketService } from '../utils/socket';
+import { getLocalPlayerUid } from '../utils/identity';
 import { 
   Swords, 
   Flag, 
@@ -66,6 +67,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
 }) => {
   const { profile, user, updateRespectMetrics } = useAuth();
   const [session, setSession] = useState<OnlineMatchSession | null>(null);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'missing'>('loading');
   const [game, setGame] = useState<Chess>(() => new Chess());
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
 
@@ -76,6 +78,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [chatMessages, setChatMessages] = useState<InGameMessage[]>([]);
+  const [seenChatCount, setSeenChatCount] = useState(0);
   const [typingMap, setTypingMap] = useState<Record<string, boolean>>({});
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([]);
 
@@ -88,9 +91,8 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [showWeather, setShowWeather] = useState(false);
   const [showTerritory, setShowTerritory] = useState(false);
 
-  const myUid = profile?.uid || user?.uid || '';
-  const isWhitePlayer = session?.whitePlayer?.uid === myUid || (session?.hostId === myUid && session?.whitePlayer !== null);
-  const isBlackPlayer = session?.blackPlayer?.uid === myUid || (session?.hostId === myUid && session?.blackPlayer !== null);
+  const myUid = profile?.uid || user?.uid || getLocalPlayerUid();
+  const isWhitePlayer = session?.whitePlayer?.uid === myUid;
   const myColor: PieceColor = isWhitePlayer ? 'w' : 'b';
   const isMyTurn = session?.status === 'in_progress' && session?.turn === myColor;
   const capturedMaterial = getCapturedMaterial(game);
@@ -103,14 +105,18 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     if (!matchId) return;
 
     const unsub = listenToOnlineMatchSession(matchId, newSession => {
-      if (!newSession) return;
+      if (!newSession) {
+        setLoadState('missing');
+        return;
+      }
+      setLoadState('ready');
       setSession(newSession);
 
       // Synchronize chess game instance
       try {
         const updatedGame = new Chess(newSession.fen);
         setGame(updatedGame);
-        setEvalScore(evaluateBoard(updatedGame) / 100); // centipawns to points
+        setEvalScore(evaluateBoard(updatedGame));
         if (newSession.lastMoveFrom && newSession.lastMoveTo) {
           setLastMove({ from: newSession.lastMoveFrom, to: newSession.lastMoveTo });
         }
@@ -187,6 +193,12 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     };
   }, [matchId, myUid, isMuted]);
 
+  useEffect(() => {
+    if (isChatOpen) setSeenChatCount(chatMessages.length);
+  }, [isChatOpen, chatMessages.length]);
+
+  const unreadChatCount = Math.max(0, chatMessages.length - seenChatCount);
+
   // Active clock countdown
   useEffect(() => {
     if (session?.status !== 'in_progress') return;
@@ -215,15 +227,13 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           if (currentG.isGameOver()) return;
 
           const oppColor = isWhitePlayer ? 'b' : 'w';
-          // Calculate move
-          const calcDepth = (opp.elo || 1800) >= 2000 ? 4 : 3;
-          const best = findBestMove(currentG, calcDepth, oppColor === 'w');
-          if (!best.move) return;
+          const botMove = getBotMoveForElo(currentG, opp.elo || 1800);
+          if (!botMove) return;
 
           const moveResult = currentG.move({
-            from: best.move.from,
-            to: best.move.to,
-            promotion: best.move.promotion || 'q'
+            from: botMove.from,
+            to: botMove.to,
+            promotion: botMove.promotion || 'q'
           });
 
           if (!moveResult) return;
@@ -266,8 +276,8 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
             currentG.fen(),
             currentG.pgn(),
             myColor,
-            best.move.from,
-            best.move.to,
+            botMove.from,
+            botMove.to,
             newWhiteTime,
             newBlackTime,
             nextStatus,
@@ -412,6 +422,35 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     }
   };
 
+  if (!session) {
+    return (
+      <PanelContainer>
+        <div className="obsidian-panel rounded-3xl p-10 flex flex-col items-center justify-center gap-4 text-center">
+          {loadState === 'missing' ? (
+            <>
+              <AlertTriangle className="w-10 h-10 text-[#F59E0B]" />
+              <h2 className="text-lg font-black text-white">Match not found</h2>
+              <p className="text-xs text-[#94A3B8] max-w-sm">
+                This match room no longer exists or has expired. Head back to the lobby and start a new match.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-full border-4 border-[#F59E0B] border-t-transparent animate-spin" />
+              <h2 className="text-lg font-black text-white">Connecting to the arena…</h2>
+            </>
+          )}
+          <button
+            onClick={onClose}
+            className="mt-2 px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black cursor-pointer"
+          >
+            Back to Lobby
+          </button>
+        </div>
+      </PanelContainer>
+    );
+  }
+
   return (
     <PanelContainer>
       {/* Header Bar */}
@@ -440,6 +479,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           <button
             type="button"
             onClick={() => setIsChatOpen(prev => !prev)}
+            aria-expanded={isChatOpen}
             className={`min-h-[38px] px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer relative ${
               isChatOpen
                 ? 'bg-[#52673A] text-white border-[#F5C453] shadow-md'
@@ -449,10 +489,9 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           >
             <MessageSquare className="w-4 h-4 text-[#F59E0B]" />
             <span>Chat</span>
-            {chatMessages.length > 0 && !isChatOpen && (
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            {unreadChatCount > 0 && !isChatOpen && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-[#F59E0B] text-black text-[10px] font-black flex items-center justify-center shadow-lg">
+                {unreadChatCount > 9 ? '9+' : unreadChatCount}
               </span>
             )}
           </button>
@@ -549,10 +588,10 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
             />
 
             {/* Turn Indicator Banner */}
-            <div className="mt-2.5 px-4 py-2 rounded-2xl bg-black/80 backdrop-blur-md border border-[#F5C453]/30 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F5C453] animate-ping" />
-                <span className="font-bold text-white">
+            <div className="mt-2.5 px-4 py-2 rounded-2xl bg-black/80 backdrop-blur-md border border-[#F5C453]/30 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F5C453] animate-ping shrink-0" />
+                <span className="font-bold text-white truncate">
                   {session?.status !== 'in_progress'
                     ? `Match ${session?.status?.toUpperCase()}`
                     : isMyTurn
@@ -560,7 +599,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
                     : `${opponent?.displayName || 'Opponent'} is thinking...`}
                 </span>
               </div>
-              <span className="text-[#DFD0B0]/70 font-mono text-[11px]">
+              <span className="text-[#DFD0B0]/70 font-mono text-[11px] whitespace-nowrap">
                 You play as {isWhitePlayer ? 'White ⚪' : 'Black ⚫'}
               </span>
             </div>

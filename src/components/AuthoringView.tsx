@@ -35,7 +35,9 @@ import {
   Check, 
   BookOpen, 
   RefreshCw,
-  Eye
+  Eye,
+  Undo2,
+  FlipVertical2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -44,6 +46,10 @@ interface AuthoringViewProps {
   onSelectPuzzleToSolve?: (puzzle: AuthoredPuzzle) => void;
   onOpenAnalysisWithFen?: (fen: string) => void;
 }
+
+type PuzzleDifficulty = 'Easy' | 'Medium' | 'Hard' | 'Master';
+
+const DEFAULT_FEN = 'r1b2rk1/pp3ppp/2n1p3/3pP3/5P2/2NB1N2/PPP3PP/R2Q1RK1 w - - 0 1';
 
 const THEME_OPTIONS = [
   'Queen Sacrifice & Mate',
@@ -73,10 +79,13 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
   const [title, setTitle] = useState('Kurdish Citadel Combination');
   const [description, setDescription] = useState('Sacrifice material to infiltrate the opponent citadel and force a royal checkmate.');
   const [theme, setTheme] = useState(THEME_OPTIONS[0]);
-  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master'>('Hard');
+  const [difficulty, setDifficulty] = useState<PuzzleDifficulty>('Hard');
   const [rating, setRating] = useState(1850);
   const [playerColor, setPlayerColor] = useState<PieceColor>('w');
-  const [fenInput, setFenInput] = useState('r1b2rk1/pp3ppp/2n1p3/3pP3/5P2/2NB1N2/PPP3PP/R2Q1RK1 w - - 0 1');
+  const [fenInput, setFenInput] = useState(DEFAULT_FEN);
+  const [fenDraft, setFenDraft] = useState(DEFAULT_FEN);
+  const [isBoardFlipped, setIsBoardFlipped] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [hints, setHints] = useState<string[]>(['Look for the dynamic bishop strike on the king!']);
   const [newHintText, setNewHintText] = useState('');
 
@@ -94,6 +103,16 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
   // Status message
   const [bannerMessage, setBannerMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
+  // Banner feedback auto-dismisses so it never blocks the form
+  useEffect(() => {
+    if (!bannerMessage || bannerMessage.type === 'error') return;
+    const timer = setTimeout(() => setBannerMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [bannerMessage]);
+
+  const fenDraftValidity = validateFen(fenDraft);
+  const isFenDirty = fenDraft.trim() !== fenInput.trim();
+
   // Synchronize board when FEN changes
   const applyFen = (newFen: string) => {
     const val = validateFen(newFen);
@@ -101,15 +120,34 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
       setBannerMessage({ type: 'error', text: val.error || 'Invalid FEN' });
       return;
     }
+    setFenDraft(newFen);
+    if (newFen.trim() === fenInput.trim()) return;
     setFenInput(newFen);
     try {
       const g = new Chess(newFen);
       setBoardGame(g);
       setPlayerColor(g.turn() === 'w' ? 'w' : 'b');
       setSolutionMoves([]);
-      setBannerMessage({ type: 'info', text: 'Board position updated from FEN.' });
+      setTestSolving(false);
+      setSolveStep(0);
+      setSolveSuccess(false);
+      setTestError(null);
+      setBannerMessage({ type: 'info', text: 'Board position updated \u2014 recorded moves cleared.' });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const undoLastRecordedMove = () => {
+    if (testSolving || solutionMoves.length === 0) return;
+    const remaining = solutionMoves.slice(0, -1);
+    try {
+      const rebuilt = new Chess(fenInput);
+      remaining.forEach(san => rebuilt.move(san));
+      setBoardGame(rebuilt);
+      setSolutionMoves(remaining);
+    } catch (e) {
+      console.error('Error undoing recorded move:', e);
     }
   };
 
@@ -165,6 +203,15 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
     }
   };
 
+  const clearRecordedMoves = () => {
+    setSolutionMoves([]);
+    try {
+      setBoardGame(new Chess(fenInput));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const resetBoardToInitial = () => {
     try {
       const g = new Chess(fenInput);
@@ -201,6 +248,8 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
       return;
     }
 
+    setIsSaving(true);
+
     const newPuzzle: AuthoredPuzzle = {
       id: editingId || `authored-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       title: title.trim(),
@@ -221,11 +270,34 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
       isPublished: true
     };
 
-    await saveAuthoredPuzzle(newPuzzle);
-    setPuzzles(getLocalAuthoredPuzzles());
-    setBannerMessage({ type: 'success', text: 'Tactical Puzzle successfully saved and published!' });
-    soundManager.playVictory();
-    setEditingId(newPuzzle.id);
+    try {
+      await saveAuthoredPuzzle(newPuzzle);
+      setPuzzles(getLocalAuthoredPuzzles());
+      setBannerMessage({ type: 'success', text: 'Tactical Puzzle successfully saved and published!' });
+      soundManager.playVictory();
+      setEditingId(newPuzzle.id);
+    } catch (e) {
+      console.error('Error saving puzzle:', e);
+      setBannerMessage({ type: 'error', text: 'Could not save the puzzle. Please try again.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const startNewPuzzle = () => {
+    setEditingId(null);
+    setTitle('New Tactical Challenge');
+    setDescription('');
+    setHints([]);
+    setFenInput(DEFAULT_FEN);
+    setFenDraft(DEFAULT_FEN);
+    setBoardGame(new Chess(DEFAULT_FEN));
+    setSolutionMoves([]);
+    setTestSolving(false);
+    setSolveStep(0);
+    setSolveSuccess(false);
+    setTestError(null);
+    setTab('create');
   };
 
   const handleLoadPuzzleForEdit = (p: AuthoredPuzzle) => {
@@ -237,6 +309,7 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
     setRating(p.rating);
     setPlayerColor(p.playerColor);
     setFenInput(p.fen);
+    setFenDraft(p.fen);
     setSolutionMoves(p.solutionMoves);
     setHints(p.hints || []);
     try {
@@ -329,7 +402,7 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
 
       {/* Banner Feedback */}
       {bannerMessage && (
-        <div className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-between animate-in fade-in ${
+        <div role="status" aria-live="polite" className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-between animate-in fade-in ${
           bannerMessage.type === 'success'
             ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
             : bannerMessage.type === 'error'
@@ -337,7 +410,14 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
             : 'bg-amber-950/80 border-amber-500/50 text-amber-200'
         }`}>
           <span>{bannerMessage.text}</span>
-          <button onClick={() => setBannerMessage(null)} className="text-white/60 hover:text-white font-mono">✕</button>
+          <button
+            type="button"
+            aria-label="Dismiss message"
+            onClick={() => setBannerMessage(null)}
+            className="text-white/60 hover:text-white font-mono cursor-pointer"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -363,7 +443,7 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
               {/* Main Board */}
               <ChessBoard
                 game={boardGame}
-                isFlipped={playerColor === 'b'}
+                isFlipped={isBoardFlipped ? playerColor !== 'b' : playerColor === 'b'}
                 boardTheme={settings.boardTheme}
                 pieceTheme={settings.pieceTheme}
                 showCoordinates={settings.showCoordinates}
@@ -395,6 +475,16 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
                   )}
 
                   <button
+                    onClick={undoLastRecordedMove}
+                    disabled={solutionMoves.length === 0 || testSolving}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[#DFD0B0] text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
+                    title="Undo the last recorded move"
+                  >
+                    <Undo2 className="w-3 h-3" />
+                    <span>Undo</span>
+                  </button>
+
+                  <button
                     onClick={resetBoardToInitial}
                     className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[#DFD0B0] text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
                     title="Reset to starting FEN"
@@ -402,10 +492,20 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
                     <RefreshCw className="w-3 h-3" />
                     <span>Reset</span>
                   </button>
+
+                  <button
+                    onClick={() => setIsBoardFlipped(prev => !prev)}
+                    aria-pressed={isBoardFlipped}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[#DFD0B0] text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                    title="Flip the board"
+                  >
+                    <FlipVertical2 className="w-3 h-3" />
+                    <span>Flip</span>
+                  </button>
                 </div>
 
                 <button
-                  onClick={() => setSolutionMoves([])}
+                  onClick={clearRecordedMoves}
                   disabled={solutionMoves.length === 0 || testSolving}
                   className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-40"
                 >
@@ -482,8 +582,11 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
 
               {/* Title & Lore */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#DFD0B0]">Puzzle Title</label>
+                <label htmlFor="authoring-title" className="text-xs font-bold text-[#DFD0B0] block">
+                  Puzzle Title
+                </label>
                 <input
+                  id="authoring-title"
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
@@ -495,8 +598,11 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
               {/* Tactical Theme */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#DFD0B0]">Tactical Theme</label>
+                  <label htmlFor="authoring-theme" className="text-xs font-bold text-[#DFD0B0] block">
+                    Tactical Theme
+                  </label>
                   <select
+                    id="authoring-theme"
                     value={theme}
                     onChange={e => setTheme(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white text-xs font-bold focus:border-[#F5C453] focus:outline-none cursor-pointer"
@@ -510,10 +616,13 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#DFD0B0]">Difficulty</label>
+                  <label htmlFor="authoring-difficulty" className="text-xs font-bold text-[#DFD0B0] block">
+                    Difficulty
+                  </label>
                   <select
+                    id="authoring-difficulty"
                     value={difficulty}
-                    onChange={e => setDifficulty(e.target.value as any)}
+                    onChange={e => setDifficulty(e.target.value as PuzzleDifficulty)}
                     className="w-full px-3 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white text-xs font-bold focus:border-[#F5C453] focus:outline-none cursor-pointer"
                   >
                     <option value="Easy" className="bg-[#161c12]">Easy (1000 - 1300)</option>
@@ -527,10 +636,13 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
               {/* Rating Slider */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-[#DFD0B0]">Target Tactical Rating</span>
+                  <label htmlFor="authoring-rating" className="font-bold text-[#DFD0B0]">
+                    Target Tactical Rating
+                  </label>
                   <span className="font-black text-[#F5C453] font-mono">{rating} Elo</span>
                 </div>
                 <input
+                  id="authoring-rating"
                   type="range"
                   min={800}
                   max={2800}
@@ -543,36 +655,67 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
 
               {/* FEN String Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#DFD0B0] flex items-center justify-between">
-                  <span>Starting Position (FEN)</span>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="authoring-fen" className="text-xs font-bold text-[#DFD0B0]">
+                    Starting Position (FEN)
+                  </label>
                   <button
+                    type="button"
                     onClick={() => applyFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')}
                     className="text-[10px] text-amber-300 hover:underline cursor-pointer"
                   >
                     Set Starting Board
                   </button>
-                </label>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
+                    id="authoring-fen"
                     type="text"
-                    value={fenInput}
-                    onChange={e => applyFen(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-xl bg-black/60 border border-white/20 text-white font-mono text-[11px] focus:border-[#F5C453] focus:outline-none"
+                    value={fenDraft}
+                    spellCheck={false}
+                    aria-invalid={!fenDraftValidity.valid}
+                    onChange={e => setFenDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') applyFen(fenDraft.trim());
+                    }}
+                    className={`flex-1 px-3 py-2 rounded-xl bg-black/60 border text-white font-mono text-[11px] focus:outline-none ${
+                      fenDraftValidity.valid ? 'border-white/20 focus:border-[#F5C453]' : 'border-rose-500/60'
+                    }`}
                   />
                   <button
+                    type="button"
+                    onClick={() => applyFen(fenDraft.trim())}
+                    disabled={!isFenDirty || !fenDraftValidity.valid}
+                    className="px-3 py-2 rounded-xl bg-[#52673A] hover:brightness-110 disabled:opacity-40 text-white text-xs font-black cursor-pointer"
+                  >
+                    Apply
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => onOpenAnalysisWithFen && onOpenAnalysisWithFen(fenInput)}
                     className="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
                     title="Open in Analysis Engine"
+                    aria-label="Open position in analysis engine"
                   >
                     <Compass className="w-4 h-4" />
                   </button>
                 </div>
+                <p className={`text-[10px] ${fenDraftValidity.valid ? 'text-[#DFD0B0]/50' : 'text-rose-300'}`}>
+                  {fenDraftValidity.valid
+                    ? isFenDirty
+                      ? 'Press Apply (or Enter) to load this position — recorded moves will be cleared.'
+                      : 'Position loaded on the board.'
+                    : fenDraftValidity.error || 'Invalid FEN'}
+                </p>
               </div>
 
               {/* Description / Tactical Clue */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#DFD0B0]">Description & Tactical Lore</label>
+                <label htmlFor="authoring-description" className="text-xs font-bold text-[#DFD0B0] block">
+                  Description &amp; Tactical Lore
+                </label>
                 <textarea
+                  id="authoring-description"
                   rows={2}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -583,9 +726,12 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
 
               {/* Tactical Hints */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#DFD0B0]">Author's Hints</label>
+                <label htmlFor="authoring-hint" className="text-xs font-bold text-[#DFD0B0] block">
+                  Author's Hints
+                </label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="authoring-hint"
                     type="text"
                     value={newHintText}
                     onChange={e => setNewHintText(e.target.value)}
@@ -605,7 +751,14 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
                   {hints.map((h, i) => (
                     <div key={i} className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-[#DFD0B0]">
                       <span className="truncate pr-2">💡 {h}</span>
-                      <button onClick={() => handleRemoveHint(i)} className="text-rose-400 hover:text-rose-300 font-mono text-xs">✕</button>
+                      <button
+                        type="button"
+                        aria-label={`Remove hint ${i + 1}`}
+                        onClick={() => handleRemoveHint(i)}
+                        className="text-rose-400 hover:text-rose-300 font-mono text-xs cursor-pointer"
+                      >
+                        ✕
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -614,10 +767,17 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
               {/* Save / Publish Button */}
               <button
                 onClick={handleSavePuzzle}
-                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#52673A] via-[#8C2425] to-[#F5C453] hover:brightness-110 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#F5C453]/20 border border-[#F5C453]/50 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                disabled={isSaving}
+                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#52673A] via-[#8C2425] to-[#F5C453] hover:brightness-110 disabled:opacity-60 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#F5C453]/20 border border-[#F5C453]/50 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
                 <Save className="w-4 h-4" />
-                <span>Save & Publish Tactical Scenario</span>
+                <span>
+                  {isSaving
+                    ? 'Saving…'
+                    : editingId
+                    ? 'Update Published Scenario'
+                    : 'Save & Publish Tactical Scenario'}
+                </span>
               </button>
             </div>
           </div>
@@ -633,20 +793,29 @@ export const AuthoringView: React.FC<AuthoringViewProps> = ({
               <span>Authored Tactical Challenges ({puzzles.length})</span>
             </h3>
             <button
-              onClick={() => {
-                setEditingId(null);
-                setTitle('New Tactical Challenge');
-                setFenInput('r1b2rk1/pp3ppp/2n1p3/3pP3/5P2/2NB1N2/PPP3PP/R2Q1RK1 w - - 0 1');
-                setBoardGame(new Chess('r1b2rk1/pp3ppp/2n1p3/3pP3/5P2/2NB1N2/PPP3PP/R2Q1RK1 w - - 0 1'));
-                setSolutionMoves([]);
-                setTab('create');
-              }}
+              onClick={startNewPuzzle}
               className="px-3.5 py-1.5 rounded-xl bg-[#52673A] hover:bg-[#52673A]/90 text-white text-xs font-bold flex items-center gap-1.5 border border-[#F5C453]/40 cursor-pointer shadow-md"
             >
               <Plus className="w-4 h-4 text-[#F5C453]" />
               <span>Create New</span>
             </button>
           </div>
+
+          {puzzles.length === 0 && (
+            <div className="p-8 rounded-3xl border border-dashed border-white/15 bg-white/[0.02] text-center space-y-3">
+              <PenTool className="w-8 h-8 text-[#F5C453] mx-auto" />
+              <h4 className="text-sm font-black text-white">No authored puzzles yet</h4>
+              <p className="text-xs text-[#DFD0B0]/60 max-w-md mx-auto">
+                Set a position, record the winning line on the board, then publish it here.
+              </p>
+              <button
+                onClick={startNewPuzzle}
+                className="px-4 py-2 rounded-xl bg-[#52673A] hover:brightness-110 text-white text-xs font-black border border-[#F5C453]/40 cursor-pointer"
+              >
+                Create your first puzzle
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {puzzles.map(p => (

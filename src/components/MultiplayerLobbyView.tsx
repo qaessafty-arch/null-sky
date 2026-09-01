@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PanelContainer } from './PanelContainer';
 import { 
   AppSettings, 
   TimeControl, 
   PieceColor, 
+  OnlineMatchPlayer,
   OnlineMatchSession 
 } from '../types/chess';
 import { TIME_CONTROLS } from '../utils/chessEngine';
 import { useAuth } from '../context/AuthContext';
-import { socketService } from '../utils/socket';
 import { 
   createOnlineMatch, 
   joinOnlineMatch,
+  joinWorldwideMatchmaking,
+  listenToOnlineMatchSession,
   listenToPublicOpenMatches 
 } from '../services/onlineMatchService';
 import { 
@@ -21,6 +23,7 @@ import {
   startMatch
 } from '../services/tournamentService';
 import { soundManager } from '../utils/audio';
+import { getLocalPlayerUid } from '../utils/identity';
 import { 
   Swords, 
   Globe, 
@@ -59,6 +62,10 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   // Quick matchmaking
   const [isSearching, setIsSearching] = useState(false);
   const [searchTimer, setSearchTimer] = useState(0);
+  const [searchStatus, setSearchStatus] = useState('');
+  const cancelSearchRef = useRef<(() => void) | null>(null);
+  const pairWithBotRef = useRef<(() => void) | null>(null);
+  const guestUidRef = useRef(getLocalPlayerUid());
   const [selectedQuickTime, setSelectedQuickTime] = useState<TimeControl>(TIME_CONTROLS[5]); // Rapid 10m
 
   // Create Room state
@@ -96,39 +103,47 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     return () => clearInterval(interval);
   }, [isSearching]);
 
-  // Socket.io Matchmaking Listeners
+  // Cancel any pending matchmaking search when leaving the lobby
   useEffect(() => {
-    socketService.connect();
-    const socket = socketService.getSocket();
-    if (!socket) return;
-
-    const onQueueJoined = (data: any) => {
-      console.log('Joined matchmaking queue:', data);
-    };
-
-    const onMatchFound = (data: any) => {
-      console.log('Match found!', data);
-      setIsSearching(false);
-      soundManager.playVictory();
-      onStartMatch(data.matchId);
-    };
-
-    const onQueueError = (data: any) => {
-      console.error('Queue error:', data);
-      setIsSearching(false);
-      alert(data.message);
-    };
-
-    socket.on('queue_joined', onQueueJoined);
-    socket.on('match_found', onMatchFound);
-    socket.on('queue_error', onQueueError);
-
     return () => {
-      socket.off('queue_joined', onQueueJoined);
-      socket.off('match_found', onMatchFound);
-      socket.off('queue_error', onQueueError);
+      cancelSearchRef.current?.();
+      cancelSearchRef.current = null;
     };
-  }, [onStartMatch]);
+  }, []);
+
+  const buildLocalPlayer = useCallback((): OnlineMatchPlayer => {
+    const uid = profile?.uid || user?.uid || guestUidRef.current;
+    const player: OnlineMatchPlayer = {
+      uid,
+      displayName: profile?.displayName || user?.displayName || 'Peshmerga Warrior',
+      username: profile?.username || 'peshmerga',
+      elo: profile?.elo || 1200,
+      respectPoints: profile?.respectPoints || 100,
+      honorRank: profile?.honorRank || 'Peshmerga Tactician',
+      rankBadge: profile?.rankBadge || '🌿',
+      country: profile?.country || 'Kurdistan',
+      flag: profile?.flag || '☀️',
+      avatar:
+        profile?.photoURL ||
+        user?.photoURL ||
+        `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(uid)}&backgroundColor=0B0F19`
+    };
+    const photoURL = profile?.photoURL || user?.photoURL;
+    if (photoURL) player.photoURL = photoURL;
+    return player;
+  }, [profile, user]);
+
+  // Take the host into the arena as soon as a challenger joins the room
+  useEffect(() => {
+    if (!createdMatchId) return;
+    const unsub = listenToOnlineMatchSession(createdMatchId, session => {
+      if (session?.status === 'in_progress') {
+        soundManager.playVictory();
+        onStartMatch(createdMatchId);
+      }
+    });
+    return () => unsub();
+  }, [createdMatchId, onStartMatch]);
 
   // Listen to open public challenges
   useEffect(() => {
@@ -150,37 +165,50 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     };
   }, []);
 
-  // Quick Match Finder Logic
+  // Quick Match Finder Logic — Firestore live queue, engine challenger as fallback
   const handleQuickMatch = async (tc: TimeControl) => {
+    if (isSearching) return;
     setIsSearching(true);
+    setSearchStatus('Scanning the live queue for opponents…');
     soundManager.playCapture();
 
-    const uid = user?.uid || `guest_${Date.now()}`;
-    socketService.setUid(uid);
-    socketService.joinQueue({
-      uid,
-      rating: profile?.elo || 1200,
-      pool: tc.id,
-      rated: true,
-      recentColors: [] // Could be populated from local match history
-    });
+    try {
+      const { cancel, pairWithBotNow } = await joinWorldwideMatchmaking(
+        buildLocalPlayer(),
+        tc,
+        matchId => {
+          cancelSearchRef.current = null;
+          pairWithBotRef.current = null;
+          setIsSearching(false);
+          setSearchStatus('');
+          soundManager.playVictory();
+          onStartMatch(matchId);
+        },
+        setSearchStatus,
+        'human_first',
+        20
+      );
+      cancelSearchRef.current = cancel;
+      pairWithBotRef.current = pairWithBotNow;
+    } catch (e) {
+      console.error('Quick match error:', e);
+      setIsSearching(false);
+      setSearchStatus('');
+    }
+  };
+
+  const handleCancelQuickMatch = () => {
+    cancelSearchRef.current?.();
+    cancelSearchRef.current = null;
+    pairWithBotRef.current = null;
+    setIsSearching(false);
+    setSearchStatus('');
   };
 
   const handleCreateRoom = async () => {
     setIsCreating(true);
     try {
-      const hostPlayer = {
-        uid: user?.uid || `guest_${Date.now()}`,
-        displayName: profile?.displayName || user?.displayName || 'Peshmerga Host',
-        username: profile?.username || 'host',
-        photoURL: profile?.photoURL || undefined,
-        elo: profile?.elo || 1200,
-        respectPoints: profile?.respectPoints || 100,
-        honorRank: profile?.honorRank || 'Tactician',
-        rankBadge: profile?.rankBadge || '👑'
-      };
-
-      const matchId = await createOnlineMatch(hostPlayer, selectedTimeControl, selectedSide);
+      const matchId = await createOnlineMatch(buildLocalPlayer(), selectedTimeControl, selectedSide);
       setCreatedMatchId(matchId);
       setIsCreating(false);
       soundManager.playCapture();
@@ -200,18 +228,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     setIsJoining(true);
     setJoinError(null);
     try {
-      const guestPlayer = {
-        uid: user?.uid || `guest_${Date.now()}`,
-        displayName: profile?.displayName || user?.displayName || 'Peshmerga Challenger',
-        username: profile?.username || 'challenger',
-        photoURL: profile?.photoURL || undefined,
-        elo: profile?.elo || 1200,
-        respectPoints: profile?.respectPoints || 100,
-        honorRank: profile?.honorRank || 'Tactician',
-        rankBadge: profile?.rankBadge || '⚔️'
-      };
-
-      await joinOnlineMatch(cleanId, guestPlayer);
+      await joinOnlineMatch(cleanId, buildLocalPlayer());
       setIsJoining(false);
       soundManager.playVictory();
       onStartMatch(cleanId);
@@ -232,12 +249,13 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   const handleCreateTournament = async () => {
     if (!tournamentName.trim()) return;
     try {
+      const local = buildLocalPlayer();
       const p: TournamentPlayer = {
-        uid: user?.uid || `guest_${Date.now()}`,
-        displayName: profile?.displayName || user?.displayName || 'Peshmerga Host',
-        elo: profile?.elo || 1200,
-        avatar: profile?.photoURL || undefined,
-        rankBadge: profile?.rankBadge || '👑'
+        uid: local.uid,
+        displayName: local.displayName,
+        elo: local.elo,
+        avatar: local.avatar,
+        rankBadge: local.rankBadge
       };
       await createTournament(tournamentName, p, tournamentMaxPlayers, selectedTimeControl);
       setShowCreateTournament(false);
@@ -250,12 +268,13 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
 
   const handleJoinTournament = async (tId: string) => {
     try {
+      const local = buildLocalPlayer();
       const p: TournamentPlayer = {
-        uid: user?.uid || `guest_${Date.now()}`,
-        displayName: profile?.displayName || user?.displayName || 'Challenger',
-        elo: profile?.elo || 1200,
-        avatar: profile?.photoURL || undefined,
-        rankBadge: profile?.rankBadge || '⚔️'
+        uid: local.uid,
+        displayName: local.displayName,
+        elo: local.elo,
+        avatar: local.avatar,
+        rankBadge: local.rankBadge
       };
       await joinTournament(tId, p);
       soundManager.playCapture();
@@ -372,7 +391,11 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
           <div>
             <div className="text-xs font-black text-white flex items-center gap-1.5">
               <span>{profile?.displayName || user?.displayName || 'Peshmerga Tactician'}</span>
-              <span className="text-[10px] font-mono text-[#F5C453]">({profile?.rankBadge} {profile?.honorRank})</span>
+              {profile?.honorRank && (
+                <span className="text-[10px] font-mono text-[#F5C453]">
+                  ({profile.rankBadge ? `${profile.rankBadge} ` : ''}{profile.honorRank})
+                </span>
+              )}
             </div>
             <div className="text-[10px] text-[#DFD0B0]/60">
               Live Battle Rating: <strong className="text-white font-mono">{profile?.elo || 1200} Elo</strong> • Respect: <strong className="text-[#F5C453] font-mono">{profile?.respectPoints || 100} pts</strong>
@@ -440,21 +463,27 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
                   <span>Start Instant Multiplayer Match ({selectedQuickTime.name})</span>
                 </button>
               ) : (
-                <div className="p-6 rounded-2xl bg-black/80 border-2 border-[#F5C453] text-center space-y-3 animate-pulse">
+                <div className="p-6 rounded-2xl bg-black/80 border-2 border-[#F5C453] text-center space-y-3">
                   <div className="w-12 h-12 rounded-full border-4 border-[#F5C453] border-t-transparent animate-spin mx-auto" />
                   <h4 className="text-base font-black text-white">Searching for Worthy Opponent...</h4>
+                  <p className="text-xs text-white/80">{searchStatus}</p>
                   <p className="text-xs text-[#DFD0B0]/70 font-mono">
-                    Searching queue for {selectedQuickTime.name} ({searchTimer}s elapsed)
+                    {selectedQuickTime.name} • {searchTimer}s elapsed
                   </p>
-                  <button
-                    onClick={() => {
-                      setIsSearching(false);
-                      socketService.leaveQueue(user?.uid || '');
-                    }}
-                    className="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
-                  >
-                    Cancel Queue
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={handleCancelQuickMatch}
+                      className="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
+                    >
+                      Cancel Queue
+                    </button>
+                    <button
+                      onClick={() => pairWithBotRef.current?.()}
+                      className="px-4 py-1.5 rounded-xl bg-[#52673A]/70 hover:bg-[#52673A] border border-[#F5C453]/40 text-[#F5C453] text-xs font-bold cursor-pointer"
+                    >
+                      Play Bot Now
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -576,7 +605,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
               </div>
               <h4 className="text-base font-black text-white">Room Created Successfully!</h4>
               <p className="text-xs text-[#DFD0B0]/70">
-                Share this Room Code with your opponent to let them join:
+                Share this Room Code with your opponent — you'll enter the arena automatically when they join:
               </p>
 
               <div className="p-3 rounded-xl bg-white/5 border border-white/20 flex items-center justify-between gap-3 max-w-sm mx-auto">

@@ -5,6 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // GitHub Pages serves the app from /<repo>/, so the deploy workflow sets
+    // PUBLIC_BASE_PATH; local dev and Express hosting keep the root path.
+    base: process.env.PUBLIC_BASE_PATH || '/',
     plugins: [react(), tailwindcss()],
     build: {
       // Split the vendor weight out of the app chunk so the board renders

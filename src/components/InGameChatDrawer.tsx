@@ -8,10 +8,7 @@ import {
   Sparkles, 
   Smile, 
   ChevronDown,
-  Clock,
-  Zap,
-  Flame,
-  Crown
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { sanitizeChatText } from '../utils/security';
@@ -68,6 +65,7 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isOpponentTyping = opponentUid ? typingMap[opponentUid] : false;
@@ -80,8 +78,18 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
   useEffect(() => {
     if (isOpen) {
       scrollToBottom('auto');
+      inputRef.current?.focus();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!showAutoScrollPill) {
@@ -135,7 +143,19 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
+        <>
         <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          aria-hidden
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] sm:hidden"
+        />
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Match chat"
           initial={{ x: '100%' }}
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
@@ -162,6 +182,8 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={onToggleMute}
+                aria-label={isMuted ? 'Unmute chat' : 'Mute chat'}
+                aria-pressed={isMuted}
                 className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all active:scale-95 border ${
                   isMuted ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
                 }`}
@@ -170,6 +192,7 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
               </button>
               <button
                 onClick={onClose}
+                aria-label="Close chat"
                 className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all active:scale-95"
               >
                 <X className="w-4 h-4" />
@@ -195,6 +218,9 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
               messages.map((msg, idx) => {
                 const isMe = msg.senderUid === myUid;
                 const isSystem = msg.type === 'system';
+                const previous = messages[idx - 1];
+                const showSender =
+                  !isMe && (!previous || previous.senderUid !== msg.senderUid);
 
                 if (isMuted && !isMe && !isSystem) return null;
 
@@ -215,6 +241,11 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
                   >
+                    {showSender && (
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] px-1">
+                        {msg.senderName}
+                      </span>
+                    )}
                     <div
                       className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm transition-all shadow-lg ${
                         isMe
@@ -282,6 +313,8 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
             <form onSubmit={handleSend} className="relative flex items-center gap-2">
               <div className="relative flex-1">
                 <input
+                  ref={inputRef}
+                  aria-label="Message"
                   type="text"
                   value={inputText}
                   onChange={(e) => handleInputChange(e.target.value)}
@@ -297,6 +330,7 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
               </div>
               <button
                 type="submit"
+                aria-label="Send message"
                 disabled={!inputText.trim() || isRateLimited}
                 className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xl ${
                   isRateLimited 
@@ -309,6 +343,7 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
             </form>
           </div>
         </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

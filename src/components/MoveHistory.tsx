@@ -108,9 +108,12 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
       {/* Move list table */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-1 font-mono no-scrollbar">
         {movePairs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-[#94A3B8] opacity-20 py-12 gap-3">
-            <Layers className="w-12 h-12 stroke-[1]" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Moves...</span>
+          <div className="h-full flex flex-col items-center justify-center text-center text-[#94A3B8] py-10 gap-3 px-6">
+            <Layers className="w-9 h-9 stroke-[1] opacity-25" />
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-60">No moves yet</span>
+            <span className="text-[10px] font-mono opacity-40 leading-relaxed">
+              Play a move on the board and the notation will appear here.
+            </span>
           </div>
         ) : (
           movePairs.map(pair => (

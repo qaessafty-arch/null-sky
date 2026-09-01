@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { Chess, Square, Move } from 'chess.js';
 import {
   GameMode,
@@ -25,36 +25,48 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { ChessBoard } from './components/ChessBoard';
 import { EvalBar } from './components/EvalBar';
 import { CapturedPieces } from './components/CapturedPieces';
 import { ChessClock } from './components/ChessClock';
 import { MoveHistory } from './components/MoveHistory';
 import { GameControls } from './components/GameControls';
+import { LocalChatDock } from './components/LocalChatDock';
 import { PromotionModal } from './components/PromotionModal';
-import { GameOverModal } from './components/GameOverModal';
-import { NewGameModal } from './components/NewGameModal';
-import { SettingsModal, SettingsTab } from './components/SettingsModal';
-import { PuzzleMode } from './components/PuzzleMode';
-import { DailyPuzzleView } from './components/DailyPuzzleView';
-import { AnalysisPanel } from './components/AnalysisPanel';
-import { CheckmateJudgmentModal } from './components/CheckmateJudgmentModal';
-import { LeaderboardModal } from './components/LeaderboardModal';
-import { ProfileModal } from './components/ProfileModal';
-import { FriendsModal } from './components/FriendsModal';
-import { FriendChatModal } from './components/FriendChatModal';
-import { OnlineMatchView } from './components/OnlineMatchView';
-import { WorldwideMatchModal } from './components/WorldwideMatchModal';
-import { WorldwideLeaderboardView } from './components/WorldwideLeaderboardView';
-import { AuthoringView } from './components/AuthoringView';
-import { LoggingView } from './components/LoggingView';
-import { DatabaseView } from './components/DatabaseView';
-import { MultiplayerLobbyView } from './components/MultiplayerLobbyView';
-import { LoginPage } from './components/LoginPage';
-import { UserProfilePage } from './components/UserProfilePage';
+import { ViewFallback } from './components/ViewFallback';
+import type { SettingsTab } from './components/SettingsModal';
 import { logCompletedGame } from './services/loggingService';
 import { FriendUser } from './types/chess';
+
+// Everything below the live board is loaded on demand: the first paint only
+// needs the board, the clocks and the header.
+const lazyPreload = <P extends object>(load: () => Promise<{ default: React.ComponentType<P> }>) => {
+  const Component = lazy(load) as React.LazyExoticComponent<React.ComponentType<P>> & { preload: () => void };
+  Component.preload = () => { void load(); };
+  return Component;
+};
+
+const ThemeSelectorModal = lazyPreload(() => import('./components/ThemeSelectorModal').then(m => ({ default: m.ThemeSelectorModal })));
+const GameOverModal = lazyPreload(() => import('./components/GameOverModal').then(m => ({ default: m.GameOverModal })));
+const NewGameModal = lazyPreload(() => import('./components/NewGameModal').then(m => ({ default: m.NewGameModal })));
+const SettingsModal = lazyPreload(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const PuzzleMode = lazyPreload(() => import('./components/PuzzleMode').then(m => ({ default: m.PuzzleMode })));
+const DailyPuzzleView = lazyPreload(() => import('./components/DailyPuzzleView').then(m => ({ default: m.DailyPuzzleView })));
+const AnalysisPanel = lazyPreload(() => import('./components/AnalysisPanel').then(m => ({ default: m.AnalysisPanel })));
+const CheckmateJudgmentModal = lazyPreload(() => import('./components/CheckmateJudgmentModal').then(m => ({ default: m.CheckmateJudgmentModal })));
+const LeaderboardModal = lazyPreload(() => import('./components/LeaderboardModal').then(m => ({ default: m.LeaderboardModal })));
+const ProfileModal = lazyPreload(() => import('./components/ProfileModal').then(m => ({ default: m.ProfileModal })));
+const FriendsModal = lazyPreload(() => import('./components/FriendsModal').then(m => ({ default: m.FriendsModal })));
+const FriendChatModal = lazyPreload(() => import('./components/FriendChatModal').then(m => ({ default: m.FriendChatModal })));
+const OnlineMatchView = lazyPreload(() => import('./components/OnlineMatchView').then(m => ({ default: m.OnlineMatchView })));
+const WorldwideMatchModal = lazyPreload(() => import('./components/WorldwideMatchModal').then(m => ({ default: m.WorldwideMatchModal })));
+const WorldwideLeaderboardView = lazyPreload(() => import('./components/WorldwideLeaderboardView').then(m => ({ default: m.WorldwideLeaderboardView })));
+const AuthoringView = lazyPreload(() => import('./components/AuthoringView').then(m => ({ default: m.AuthoringView })));
+const LoggingView = lazyPreload(() => import('./components/LoggingView').then(m => ({ default: m.LoggingView })));
+const DatabaseView = lazyPreload(() => import('./components/DatabaseView').then(m => ({ default: m.DatabaseView })));
+const MultiplayerLobbyView = lazyPreload(() => import('./components/MultiplayerLobbyView').then(m => ({ default: m.MultiplayerLobbyView })));
+const LoginPage = lazyPreload(() => import('./components/LoginPage').then(m => ({ default: m.LoginPage })));
+const UserProfilePage = lazyPreload(() => import('./components/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 
 export default function App() {
   const { user, profile: authProfile, updateRespectMetrics } = useAuth();
@@ -80,6 +92,23 @@ export default function App() {
 
   useEffect(() => {
     AntiCheatEngine.initializeTelemetry();
+  }, []);
+
+  // Warm the chunks a player reaches for first, once the board is interactive.
+  useEffect(() => {
+    const preload = () => {
+      NewGameModal.preload();
+      GameOverModal.preload();
+      SettingsModal.preload();
+      ThemeSelectorModal.preload();
+    };
+    const idle = window.requestIdleCallback;
+    if (idle) {
+      const handle = idle(preload);
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(preload, 1500);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Sync respect profile
@@ -607,7 +636,7 @@ export default function App() {
     if (gameResult || isAiThinking) return;
     try {
       const isWhite = game.turn() === 'w';
-      const best = findBestMove(game, 3, isWhite);
+      const best = findBestMove(game, 12, isWhite, 700);
       if (best.move) {
         soundManager.playCheck();
         setHintMessage(`💡 Engine Recommendation: Play ${best.move.san} (${best.move.from} to ${best.move.to})`);
@@ -744,6 +773,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col justify-start overflow-y-auto w-full z-10 min-h-0 no-scrollbar">
+        <Suspense fallback={<ViewFallback />}>
         <AnimatePresence mode="wait" initial={false}>
           {activeMode === 'login' ? (
             <motion.div
@@ -843,11 +873,13 @@ export default function App() {
             <AnalysisPanel settings={settings} initialPgn={game.pgn()} initialFen={game.fen()} />
           ) : (
             /* Live Match View (Play AI / Pass & Play) */
-            <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start justify-center">
+            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:px-8 lg:py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start justify-center">
               {/* Center Left: Chess Board & Eval Bar Area */}
-              <div className="lg:col-span-8 flex flex-col items-center justify-center gap-6">
+              <div className="lg:col-span-8 flex flex-col items-center justify-center">
+                {/* Board stage: clocks, board and eval bar share one grid so their edges line up */}
+                <div className="w-full max-w-[644px] lg:max-w-[min(644px,calc(100svh-300px))] grid grid-cols-[auto_1fr] gap-x-2 sm:gap-x-4 gap-y-3 items-stretch">
                 {/* Top Player Status / Clock Bar */}
-                <div className="w-full max-w-[600px] flex flex-col gap-3">
+                <div className="col-start-2 flex flex-col gap-3 min-w-0">
                   <ChessClock
                     timeSeconds={isBoardFlipped ? whiteTime : blackTime}
                     isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
@@ -892,12 +924,13 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Main Board Stage with Evaluation Bar */}
-                <div className="flex items-center justify-center gap-4 sm:gap-6 w-full">
-                  {settings.showEvalBar && (
+                {settings.showEvalBar && (
+                  <div className="col-start-1 row-start-2 flex">
                     <EvalBar score={evalScore} isFlipped={isBoardFlipped} />
-                  )}
+                  </div>
+                )}
 
+                <div className="col-start-2 row-start-2 flex justify-center min-w-0">
                   <div className="relative group w-full max-w-[600px]">
                     <div className="absolute -inset-4 bg-[#F59E0B]/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     <ChessBoard
@@ -918,7 +951,7 @@ export default function App() {
                 </div>
 
                 {/* Bottom Player Status / Clock Bar */}
-                <div className="w-full max-w-[600px] flex flex-col gap-3">
+                <div className="col-start-2 row-start-3 flex flex-col gap-3 min-w-0">
                   <div className="px-1 flex items-center justify-between">
                     <CapturedPieces
                       pieces={isBoardFlipped ? capturedMaterial.capturedByWhite : capturedMaterial.capturedByBlack}
@@ -962,6 +995,7 @@ export default function App() {
                     isUnlimited={timeControl.category === 'unlimited'}
                   />
                 </div>
+                </div>
               </div>
 
               {/* Right Sidebar: History & Tactical Controls */}
@@ -981,8 +1015,16 @@ export default function App() {
                   isAiMode={activeMode === 'ai'}
                 />
 
+                <LocalChatDock
+                  mode={activeMode === 'ai' ? 'ai' : 'local'}
+                  turn={game.turn() as 'w' | 'b'}
+                  botName={currentBot.name}
+                  isMuted={!settings.sound}
+                  onToggleMute={() => setSettings(s => ({ ...s, sound: !s.sound }))}
+                />
+
                 {/* Move Notation & History Log */}
-                <div className="h-[400px] lg:h-[500px]">
+                <div className="h-[360px] lg:h-[clamp(280px,calc(100svh-372px),560px)]">
                   <MoveHistory
                     moveLogs={moveLogs}
                     currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
@@ -1020,6 +1062,7 @@ export default function App() {
             </div>
           )}
         </AnimatePresence>
+        </Suspense>
       </main>
 
       {/* Promotion Selector Modal */}
@@ -1031,6 +1074,7 @@ export default function App() {
         />
       )}
 
+      <Suspense fallback={null}>
       {/* Checkmate Judgment Modal (Execute vs Spare Mercy) */}
       {isJudgmentModalOpen && (
         <CheckmateJudgmentModal
@@ -1070,6 +1114,7 @@ export default function App() {
       )}
 
       {/* New Game Matchmaker Modal */}
+      {isNewGameModalOpen && (
       <NewGameModal
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
@@ -1084,8 +1129,10 @@ export default function App() {
         }}
         initialMode={activeMode}
       />
+      )}
 
       {/* Worldwide Quick Match Live Modal */}
+      {isWorldwideMatchModalOpen && (
       <WorldwideMatchModal
         isOpen={isWorldwideMatchModalOpen}
         onClose={() => setIsWorldwideMatchModalOpen(false)}
@@ -1095,16 +1142,20 @@ export default function App() {
           setActiveMode('online_match');
         }}
       />
+      )}
 
       {/* Dedicated Theme Selector Modal (AoT, Batman, Classic & Crossover) */}
+      {isThemeModalOpen && (
       <ThemeSelectorModal
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
         settings={settings}
         onUpdateSettings={newS => setSettings(prev => ({ ...prev, ...newS }))}
       />
+      )}
 
       {/* Settings Modal Hub */}
+      {isSettingsModalOpen && (
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
@@ -1123,6 +1174,7 @@ export default function App() {
           } catch {}
         }}
       />
+      )}
 
       {/* Respect & Honor Leaderboard Modal */}
       {isLeaderboardModalOpen && (
@@ -1133,12 +1185,15 @@ export default function App() {
       )}
 
       {/* Profile & Google Auth Modal */}
+      {isProfileModalOpen && (
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
+      )}
 
       {/* Friends & Social Panel Modal */}
+      {isFriendsModalOpen && (
       <FriendsModal
         isOpen={isFriendsModalOpen}
         onClose={() => setIsFriendsModalOpen(false)}
@@ -1151,8 +1206,10 @@ export default function App() {
           setActiveChatFriend(friend);
         }}
       />
+      )}
 
       {/* Friends 1-on-1 Private Chat Modal */}
+      {activeChatFriend && (
       <FriendChatModal
         isOpen={!!activeChatFriend}
         onClose={() => setActiveChatFriend(null)}
@@ -1163,6 +1220,8 @@ export default function App() {
           setActiveMode('online_match');
         }}
       />
+      )}
+      </Suspense>
     </div>
   );
 }
