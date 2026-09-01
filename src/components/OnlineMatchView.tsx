@@ -76,6 +76,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [chatMessages, setChatMessages] = useState<InGameMessage[]>([]);
+  const [seenChatCount, setSeenChatCount] = useState(0);
   const [typingMap, setTypingMap] = useState<Record<string, boolean>>({});
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([]);
 
@@ -186,6 +187,12 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       unsubTyping();
     };
   }, [matchId, myUid, isMuted]);
+
+  useEffect(() => {
+    if (isChatOpen) setSeenChatCount(chatMessages.length);
+  }, [isChatOpen, chatMessages.length]);
+
+  const unreadChatCount = Math.max(0, chatMessages.length - seenChatCount);
 
   // Active clock countdown
   useEffect(() => {
@@ -440,6 +447,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           <button
             type="button"
             onClick={() => setIsChatOpen(prev => !prev)}
+            aria-expanded={isChatOpen}
             className={`min-h-[38px] px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer relative ${
               isChatOpen
                 ? 'bg-[#52673A] text-white border-[#F5C453] shadow-md'
@@ -449,10 +457,9 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           >
             <MessageSquare className="w-4 h-4 text-[#F59E0B]" />
             <span>Chat</span>
-            {chatMessages.length > 0 && !isChatOpen && (
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            {unreadChatCount > 0 && !isChatOpen && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-[#F59E0B] text-black text-[10px] font-black flex items-center justify-center shadow-lg">
+                {unreadChatCount > 9 ? '9+' : unreadChatCount}
               </span>
             )}
           </button>

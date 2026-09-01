@@ -31,6 +31,7 @@ import { CapturedPieces } from './components/CapturedPieces';
 import { ChessClock } from './components/ChessClock';
 import { MoveHistory } from './components/MoveHistory';
 import { GameControls } from './components/GameControls';
+import { LocalChatDock } from './components/LocalChatDock';
 import { PromotionModal } from './components/PromotionModal';
 import { ViewFallback } from './components/ViewFallback';
 import type { SettingsTab } from './components/SettingsModal';
@@ -1014,8 +1015,16 @@ export default function App() {
                   isAiMode={activeMode === 'ai'}
                 />
 
+                <LocalChatDock
+                  mode={activeMode === 'ai' ? 'ai' : 'local'}
+                  turn={game.turn() as 'w' | 'b'}
+                  botName={currentBot.name}
+                  isMuted={!settings.sound}
+                  onToggleMute={() => setSettings(s => ({ ...s, sound: !s.sound }))}
+                />
+
                 {/* Move Notation & History Log */}
-                <div className="h-[360px] lg:h-[clamp(320px,calc(100svh-320px),560px)]">
+                <div className="h-[360px] lg:h-[clamp(280px,calc(100svh-372px),560px)]">
                   <MoveHistory
                     moveLogs={moveLogs}
                     currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
