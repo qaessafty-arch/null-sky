@@ -1,15 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --app-bg: #0B0F19;
-  --surface-base: #0B0F19;
+  --app-bg: #070A12;
+  --surface-base: #070A12;
+  --surface-raised: #0E1424;
   --panel-surface: #111827;
+  --panel-surface-2: #0C1220;
   --panel-border: #1F293D;
+  --panel-border-soft: rgba(148, 163, 184, 0.12);
   --accent-gold: #F59E0B;
-  --accent-win: #10B981;
-  --accent-loss: #EF4444;
-  --text-main: #f8fafc;
+  --accent-gold-soft: #FCD34D;
+  --accent-gold-deep: #B45309;
+  --accent-cyan: #38BDF8;
+  --accent-violet: #8B5CF6;
+  --accent-win: #34D399;
+  --accent-loss: #F43F5E;
+  --text-main: #F8FAFC;
   --text-muted: #94A3B8;
+  --text-faint: #64748B;
   --accent-glow: rgba(245, 158, 11, 0.35);
   --glass-bg: rgba(17, 24, 39, 0.7);
   --glass-border: #1F293D;
@@ -20,6 +28,12 @@
     margin: 0;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--app-bg);
+    background-image:
+      radial-gradient(1200px 700px at 12% -10%, rgba(139, 92, 246, 0.20), transparent 60%),
+      radial-gradient(1000px 600px at 100% 0%, rgba(56, 189, 248, 0.14), transparent 55%),
+      radial-gradient(900px 700px at 50% 120%, rgba(245, 158, 11, 0.13), transparent 60%),
+      linear-gradient(180deg, #070A12 0%, #080C16 45%, #05080F 100%);
+    background-attachment: fixed;
     color: var(--text-main);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
@@ -46,6 +60,30 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Layered panel surface used across cards, docks and modals */
+.obsidian-panel {
+  position: relative;
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.06) 0%, rgba(148, 163, 184, 0) 45%),
+    linear-gradient(160deg, var(--panel-surface) 0%, var(--panel-surface-2) 100%);
+  border: 1px solid var(--panel-border);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 18px 40px -24px rgba(0, 0, 0, 0.95);
+}
+
+.obsidian-panel::before {
+  content: '';
+  position: absolute;
+  inset-inline: 12%;
+  top: 0;
+  height: 1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.35), transparent);
+  pointer-events: none;
 }
 
 /* Liquid Glassmorphism & 3D Elevation Utilities */
@@ -81,18 +119,22 @@
 
 .glass-pill {
   @apply backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border;
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #F59E0B;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(180, 83, 9, 0.08));
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--accent-gold-soft);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Tactical 3D Bevel for Board Frame */
 .board-3d-frame {
-  background: linear-gradient(135deg, #1F293D 0%, #111827 100%);
+  background:
+    radial-gradient(120% 90% at 50% -20%, rgba(245, 158, 11, 0.10), transparent 60%),
+    linear-gradient(145deg, #232F47 0%, #131B2B 45%, #0C1220 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
+  box-shadow:
     0 30px 60px -12px rgba(0, 0, 0, 0.9),
-    inset 0 2px 4px 0 rgba(255, 255, 255, 0.1);
+    0 0 60px -30px rgba(56, 189, 248, 0.35),
+    inset 0 2px 4px 0 rgba(255, 255, 255, 0.12);
   position: relative;
 }
 
@@ -134,7 +176,14 @@
 }
 
 .gold-glow {
-  box-shadow: 0 0 20px 0 var(--accent-glow);
+  box-shadow: 0 0 20px 0 var(--accent-glow), 0 0 4px 0 rgba(252, 211, 77, 0.5);
+}
+
+.accent-gradient-text {
+  background: linear-gradient(120deg, var(--accent-gold-soft), var(--accent-gold) 45%, var(--accent-gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .gold-glow-hover:hover {
@@ -155,7 +204,7 @@
 }
 
 .status-dot-online {
-  @apply bg-[#10B981] shadow-[0_0_8px_#10B981] animate-pulse;
+  @apply bg-[#34D399] shadow-[0_0_10px_#34D399] animate-pulse;
 }
 
 .status-dot-offline {
@@ -171,11 +220,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1F293D;
+  background: linear-gradient(180deg, #26334D, #16203354);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2D3748;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.6), rgba(180, 83, 9, 0.5));
 }
 
 /* Utility for no scrollbar */

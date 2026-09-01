@@ -69,9 +69,9 @@ export const ChessClock: React.FC<ChessClockProps> = ({
   return (
     <div
       className={`flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 border backdrop-blur-xl ${
-        isActive 
-          ? 'bg-[#111827] border-[#F59E0B]/50 shadow-[0_0_30px_rgba(245,158,11,0.2)]' 
-          : 'bg-[#111827]/40 border-[#1F293D] grayscale-[0.4] opacity-80'
+        isActive
+          ? 'bg-gradient-to-r from-[#162034] via-[#111827] to-[#0C1220] border-[#F59E0B]/45 shadow-[0_0_35px_-10px_rgba(245,158,11,0.55),inset_0_1px_0_0_rgba(255,255,255,0.08)]'
+          : 'bg-gradient-to-r from-[#0D1421]/80 to-[#0A0F1B]/70 border-[#1F293D] opacity-75'
       }`}
     >
       {/* Player Identity */}

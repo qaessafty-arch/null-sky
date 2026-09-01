@@ -1081,6 +1081,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
         {isBatmanBoard && <BatmanBoardWatermark />}
 
         {/* One Piece Wano Watermark Overlay */}
+
+        <div className="pointer-events-none absolute inset-0 z-20 rounded-xl bg-[radial-gradient(130%_100%_at_50%_-10%,rgba(255,255,255,0.07),transparent_55%)] shadow-[inset_0_0_70px_-20px_rgba(0,0,0,0.85)]" />
       </div>
 
       {/* Weather Overlay */}
