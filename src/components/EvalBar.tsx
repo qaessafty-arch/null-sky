@@ -37,14 +37,14 @@ export const EvalBar: React.FC<EvalBarProps> = ({ score, isFlipped }) => {
   return (
     <div
       id="eval-bar-container"
-      className="relative w-7 sm:w-8 h-[360px] sm:h-[480px] md:h-[520px] lg:h-[560px] bg-black/60 rounded-xl overflow-hidden border border-white/15 shadow-xl flex flex-col justify-between select-none backdrop-blur-md"
+      className="relative w-4 sm:w-6 md:w-7 shrink-0 self-stretch my-2 sm:my-4 min-h-[220px] bg-black/60 rounded-xl overflow-hidden border border-white/15 shadow-xl flex flex-col justify-between select-none backdrop-blur-md"
     >
       {/* Black's territory (top or bottom depending on flip) */}
       <div
         className="w-full bg-[#12141c]/95 transition-all duration-300 ease-out flex items-start justify-center pt-2"
         style={{ height: `${100 - whiteBarHeight}%` }}
       >
-        <span className="text-[10px] sm:text-xs font-mono font-extrabold text-white/80 tracking-tighter">
+        <span className="hidden sm:inline text-[10px] sm:text-xs font-mono font-extrabold text-white/80 tracking-tighter">
           {!isFlipped && score < -0.1 ? displayScore : isFlipped && score > 0.1 ? displayScore : ''}
         </span>
       </div>
@@ -54,7 +54,7 @@ export const EvalBar: React.FC<EvalBarProps> = ({ score, isFlipped }) => {
         className="w-full bg-white/95 transition-all duration-300 ease-out flex items-end justify-center pb-2"
         style={{ height: `${whiteBarHeight}%` }}
       >
-        <span className="text-[10px] sm:text-xs font-mono font-extrabold text-slate-900 tracking-tighter">
+        <span className="hidden sm:inline text-[10px] sm:text-xs font-mono font-extrabold text-slate-900 tracking-tighter">
           {!isFlipped && score > 0.1 ? displayScore : isFlipped && score < -0.1 ? displayScore : ''}
         </span>
       </div>

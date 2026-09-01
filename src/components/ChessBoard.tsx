@@ -23,17 +23,38 @@ interface ChessBoardProps {
   showTerritory?: boolean;
 }
 
+const PIECE_NAMES: Record<PieceType, string> = {
+  p: 'pawn',
+  n: 'knight',
+  b: 'bishop',
+  r: 'rook',
+  q: 'queen',
+  k: 'king',
+};
+
 const THEME_STYLES: Record<
   BoardThemeId,
-  { light: string; dark: string; lightText: string; darkText: string; border: string; glow: string }
+  {
+    light: string;
+    dark: string;
+    lightText: string;
+    darkText: string;
+    border: string;
+    glow: string;
+    /** Move markers default to dark ink; boards with dark squares override them. */
+    marker?: string;
+    captureRing?: string;
+  }
 > = {
   obsidian: {
-    light: 'bg-[#111827]',
-    dark: 'bg-[#1F293D]',
-    lightText: 'text-[#1F293D]',
-    darkText: 'text-[#111827]',
+    light: 'bg-[#41506E]',
+    dark: 'bg-[#161E2E]',
+    lightText: 'text-[#0E1524]',
+    darkText: 'text-[#8296BC]',
     border: 'border-[#1F293D]',
-    glow: 'shadow-[0_0_50px_rgba(245,158,11,0.1)]'
+    glow: 'shadow-[0_0_50px_rgba(245,158,11,0.1)]',
+    marker: 'bg-white/45',
+    captureRing: 'border-white/45'
   },
   'one-piece': {
     light: 'bg-[#0b1d3a]',
@@ -44,18 +65,18 @@ const THEME_STYLES: Record<
     glow: 'shadow-[0_0_40px_rgba(168,85,247,0.5)]'
   },
   batman: {
-    light: 'bg-[#0D1117]',
-    dark: 'bg-[#1F2937]',
-    lightText: 'text-[#FACC15]',
-    darkText: 'text-[#0D1117]',
+    light: 'bg-[#39445A]',
+    dark: 'bg-[#0E141D]',
+    lightText: 'text-[#0D1117]',
+    darkText: 'text-[#FACC15]',
     border: 'border-[#FACC15]/80',
     glow: 'shadow-[0_0_35px_rgba(250,204,21,0.45)]'
   },
   'gotham-city': {
-    light: 'bg-[#0D1117]',
-    dark: 'bg-[#1F2937]',
-    lightText: 'text-[#FACC15]',
-    darkText: 'text-[#0D1117]',
+    light: 'bg-[#39445A]',
+    dark: 'bg-[#0E141D]',
+    lightText: 'text-[#0D1117]',
+    darkText: 'text-[#FACC15]',
     border: 'border-[#FACC15]/80',
     glow: 'shadow-[0_0_35px_rgba(250,204,21,0.45)]'
   },
@@ -124,12 +145,14 @@ const THEME_STYLES: Record<
     glow: 'shadow-[0_0_30px_rgba(103,130,146,0.3)]'
   },
   midnight: {
-    light: 'bg-[#0f172a]',
-    dark: 'bg-[#334155]',
-    lightText: 'text-[#334155]',
-    darkText: 'text-[#0f172a]',
+    light: 'bg-[#48597A]',
+    dark: 'bg-[#141C2C]',
+    lightText: 'text-[#101725]',
+    darkText: 'text-[#8B9DC0]',
     border: 'border-slate-800',
-    glow: 'shadow-[0_0_35px_rgba(30,41,59,0.5)]'
+    glow: 'shadow-[0_0_35px_rgba(30,41,59,0.5)]',
+    marker: 'bg-white/45',
+    captureRing: 'border-white/45'
   },
   marble: {
     light: 'bg-[#8ca2b0]',
@@ -815,7 +838,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   }, [handlePointerMove, handlePointerUp]);
 
   return (
-    <div className="relative block w-full max-w-[600px] select-none touch-none mx-auto p-4 board-3d-frame rounded-2xl" dir="ltr">
+    <div className="relative block w-full max-w-[min(600px,88svh)] select-none touch-none mx-auto p-2 sm:p-4 board-3d-frame rounded-2xl" dir="ltr">
       {/* 3D Rim Lighting for tactical feel */}
       <div className="absolute inset-0 rounded-2xl pointer-events-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-2px_4px_rgba(0,0,0,0.4)] z-50" />
       
@@ -823,7 +846,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       <div
         ref={boardRef}
         id="chess-board-container"
-        className={`relative aspect-square w-full min-w-[280px] min-h-[280px] rounded-xl overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] border border-white/5 ${theme.glow} bg-[#111827] grid grid-cols-8 grid-rows-8 touch-none will-change-transform`}
+        role="grid"
+        aria-label="Chess board"
+        className={`relative aspect-square w-full rounded-xl overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] border border-white/5 ${theme.glow} bg-[#111827] grid grid-cols-8 grid-rows-8 touch-none will-change-transform`}
         style={{ willChange: 'transform' }}
       >
         {displayRanks.map((rank, rankIdx) =>
@@ -856,9 +881,12 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                     handlePointerDown(e.touches[0].clientX, e.touches[0].clientY, square);
                   }
                 }}
-                className={`relative flex items-center justify-center cursor-pointer transition-colors duration-150 ${
-                  isLight ? theme.light : theme.dark
-                }`}
+                role="gridcell"
+                aria-label={`${square}${piece ? `, ${piece.color === 'w' ? 'white' : 'black'} ${PIECE_NAMES[piece.type]}` : ', empty'}${isLegalTarget ? `, ${isLegalTarget.isCapture ? 'capture' : 'legal'} move` : ''}`}
+                aria-selected={isSelected}
+                className={`relative flex items-center justify-center transition-colors duration-150 ${
+                  piece || isLegalTarget ? 'cursor-pointer' : 'cursor-default'
+                } ${isLight ? theme.light : theme.dark}`}
               >
                 {/* Last Move Overlay */}
                 {isLastMoveSquare && (
@@ -930,7 +958,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                       ) : isBatmanBoard ? (
                         <div className="w-[88%] h-[88%] border-4 border-yellow-400 shadow-[0_0_14px_rgba(234,179,8,0.85)] rounded-full scale-95 transition-transform" />
                       ) : (
-                        <div className="w-[85%] h-[85%] border-4 border-slate-900/40 rounded-full scale-95 transition-transform" />
+                        <div className={`w-[85%] h-[85%] border-4 rounded-full scale-95 transition-transform ${theme.captureRing || 'border-slate-900/40'}`} />
                       )
                     ) : (
                       isAotBoard ? (
@@ -938,7 +966,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                       ) : isBatmanBoard ? (
                         <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.9)] rounded-full ring-2 ring-yellow-300/80" />
                       ) : (
-                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-slate-900/35 rounded-full shadow-sm" />
+                        <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shadow-sm ${theme.marker || 'bg-slate-900/35'}`} />
                       )
                     )}
                   </div>
