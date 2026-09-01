@@ -17,7 +17,7 @@ import {
   InGameMessage 
 } from '../services/chatService';
 import { advanceTournamentMatch } from '../services/tournamentService';
-import { findBestMove, getCapturedMaterial, evaluateBoard } from '../utils/chessEngine';
+import { getBotMoveForElo, getCapturedMaterial, evaluateBoard } from '../utils/chessEngine';
 import { useAuth } from '../context/AuthContext';
 import { ChessBoard } from './ChessBoard';
 import { CapturedPieces } from './CapturedPieces';
@@ -116,7 +116,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       try {
         const updatedGame = new Chess(newSession.fen);
         setGame(updatedGame);
-        setEvalScore(evaluateBoard(updatedGame) / 100); // centipawns to points
+        setEvalScore(evaluateBoard(updatedGame));
         if (newSession.lastMoveFrom && newSession.lastMoveTo) {
           setLastMove({ from: newSession.lastMoveFrom, to: newSession.lastMoveTo });
         }
@@ -227,15 +227,13 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           if (currentG.isGameOver()) return;
 
           const oppColor = isWhitePlayer ? 'b' : 'w';
-          // Calculate move
-          const calcDepth = (opp.elo || 1800) >= 2000 ? 4 : 3;
-          const best = findBestMove(currentG, calcDepth, oppColor === 'w');
-          if (!best.move) return;
+          const botMove = getBotMoveForElo(currentG, opp.elo || 1800);
+          if (!botMove) return;
 
           const moveResult = currentG.move({
-            from: best.move.from,
-            to: best.move.to,
-            promotion: best.move.promotion || 'q'
+            from: botMove.from,
+            to: botMove.to,
+            promotion: botMove.promotion || 'q'
           });
 
           if (!moveResult) return;
@@ -278,8 +276,8 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
             currentG.fen(),
             currentG.pgn(),
             myColor,
-            best.move.from,
-            best.move.to,
+            botMove.from,
+            botMove.to,
             newWhiteTime,
             newBlackTime,
             nextStatus,

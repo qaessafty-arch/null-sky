@@ -18,10 +18,10 @@ import {
 } from '../types/chess';
 import { Position } from '../engine/board';
 import { evaluate } from '../engine/evaluate';
-import { BOT_DEFINITIONS, chooseBotMove, getBotDefinition } from '../engine/bots';
+import { BOT_DEFINITIONS, botDefinitionForElo, chooseBotMove, getBotDefinition } from '../engine/bots';
 import { search } from '../engine/search';
 
-export { BOT_DEFINITIONS, getBotDefinition };
+export { BOT_DEFINITIONS, botDefinitionForElo, getBotDefinition };
 export type { BotDefinition } from '../engine/bots';
 
 /** The bot ladder, typed for existing UI components. */
@@ -112,6 +112,13 @@ export function findBestMove(
     mateIn: result.mateIn,
     pv: result.pv
   };
+}
+
+/** Synchronous move for an opponent of a given rating (online challengers). */
+export function getBotMoveForElo(game: Chess, elo: number): Move | null {
+  const pos = new Position(game.fen());
+  const result = chooseBotMove(pos, botDefinitionForElo(elo));
+  return applyUciToChessJs(game, result.uci);
 }
 
 /** Synchronous bot move. The UI normally uses `engine.botMove()` instead. */

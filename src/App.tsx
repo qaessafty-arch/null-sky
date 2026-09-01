@@ -636,7 +636,7 @@ export default function App() {
     if (gameResult || isAiThinking) return;
     try {
       const isWhite = game.turn() === 'w';
-      const best = findBestMove(game, 3, isWhite);
+      const best = findBestMove(game, 12, isWhite, 700);
       if (best.move) {
         soundManager.playCheck();
         setHintMessage(`💡 Engine Recommendation: Play ${best.move.san} (${best.move.from} to ${best.move.to})`);
