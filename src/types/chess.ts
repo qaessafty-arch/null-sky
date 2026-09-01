@@ -45,7 +45,37 @@ export interface MatchLogRecord {
   accuracy?: number;
 }
 
-export type UserRole = 'owner' | 'developer' | 'admin' | 'grandmaster' | 'moderator' | 'member';
+export type UserRole = 'super_admin' | 'owner' | 'developer' | 'admin' | 'grandmaster' | 'moderator' | 'player' | 'member' | 'vip';
+
+export interface UserPermissions {
+  canCustomizeAboutUs?: boolean;
+  canModerateChat?: boolean;
+  canManageTournaments?: boolean;
+  canGrantBadges?: boolean;
+  canAccessDevTelemetry?: boolean;
+}
+
+export interface AboutUsConfig {
+  appName: string;
+  tagline: string;
+  founderNote: string;
+  visionParagraphs: string;
+  socialLinks: {
+    discord?: string;
+    github?: string;
+    twitter?: string;
+    telegram?: string;
+    youtube?: string;
+  };
+  credits: string;
+  announcementBanner?: string;
+  lastUpdated?: any;
+}
+
+export interface SystemConfig {
+  maintenanceMode: boolean;
+  aboutUs?: AboutUsConfig;
+}
 
 export interface DailyPuzzleProgress {
   dateKey: string; // "YYYY-MM-DD"

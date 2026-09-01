@@ -1,8 +1,11 @@
 import React from 'react';
 import { Timer, Zap, Shield, Flame } from 'lucide-react';
 
+import { motion } from 'motion/react';
+
 interface ChessClockProps {
   timeSeconds: number;
+  totalTimeSeconds?: number;
   isActive: boolean;
   isWhite: boolean;
   playerName: string;
@@ -15,6 +18,7 @@ interface ChessClockProps {
 
 export const ChessClock: React.FC<ChessClockProps> = ({
   timeSeconds,
+  totalTimeSeconds,
   isActive,
   isWhite,
   playerName,
@@ -66,73 +70,100 @@ export const ChessClock: React.FC<ChessClockProps> = ({
     cardClasses = 'bg-white/10 border-blue-400/50 shadow-[0_0_20px_rgba(96,165,250,0.2)]';
   }
 
+  const percentage = totalTimeSeconds && totalTimeSeconds > 0 
+    ? Math.min(100, Math.max(0, (safeTime / totalTimeSeconds) * 100))
+    : 100;
+
   return (
     <div
-      className={`flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 border backdrop-blur-xl ${
+      className={`flex flex-col rounded-2xl transition-all duration-300 border backdrop-blur-xl relative overflow-hidden ${
         isActive
           ? 'bg-gradient-to-r from-[#162034] via-[#111827] to-[#0C1220] border-[#F59E0B]/45 shadow-[0_0_35px_-10px_rgba(245,158,11,0.55),inset_0_1px_0_0_rgba(255,255,255,0.08)]'
           : 'bg-gradient-to-r from-[#0D1421]/80 to-[#0A0F1B]/70 border-[#1F293D] opacity-75'
       }`}
     >
-      {/* Player Identity */}
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg border transition-all duration-500 ${
-              isActive
-                ? 'bg-[#0B0F19] border-[#F59E0B] text-[#F59E0B] scale-105'
-                : 'bg-[#0B0F19] border-[#1F293D] text-[#94A3B8]'
-            }`}
-          >
-            {avatar && /^(https?:|data:|\/)/.test(avatar) ? (
-              <img src={avatar} alt="" className="w-full h-full rounded-xl object-cover" />
-            ) : (
-              avatar || (isWhite ? '♔' : '♚')
+      <div className="flex items-center justify-between px-4 py-3">
+        {/* Player Identity */}
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg border transition-all duration-500 ${
+                isActive
+                  ? 'bg-[#0B0F19] border-[#F59E0B] text-[#F59E0B] scale-105'
+                  : 'bg-[#0B0F19] border-[#1F293D] text-[#94A3B8]'
+              }`}
+            >
+              {avatar && /^(https?:|data:|\/)/.test(avatar) ? (
+                <img src={avatar} alt="" className="w-full h-full rounded-xl object-cover" />
+              ) : (
+                avatar || (isWhite ? '♔' : '♚')
+              )}
+            </div>
+            {isActive && (
+              <span className="absolute -bottom-1 -right-1 status-dot status-dot-online ring-2 ring-[#111827]" />
             )}
           </div>
-          {isActive && (
-            <span className="absolute -bottom-1 -right-1 status-dot status-dot-online ring-2 ring-[#111827]" />
-          )}
-        </div>
 
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {playerTitle && renderTitleBadge(playerTitle)}
-            <span className={`text-xs sm:text-sm font-black tracking-tight transition-colors duration-300 ${
-              isActive ? 'text-white' : 'text-[#94A3B8]'
-            }`}>
-              {playerName}
-            </span>
-          </div>
-          {elo !== undefined && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] font-mono text-[#94A3B8] opacity-60 uppercase tracking-widest">Rating</span>
-              <span className="text-[11px] font-mono font-black text-[#F59E0B]">{elo}</span>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {playerTitle && renderTitleBadge(playerTitle)}
+              <span className={`text-xs sm:text-sm font-black tracking-tight transition-colors duration-300 ${
+                isActive ? 'text-white' : 'text-[#94A3B8]'
+              }`}>
+                {playerName}
+              </span>
             </div>
-          )}
+            {elo !== undefined && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] font-mono text-[#94A3B8] opacity-60 uppercase tracking-widest">Rating</span>
+                <span className="text-[11px] font-mono font-black text-[#F59E0B]">{elo}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Clock Display */}
+        <div
+          className={`flex items-center gap-3 px-4 py-2 rounded-xl font-mono font-black text-sm sm:text-lg border transition-all duration-300 ${
+            isCritical
+              ? 'bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444] animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+              : isLowTime
+              ? 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+              : isActive
+              ? 'bg-[#0B0F19] text-white border-[#F59E0B]/30 shadow-inner'
+              : 'bg-[#0B0F19]/40 text-[#94A3B8] border-transparent opacity-40'
+          }`}
+        >
+          <Timer
+            className={`w-4 h-4 ${
+              isActive ? 'text-[#F59E0B] animate-spin-slow' : 'text-[#94A3B8]'
+            }`}
+            style={{ animationDuration: '4s' }}
+          />
+          <span className="tracking-tighter">{formattedTime}</span>
         </div>
       </div>
 
-      {/* Clock Display */}
-      <div
-        className={`flex items-center gap-3 px-4 py-2 rounded-xl font-mono font-black text-sm sm:text-lg border transition-all duration-300 ${
-          isCritical
-            ? 'bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444] animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.3)]'
-            : isLowTime
-            ? 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-            : isActive
-            ? 'bg-[#0B0F19] text-white border-[#F59E0B]/30 shadow-inner'
-            : 'bg-[#0B0F19]/40 text-[#94A3B8] border-transparent opacity-40'
-        }`}
-      >
-        <Timer
-          className={`w-4 h-4 ${
-            isActive ? 'text-[#F59E0B] animate-spin-slow' : 'text-[#94A3B8]'
-          }`}
-          style={{ animationDuration: '4s' }}
-        />
-        <span className="tracking-tighter">{formattedTime}</span>
-      </div>
+      {/* Visual Progress Indicator */}
+      {isActive && !isUnlimited && totalTimeSeconds && (
+        <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/5 overflow-hidden">
+          <motion.div
+            className={`h-full ${
+              isCritical ? 'bg-[#EF4444]' : isLowTime ? 'bg-[#F59E0B]' : 'bg-sky-400'
+            }`}
+            initial={{ width: `${percentage}%` }}
+            animate={{ width: `${percentage}%` }}
+            transition={{ duration: 1, ease: "linear" }}
+            style={{
+              boxShadow: isCritical 
+                ? '0 0 10px rgba(239, 68, 68, 0.8)' 
+                : isLowTime 
+                ? '0 0 10px rgba(245, 158, 11, 0.6)' 
+                : '0 0 10px rgba(56, 189, 248, 0.4)'
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };

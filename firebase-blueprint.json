@@ -206,6 +206,41 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["isTyping"]
+    },
+    "AboutUsConfig": {
+      "title": "AboutUsConfig",
+      "description": "Dynamic CMS configuration for the About Us page",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "founderNote": { "type": "string" },
+        "visionParagraphs": { "type": "string" },
+        "socialLinks": {
+          "type": "object",
+          "properties": {
+            "discord": { "type": "string" },
+            "github": { "type": "string" },
+            "twitter": { "type": "string" },
+            "telegram": { "type": "string" },
+            "youtube": { "type": "string" }
+          }
+        },
+        "credits": { "type": "string" },
+        "announcementBanner": { "type": "string" },
+        "lastUpdated": { "type": "any" }
+      },
+      "required": ["appName", "tagline", "founderNote", "visionParagraphs", "credits"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { "type": "boolean" },
+        "aboutUs": { "$ref": "#/entities/AboutUsConfig" }
+      },
+      "required": ["maintenanceMode"]
     }
   },
   "firestore": {
@@ -252,6 +287,10 @@
     "/game_logs/{logId}": {
       "schema": "GameLog",
       "description": "User match logs and historical battle audit records"
+    },
+    "/system_configs/{configId}": {
+      "schema": "SystemConfig",
+      "description": "Global system configurations including CMS content and stickers"
     }
   }
 }

@@ -27,6 +27,8 @@ import {
   AlertCircle,
   HelpCircle,
   RefreshCw,
+  Info,
+  ChevronRight,
   Star,
   Wand2,
   Camera,
@@ -47,9 +49,10 @@ import { sanitizeChatText } from '../utils/security';
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAbout?: () => void;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onOpenAbout }) => {
   const { t } = useTranslation();
   const { 
     user, 
@@ -58,6 +61,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     isSkyAccount, 
     isGuest,
     isDeveloper,
+    isSuperAdmin,
     isOwner,
     isAdmin,
     devModeUnlocked,
@@ -162,7 +166,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     try {
       await useAuth().linkProvider(providerId);
     } catch (e: any) {
-      setLinkError(e.message || 'Failed to link account');
+      if (e?.code !== 'auth/popup-closed-by-user') {
+        setLinkError(e.message || 'Failed to link account');
+      }
     }
   };
 
@@ -430,7 +436,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-1">
 
         {/* Dedicated Account [sky] Card (Developer-Locked Access) */}
-        <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-sky-950/70 via-[#0B1726]/90 to-sky-900/50 border border-sky-400/40 shadow-lg relative overflow-hidden">
+        <div className="hidden mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-sky-950/70 via-[#0B1726]/90 to-sky-900/50 border border-sky-400/40 shadow-lg relative overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-sky-500/20 border-2 border-sky-400 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(56,189,248,0.4)] shrink-0">
@@ -489,9 +495,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               </div>
               <input
                 type="password"
-                placeholder="Enter Developer Passkey (e.g. q.brz)"
+                placeholder="Enter Developer Passkey"
                 value={skyPassInput}
                 onChange={e => setSkyPassInput(e.target.value)}
+                autoComplete="new-password"
                 className="flex-1 min-w-[180px] px-3 py-1.5 rounded-xl bg-black/50 border border-sky-400/40 text-white text-xs outline-none focus:border-sky-300"
               />
               <button
@@ -697,6 +704,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     placeholder="••••••••"
                     value={passwordInput}
                     onChange={e => setPasswordInput(e.target.value)}
+                    autoComplete="current-password"
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:border-sky-400"
                   />
                 </div>
@@ -731,9 +739,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   </label>
                   <input
                     type="password"
-                    placeholder="Enter passkey (e.g. q.brz)"
+                    placeholder="Enter passkey"
                     value={devPasskeyInput}
                     onChange={e => setDevPasskeyInput(e.target.value)}
+                    autoComplete="off"
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-amber-400/40 text-white text-xs outline-none focus:border-amber-300 font-mono"
                   />
                 </div>
@@ -891,6 +900,44 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 </button>
               </div>
             </div>
+
+            {/* Developer Control Center Entry (Super-Admin Locked) */}
+            {(isSuperAdmin || isDeveloper) && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-red-500/10 border border-amber-500/30 flex items-center justify-between shadow-xl animate-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0B0F19] border border-amber-500 flex items-center justify-center text-amber-500 shadow-inner">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight">Dev Control Center</h4>
+                    <p className="text-[10px] text-amber-400/70 font-mono uppercase tracking-widest">Master System Override</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsDevSettingsOpen(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-[#F59E0B] rounded-xl text-black font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-amber-500/20 cursor-pointer"
+                >
+                  Open Console
+                </button>
+              </div>
+            )}
+
+            {/* About Us Link */}
+            <button
+              onClick={onOpenAbout}
+              className="w-full p-4 rounded-2xl bg-[#0B0F19] border border-[#1F293D] hover:border-amber-500/30 flex items-center justify-between group transition-all"
+            >
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-[#111827] border border-[#1F293D] group-hover:border-amber-500/30 flex items-center justify-center text-slate-400 group-hover:text-amber-500 transition-colors">
+                   <Info className="w-5 h-5" />
+                 </div>
+                 <div className="text-left">
+                   <h4 className="text-sm font-bold text-slate-200">About Chesskys PRO</h4>
+                   <p className="text-[10px] text-slate-500 uppercase tracking-widest">System Lore & Vision</p>
+                 </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+            </button>
 
             {/* Notification Banner for Saved Profile Picture */}
             {photoSuccessMessage && (

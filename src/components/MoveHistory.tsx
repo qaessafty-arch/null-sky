@@ -106,7 +106,7 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
       </div>
 
       {/* Move list table */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-1 font-mono no-scrollbar">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-1 font-mono">
         {movePairs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-[#94A3B8] py-10 gap-3 px-6">
             <Layers className="w-9 h-9 stroke-[1] opacity-25" />

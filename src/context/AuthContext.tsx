@@ -31,8 +31,8 @@ import {
   getDocs,
   addDoc
 } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../utils/firebase';
-import { RespectLeaderboardEntry, UserRole, UserFeedback } from '../types/chess';
+import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../utils/firebase';
+import { RespectLeaderboardEntry, UserRole, UserFeedback, UserPermissions } from '../types/chess';
 import { getHonorRank } from '../utils/respectSystem';
 
 export const DEVELOPER_EMAILS = [
@@ -104,6 +104,19 @@ export interface UserProfileData {
   isGuest?: boolean;
   createdAt?: any;
   updatedAt?: any;
+  permissions?: UserPermissions;
+}
+
+export function isSuperAdmin(profile: UserProfileData | null): boolean {
+  if (!profile) return false;
+  // Designated Developer/Owner UID or explicitly set role
+  const SUPER_ADMIN_UIDS = ['developer_qayssafty_uid', 'U0X0X0X0X0X0X0X0X0X0X0X0X0X0']; 
+  return (
+    profile.role === 'super_admin' || 
+    profile.role === 'owner' ||
+    DEVELOPER_EMAILS.includes(profile.email || '') ||
+    SUPER_ADMIN_UIDS.includes(profile.uid)
+  );
 }
 
 interface AuthContextType {
@@ -115,6 +128,7 @@ interface AuthContextType {
   isDeveloper: boolean;
   isOwner: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   devModeUnlocked: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
@@ -236,6 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isOwner = isDeveloper || profile?.role === 'owner' || profile?.badgeNumber === 0;
   const isAdmin = isOwner || profile?.role === 'admin';
+  const isSuperAdminValue = isSuperAdmin(profile);
 
   // Seed Sky and Dev profiles
   useEffect(() => {
@@ -280,7 +295,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             updatedAt: serverTimestamp()
           });
         }
-      } catch (err) {
+      } catch (err: any) {
+        handleFirestoreError(err, OperationType.WRITE, 'users');
         // Silent catch for background seeding
       }
     };
@@ -454,7 +470,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await setDoc(userDocRef, newProfile);
             setProfile(newProfile);
           }
-        } catch (err) {
+        } catch (err: any) {
+          handleFirestoreError(err, OperationType.GET, 'users');
           console.warn('Firestore user profile fetch notice (operating with resilient profile):', err);
           const isDev = isEmailDeveloper(currentUser.email);
           const rank = isDev 
@@ -519,6 +536,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('chess_active_account');
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
+      if (error?.code === 'auth/popup-closed-by-user') {
+        // Silent catch for user cancellation to prevent console noise and unhandled rejections
+        return;
+      }
       console.error('Google Sign-In failed:', error);
       throw error;
     }
@@ -534,6 +555,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       appleProvider.addScope('name');
       await signInWithPopup(auth, appleProvider);
     } catch (error: any) {
+      if (error?.code === 'auth/popup-closed-by-user') {
+        // Silent catch for user cancellation
+        return;
+      }
       console.warn('Apple Sign-In note:', error);
       // Fallback guest activation if Apple ID provider not configured in project console
       activateGuestProfile('Apple Player', 'Kurdistan');
@@ -681,7 +706,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...updates,
         updatedAt: serverTimestamp()
       });
-    } catch (e) {
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.WRITE, 'users');
       console.warn('Owner badge/status cloud sync notice:', e);
     }
   };
@@ -797,7 +823,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rankBadge: rank.badge,
         updatedAt: serverTimestamp()
       });
-    } catch (e) {
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.WRITE, 'users');
       console.warn('Profile metric sync notice:', e);
     }
   };
@@ -853,7 +880,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...details,
         updatedAt: serverTimestamp()
       }, { merge: true });
-    } catch (e) {
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.WRITE, 'users');
       console.warn('Profile detail update notice:', e);
     }
   };
@@ -1036,6 +1064,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isDeveloper,
         isOwner,
         isAdmin,
+        isSuperAdmin: isSuperAdminValue,
         devModeUnlocked,
         signInWithGoogle,
         signInWithApple,

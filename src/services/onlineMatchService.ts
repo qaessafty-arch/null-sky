@@ -12,7 +12,7 @@ import {
   onSnapshot, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { db, handleFirestoreError, OperationType } from '../utils/firebase';
 import { OnlineMatchSession, OnlineMatchPlayer, TimeControl } from '../types/chess';
 import { Chess } from 'chess.js';
 
@@ -168,7 +168,8 @@ export const joinWorldwideMatchmaking = async (
     try {
       await setDoc(matchDocRef, initialSession);
       await deleteDoc(ticketDocRef).catch(() => {});
-    } catch (e) {
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.WRITE, 'online_matches');
       console.warn('Error creating bot session:', e);
     }
 
@@ -238,7 +239,8 @@ export const joinWorldwideMatchmaking = async (
           status: 'matched',
           matchId
         });
-      } catch (err) {
+      } catch (err: any) {
+        handleFirestoreError(err, OperationType.WRITE, 'matchmaking_queue');
         console.warn('Error pairing with opponent ticket:', err);
       }
 
@@ -416,7 +418,8 @@ export const createOnlineMatchChallenge = async (
 
     await setDoc(matchDocRef, initialSession);
     return matchId;
-  } catch (e) {
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, 'online_matches');
     console.error('Error creating online match challenge:', e);
     return null;
   }
@@ -430,7 +433,8 @@ export const acceptOnlineMatchChallenge = async (matchId: string): Promise<boole
       updatedAt: new Date().toISOString()
     });
     return true;
-  } catch (e) {
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, 'online_matches');
     console.error('Error accepting match challenge:', e);
     return false;
   }
@@ -467,7 +471,8 @@ export const sendOnlineMove = async (
       updatedAt: new Date().toISOString()
     });
     return true;
-  } catch (e) {
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, 'online_matches');
     console.error('Error updating online match move:', e);
     return false;
   }

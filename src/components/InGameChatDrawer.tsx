@@ -204,7 +204,7 @@ export const InGameChatDrawer: React.FC<InGameChatDrawerProps> = ({
           <div 
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar scroll-smooth"
+            className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
           >
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-40 space-y-3">

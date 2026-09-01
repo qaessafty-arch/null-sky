@@ -1,17 +1,41 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
+
+// Use initializeFirestore with experimentalForceLongPolling to fix "Could not reach Cloud Firestore backend"
+// which is a common issue in some sandboxed environments.
 export const db = firebaseConfig.firestoreDatabaseId 
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+  ? initializeFirestore(app, { experimentalForceLongPolling: true }, firebaseConfig.firestoreDatabaseId)
+  : initializeFirestore(app, { experimentalForceLongPolling: true });
+
 export const googleProvider = new GoogleAuthProvider();
 export const storage = getStorage(app);
+
+/**
+ * Validates the connection to Firestore by attempting to fetch a document directly from the server.
+ */
+export async function testFirestoreConnection() {
+  try {
+    // Try to fetch a dummy document from the server to verify connectivity
+    await getDocFromServer(doc(db, '_system_health_', 'ping'));
+    console.log('Firestore connectivity verified.');
+    return true;
+  } catch (error) {
+    if (error instanceof Error && (error.message.includes('unavailable') || error.message.includes('offline'))) {
+      console.error('Firestore connection failed. Please ensure your Firebase project is active and terms are accepted.');
+    }
+    return false;
+  }
+}
+
+// Perform initial connection test
+testFirestoreConnection();
 
 export enum OperationType {
   CREATE = 'create',

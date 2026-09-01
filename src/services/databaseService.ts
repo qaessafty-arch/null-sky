@@ -11,7 +11,7 @@ import {
   orderBy, 
   getDocFromServer
 } from 'firebase/firestore';
-import { db, auth } from '../utils/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../utils/firebase';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export interface DatabaseCollectionMeta {
@@ -95,7 +95,8 @@ export const getCollectionDocuments = async (
       });
     });
     return docs;
-  } catch (err) {
+  } catch (err: any) {
+    handleFirestoreError(err, OperationType.LIST, collectionName);
     console.error(`Error fetching collection ${collectionName}:`, err);
     return [];
   }
@@ -116,7 +117,8 @@ export const writeDatabaseDocument = async (
       updatedAt: new Date().toISOString()
     }, { merge: true });
     return true;
-  } catch (err) {
+  } catch (err: any) {
+    handleFirestoreError(err, OperationType.WRITE, collectionName);
     console.error(`Error writing document ${docId} in ${collectionName}:`, err);
     throw err;
   }
@@ -133,7 +135,8 @@ export const deleteDatabaseDocument = async (
     const targetDoc = doc(db, collectionName, docId);
     await deleteDoc(targetDoc);
     return true;
-  } catch (err) {
+  } catch (err: any) {
+    handleFirestoreError(err, OperationType.DELETE, collectionName);
     console.error(`Error deleting document ${docId} from ${collectionName}:`, err);
     throw err;
   }
@@ -158,7 +161,8 @@ export const seedSampleDatabaseData = async (): Promise<{ seeded: number; errors
       createdAt: new Date().toISOString()
     });
     seeded++;
-  } catch (e) {
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, 'announcements');
     errors++;
   }
 
@@ -209,7 +213,8 @@ export const seedSampleDatabaseData = async (): Promise<{ seeded: number; errors
         updatedAt: new Date().toISOString()
       }, { merge: true });
       seeded++;
-    } catch {
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.WRITE, 'users');
       errors++;
     }
   }
@@ -235,7 +240,8 @@ export const seedSampleDatabaseData = async (): Promise<{ seeded: number; errors
       isPublished: true
     });
     seeded++;
-  } catch {
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, 'authored_puzzles');
     errors++;
   }
 

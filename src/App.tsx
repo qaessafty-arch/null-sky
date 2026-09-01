@@ -33,6 +33,7 @@ import { MoveHistory } from './components/MoveHistory';
 import { GameControls } from './components/GameControls';
 import { LocalChatDock } from './components/LocalChatDock';
 import { PromotionModal } from './components/PromotionModal';
+import { AboutUsModal } from './components/AboutUsModal';
 import { ViewFallback } from './components/ViewFallback';
 import type { SettingsTab } from './components/SettingsModal';
 import { logCompletedGame } from './services/loggingService';
@@ -160,6 +161,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
   const [isWorldwideMatchModalOpen, setIsWorldwideMatchModalOpen] = useState(false);
+  const [isAboutUsModalOpen, setIsAboutUsModalOpen] = useState(false);
   const [activeChatFriend, setActiveChatFriend] = useState<FriendUser | null>(null);
   const [activeOnlineMatchId, setActiveOnlineMatchId] = useState<string | null>(null);
   const [isJudgmentModalOpen, setIsJudgmentModalOpen] = useState(false);
@@ -751,6 +753,7 @@ export default function App() {
           setSettingsTab('themes');
           setIsSettingsModalOpen(true);
         }}
+        onOpenAbout={() => setIsAboutUsModalOpen(true)}
         onOpenProfile={() => setActiveMode('profile_page')}
         currentThemeName={settings.pieceTheme}
       />
@@ -772,7 +775,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col justify-start overflow-y-auto w-full z-10 min-h-0 no-scrollbar">
+      <main className="flex-1 flex flex-col justify-start overflow-y-auto w-full z-10 min-h-0">
         <Suspense fallback={<ViewFallback />}>
         <AnimatePresence mode="wait" initial={false}>
           {activeMode === 'login' ? (
@@ -812,6 +815,7 @@ export default function App() {
                     setActiveMode('analysis');
                   }
                 }}
+                onOpenAbout={() => setIsAboutUsModalOpen(true)}
                 onEditProfileModal={() => setIsProfileModalOpen(true)}
                 onNavigateHome={() => setActiveMode('ai')}
               />
@@ -882,6 +886,7 @@ export default function App() {
                 <div className="col-start-2 flex flex-col gap-3 min-w-0">
                   <ChessClock
                     timeSeconds={isBoardFlipped ? whiteTime : blackTime}
+                    totalTimeSeconds={timeControl.initialSeconds}
                     isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
                     isWhite={isBoardFlipped}
                     playerName={
@@ -978,6 +983,7 @@ export default function App() {
 
                   <ChessClock
                     timeSeconds={isBoardFlipped ? blackTime : whiteTime}
+                    totalTimeSeconds={timeControl.initialSeconds}
                     isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'b' : game.turn() === 'w')}
                     isWhite={!isBoardFlipped}
                     playerName={
@@ -1064,6 +1070,11 @@ export default function App() {
         </AnimatePresence>
         </Suspense>
       </main>
+
+      <AboutUsModal
+        isOpen={isAboutUsModalOpen}
+        onClose={() => setIsAboutUsModalOpen(false)}
+      />
 
       {/* Promotion Selector Modal */}
       {pendingPromotion && (

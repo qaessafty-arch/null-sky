@@ -499,6 +499,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     type={showPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••••••"
+                    autoComplete="new-password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full px-9 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
@@ -523,6 +524,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="Confirm Password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   className="w-full px-9 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
@@ -655,10 +657,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <div className="flex gap-1.5">
                 <input
                   type="password"
-                  placeholder={isSkyPasskeyInput ? 'Enter Celestial Passkey' : 'Enter Developer Key (e.g. q.brz)'}
+                  placeholder={isSkyPasskeyInput ? 'Enter Celestial Passkey' : 'Enter Developer Key'}
                   value={masterKeyInput}
                   onChange={e => setMasterKeyInput(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:border-[#F5C453] outline-none"
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono focus:border-[#F5C453] outline-none"
+                  autoComplete="off"
                 />
                 <button
                   type="submit"

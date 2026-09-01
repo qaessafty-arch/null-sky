@@ -24,7 +24,9 @@ import {
   Layers,
   Settings,
   Bell,
-  Trophy} from 'lucide-react';
+  Trophy,
+  Info
+} from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -36,6 +38,7 @@ interface SidebarProps {
   onOpenLeaderboard: () => void;
   onOpenThemes: () => void;
   onOpenSettings: () => void;
+  onOpenAbout: () => void;
   onOpenProfile: () => void;
   currentThemeName?: string;
 }
@@ -50,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenLeaderboard,
   onOpenThemes,
   onOpenSettings,
+  onOpenAbout,
   onOpenProfile,
   currentThemeName = 'Peshmerga'
 }) => {
@@ -189,6 +193,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onOpenFriends();
         onClose();
       }
+    },
+    {
+      id: 'about',
+      label: 'About Chesskys',
+      icon: <Info className="w-5 h-5 text-amber-400" />,
+      action: () => {
+        onOpenAbout();
+        onClose();
+      }
     }
   ];
 
@@ -252,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Sidebar Navigation Items */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-6 space-y-2 no-scrollbar overscroll-contain [mask-image:linear-gradient(to_bottom,transparent,black_12px,black_calc(100%-20px),transparent)]">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-6 space-y-2 overscroll-contain">
               <div className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#94A3B8] opacity-50 font-mono">
                 System Main
               </div>

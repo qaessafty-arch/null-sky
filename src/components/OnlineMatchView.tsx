@@ -525,6 +525,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           <div className="w-full max-w-[560px] mb-2 flex flex-col gap-1.5 relative">
             <ChessClock
               timeSeconds={isWhitePlayer ? blackTime : whiteTime}
+              totalTimeSeconds={session?.timeControl?.initialSeconds}
               isActive={session?.turn !== myColor && session?.status === 'in_progress'}
               isWhite={!isWhitePlayer}
               playerName={opponent?.displayName || 'Opponent'}
@@ -625,6 +626,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
             </div>
             <ChessClock
               timeSeconds={isWhitePlayer ? whiteTime : blackTime}
+              totalTimeSeconds={session?.timeControl?.initialSeconds}
               isActive={isMyTurn && session?.status === 'in_progress'}
               isWhite={isWhitePlayer}
               playerName={profile?.displayName || 'You'}
