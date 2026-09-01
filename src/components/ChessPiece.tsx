@@ -1,5 +1,7 @@
 import React from 'react';
 import { PieceType, PieceColor, PieceThemeId } from '../types/chess';
+import { BatmanPiece } from './pieces/BatmanPiece';
+import { OnePiecePiece } from './pieces/OnePiecePiece';
 
 interface ChessPieceProps {
   type: PieceType;
@@ -8,13 +10,23 @@ interface ChessPieceProps {
   className?: string;
 }
 
-export const ChessPiece: React.FC<ChessPieceProps> = ({
+export const ChessPiece = React.memo<ChessPieceProps>(({
   type,
   color,
   theme = 'peshmerga',
   className = 'w-full h-full'
 }) => {
   const isWhite = color === 'w';
+
+  // --- Theme: 🏴‍☠️ One Piece (Straw Hats vs Marines) ---
+  if (theme === 'one-piece') {
+    return <OnePiecePiece type={type} color={color} className={className} />;
+  }
+
+  // --- Theme: 🦇 Batman Gotham City (Heroes vs Villains) ---
+  if (theme === 'batman') {
+    return <BatmanPiece type={type} color={color} className={className} />;
+  }
 
   // --- Theme 1: ☀️ Peshmerga Royal (Kurdish) ---
   if (theme === 'peshmerga') {
@@ -270,6 +282,426 @@ export const ChessPiece: React.FC<ChessPieceProps> = ({
               <path d="M 13 36 L 32 36" stroke={goldAccent} strokeWidth="2.2" />
               <circle cx="22.5" cy="9.5" r="3.4" fill={goldAccent} stroke={borderStroke} strokeWidth="1.2" />
               <path d="M 22.5 4.5 L 22.5 6 M 22.5 13 L 22.5 14.5 M 17.5 9.5 L 19 9.5 M 26 9.5 L 27.5 9.5" stroke={goldAccent} strokeWidth="1.4" />
+            </g>
+          )}
+        </svg>
+      </div>
+    );
+  }
+
+  // --- Theme: ⚔️ Attack on Titan (Scouts vs Titans) ---
+  if (theme === 'aot') {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]">
+        <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            {/* Scout Gradients */}
+            <linearGradient id="scout-blade-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="50%" stopColor="#CBD5E1" />
+              <stop offset="100%" stopColor="#64748B" />
+            </linearGradient>
+            <linearGradient id="scout-cape-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#4ADE80" />
+              <stop offset="100%" stopColor="#15803D" />
+            </linearGradient>
+            <linearGradient id="scout-wing-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#60A5FA" />
+              <stop offset="100%" stopColor="#1D4ED8" />
+            </linearGradient>
+            <linearGradient id="scout-wing-white" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="100%" stopColor="#E2E8F0" />
+            </linearGradient>
+            <linearGradient id="scout-gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FDE047" />
+              <stop offset="100%" stopColor="#D97706" />
+            </linearGradient>
+
+            {/* Titan Gradients */}
+            <linearGradient id="titan-colossal-flesh" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#EF4444" />
+              <stop offset="40%" stopColor="#B91C1C" />
+              <stop offset="100%" stopColor="#450A0A" />
+            </linearGradient>
+            <linearGradient id="titan-crystal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#E0F2FE" />
+              <stop offset="50%" stopColor="#38BDF8" />
+              <stop offset="100%" stopColor="#0369A1" />
+            </linearGradient>
+            <linearGradient id="titan-armor-plate" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FCD34D" />
+              <stop offset="50%" stopColor="#B45309" />
+              <stop offset="100%" stopColor="#451A03" />
+            </linearGradient>
+            <radialGradient id="titan-steam-cloud" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(254, 202, 202, 0.85)" />
+              <stop offset="60%" stopColor="rgba(239, 68, 68, 0.4)" />
+              <stop offset="100%" stopColor="rgba(239, 68, 68, 0)" />
+            </radialGradient>
+            <filter id="aot-glow-scout" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#22C55E" floodOpacity="0.6" />
+            </filter>
+            <filter id="aot-glow-titan" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#EF4444" floodOpacity="0.6" />
+            </filter>
+          </defs>
+
+          {/* ================================================================= */}
+          {/* WHITE PIECES: SCOUT REGIMENT / SURVEY CORPS (PARADIS ELDUR)       */}
+          {/* ================================================================= */}
+          {isWhite && (
+            <g filter="url(#aot-glow-scout)">
+              {/* WHITE PAWN: Wings of Freedom Shield Badge */}
+              {type === 'p' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Shield Plate Base */}
+                  <path
+                    d="M 12 10 L 33 10 C 33 10 34 26 22.5 39 C 11 26 12 10 12 10 Z"
+                    fill="#1E293B"
+                    stroke="#F59E0B"
+                    strokeWidth="1.8"
+                  />
+                  {/* Inner Shield Field */}
+                  <path
+                    d="M 14.5 12.5 L 30.5 12.5 C 30.5 12.5 31.5 24.5 22.5 35.5 C 13.5 24.5 14.5 12.5 14.5 12.5 Z"
+                    fill="#0F172A"
+                  />
+                  {/* Blue Wing (Left/Back) */}
+                  <path
+                    d="M 17 26 C 16 23 15.5 19 16 15 C 17.5 16 19 18 19 20 C 19 17 19.5 15 20.5 14 C 21 16 21 19 20.5 22 C 21 19 22 17 22.5 15.5 C 23 18 22.5 22 21 27 L 17 26 Z"
+                    fill="url(#scout-wing-blue)"
+                    stroke="#1D4ED8"
+                    strokeWidth="0.8"
+                  />
+                  {/* White Wing (Right/Front Overlapping) */}
+                  <path
+                    d="M 28 26 C 29 23 29.5 19 29 15 C 27.5 16 26 18 26 20 C 26 17 25.5 15 24.5 14 C 24 16 24 19 24.5 22 C 24 19 23 17 22.5 15.5 C 22 18 22.5 22 24 27 L 28 26 Z"
+                    fill="url(#scout-wing-white)"
+                    stroke="#CBD5E1"
+                    strokeWidth="0.8"
+                  />
+                  {/* Shield Corner Rivets & Central Crest */}
+                  <circle cx="22.5" cy="11.5" r="1" fill="#F59E0B" />
+                  <path d="M 22.5 11.5 L 22.5 36" stroke="#F59E0B" strokeWidth="0.8" opacity="0.6" />
+                </g>
+              )}
+
+              {/* WHITE KNIGHT: Scout Warhorse & ODM Gear Holster */}
+              {type === 'n' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Base Platform */}
+                  <path d="M 10 39 L 35 39 L 33 35 L 12 35 Z" fill="#334155" stroke="#22C55E" strokeWidth="1.2" />
+                  {/* Scout Warhorse Silhouette */}
+                  <path
+                    d="M 21 8 C 30 9 37 15 36 36 L 14 36 C 14 28 23 30 22 17 C 23 19 18 23 16 25 C 13 27 12 30 9.5 29 C 8 28 10 26 9 25.5 C 7.5 25.5 9 27 7.5 27.5 C 6 27.5 4.5 26 5 23 C 5.5 21 10.5 13 10.5 13 C 10.5 13 12 11 12 9 C 11.5 8 11.5 7 12 6 C 13 5 15 8 15 8 L 17 8 C 17 8 18 6.5 19.5 5.5 C 20.5 5.5 21 8 21 8 Z"
+                    fill="url(#scout-wing-white)"
+                    stroke="#0F172A"
+                    strokeWidth="1.4"
+                  />
+                  {/* Green Military Cape & Mane */}
+                  <path d="M 19 11 C 24 13 28 18 27 27" stroke="#15803D" strokeWidth="2.2" fill="none" />
+                  {/* Dual ODM Gas Canister Cylinders on Flank */}
+                  <rect x="23" y="27" width="11" height="3" rx="1.5" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="0.9" />
+                  <rect x="22" y="31" width="12" height="3" rx="1.5" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="0.9" />
+                  {/* Gas Jet Exhaust Nozzle & Grapple Wire */}
+                  <circle cx="34" cy="28.5" r="1" fill="#22C55E" />
+                  <circle cx="34" cy="32.5" r="1" fill="#22C55E" />
+                  <path d="M 23 28.5 L 17 25" stroke="#F59E0B" strokeWidth="1" />
+                  {/* Glowing Emerald Eye */}
+                  <circle cx="8" cy="23.5" r="1.2" fill="#22C55E" stroke="#0F172A" strokeWidth="0.5" />
+                </g>
+              )}
+
+              {/* WHITE BISHOP: Levi & Hange Emblem (Special Ops Blades & Glasses Crest) */}
+              {type === 'b' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Pedestal Base */}
+                  <path d="M 10 39.5 L 35 39.5 L 33 36 L 12 36 Z" fill="#334155" stroke="#F59E0B" strokeWidth="1.4" />
+                  {/* Survey Corps Cape Hood Mitre */}
+                  <path
+                    d="M 14 36 C 13 31 15 27 17 25 C 16 23 13 21 13 18 C 13 13 18 8 22.5 6 C 27 8 32 13 32 18 C 32 21 29 23 28 25 C 30 27 32 31 31 36 Z"
+                    fill="url(#scout-cape-grad)"
+                    stroke="#0F172A"
+                    strokeWidth="1.5"
+                  />
+                  {/* Levi Spinning Reverse-Grip Dual Blades */}
+                  <path d="M 12 18 L 33 28" stroke="url(#scout-blade-grad)" strokeWidth="2.2" />
+                  <path d="M 33 18 L 12 28" stroke="url(#scout-blade-grad)" strokeWidth="2.2" />
+                  <path d="M 11 16 L 14 20" stroke="#F59E0B" strokeWidth="2.5" />
+                  <path d="M 34 16 L 31 20" stroke="#F59E0B" strokeWidth="2.5" />
+                  {/* Hange Tactical Monocle / Research Crest */}
+                  <circle cx="22.5" cy="18" r="3.2" fill="#0F172A" stroke="#F59E0B" strokeWidth="1.2" />
+                  <circle cx="22.5" cy="18" r="1.5" fill="#38BDF8" />
+                  {/* Survey Corps Wings Top Finial */}
+                  <circle cx="22.5" cy="5" r="2.2" fill="#F59E0B" stroke="#0F172A" strokeWidth="1" />
+                </g>
+              )}
+
+              {/* WHITE ROOK: Wall Maria Fortress Monolith Tower */}
+              {type === 'r' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Wall Maria Stone Foundation */}
+                  <path d="M 8 39.5 L 37 39.5 L 35 34 L 10 34 Z" fill="#1F232B" stroke="#64748B" strokeWidth="1.4" />
+                  {/* 50-Meter Monolithic Stone Tower Shaft */}
+                  <path d="M 12.5 34 L 13.5 15 L 31.5 15 L 32.5 34 Z" fill="url(#scout-wing-white)" stroke="#1E293B" strokeWidth="1.6" />
+                  {/* Fortified Stone Battlements & Crenellations */}
+                  <path
+                    d="M 10 15 L 10 7 L 14 7 L 14 10 L 19 10 L 19 7 L 26 7 L 26 10 L 31 10 L 31 7 L 35 7 L 35 15 Z"
+                    fill="#334155"
+                    stroke="#1E293B"
+                    strokeWidth="1.5"
+                  />
+                  {/* Wall Maria Stone Masonry Grooves */}
+                  <path d="M 14 22 L 31 22 M 13.5 28 L 31.5 28" stroke="#64748B" strokeWidth="1" />
+                  <path d="M 22.5 15 L 22.5 22 M 18 22 L 18 28 M 27 22 L 27 28 M 22.5 28 L 22.5 34" stroke="#64748B" strokeWidth="0.9" />
+                  {/* Iron Cannon Embrasures & Green Banner */}
+                  <circle cx="22.5" cy="19" r="1.8" fill="#15803D" stroke="#F59E0B" strokeWidth="0.8" />
+                  <path d="M 11 34.5 L 34 34.5" stroke="#22C55E" strokeWidth="2.2" />
+                </g>
+              )}
+
+              {/* WHITE QUEEN: Mikasa Scarf Symbol + Dual Swords */}
+              {type === 'q' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Base Throne Pedestal */}
+                  <path d="M 10 39.5 L 35 39.5 C 35 36 33 34 31 32 L 14 32 C 12 34 10 36 10 39.5 Z" fill="#1E293B" stroke="#DC2626" strokeWidth="1.5" />
+                  {/* Vertical Slasher Blades */}
+                  <path d="M 16 32 L 16 9 L 19 12 L 19 32 Z" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="1.2" />
+                  <path d="M 29 32 L 29 9 L 26 12 L 26 32 Z" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="1.2" />
+                  <path d="M 22.5 32 L 22.5 5 L 24 8 L 24 32 Z" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="1.2" />
+                  {/* Mikasa Signature Crimson Wrapped Scarf */}
+                  <path
+                    d="M 11 26 C 14 20 22.5 19 34 23 C 35 27 33 31 29 32 C 22.5 30 18 31 11 26 Z"
+                    fill="#DC2626"
+                    stroke="#991B1B"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    d="M 13 28 C 17 23 28 23 32 27"
+                    stroke="#F87171"
+                    strokeWidth="1.4"
+                    fill="none"
+                  />
+                  {/* Scarf Tail Draping Down */}
+                  <path d="M 28 26 C 31 28 32 34 30 38 L 27 34 Z" fill="#DC2626" stroke="#991B1B" strokeWidth="1" />
+                  {/* Emerald Brooch Pin & Blade Tips */}
+                  <circle cx="22.5" cy="24" r="2.2" fill="#22C55E" stroke="#F59E0B" strokeWidth="1" />
+                  <circle cx="16" cy="7.5" r="1.5" fill="#F59E0B" stroke="#0F172A" strokeWidth="0.8" />
+                  <circle cx="22.5" cy="4" r="2" fill="#F59E0B" stroke="#0F172A" strokeWidth="1" />
+                  <circle cx="29" cy="7.5" r="1.5" fill="#F59E0B" stroke="#0F172A" strokeWidth="0.8" />
+                </g>
+              )}
+
+              {/* WHITE KING: Erwin / Eren Crown with Crossed ODM Blades */}
+              {type === 'k' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Royal Commander Mantle Base */}
+                  <path d="M 10 39.5 L 35 39.5 C 35 35 33 33 31 31 L 14 31 C 12 33 10 35 10 39.5 Z" fill="#1E293B" stroke="#22C55E" strokeWidth="1.5" />
+                  {/* Massive Crossed Ultrahard Steel ODM Blades */}
+                  <path d="M 7 32 L 38 7 L 36 6 L 5 31 Z" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="1.2" />
+                  <path d="M 38 32 L 7 7 L 9 6 L 40 31 Z" fill="url(#scout-blade-grad)" stroke="#0F172A" strokeWidth="1.2" />
+                  {/* Trigger Grips & Wire Coils */}
+                  <rect x="5" y="30" width="4" height="6" rx="1" fill="#D97706" stroke="#0F172A" strokeWidth="1" />
+                  <rect x="36" y="30" width="4" height="6" rx="1" fill="#D97706" stroke="#0F172A" strokeWidth="1" />
+                  {/* Commander's Regal Armor Body */}
+                  <path
+                    d="M 14 31 C 13 25 15 20 22.5 19 C 30 20 32 25 31 31 Z"
+                    fill="url(#scout-cape-grad)"
+                    stroke="#0F172A"
+                    strokeWidth="1.5"
+                  />
+                  {/* Wings of Freedom Chest Crest */}
+                  <path d="M 19 25 L 22.5 29 L 26 25" stroke="#F59E0B" strokeWidth="1.8" fill="none" />
+                  {/* Commander Erwin Golden Triple-Crown Finial */}
+                  <path
+                    d="M 14 17 L 16 11 L 19.5 15 L 22.5 8 L 25.5 15 L 29 11 L 31 17 Z"
+                    fill="url(#scout-gold-grad)"
+                    stroke="#0F172A"
+                    strokeWidth="1.4"
+                  />
+                  {/* Central Emerald Star Jewel */}
+                  <circle cx="22.5" cy="8" r="2.2" fill="#22C55E" stroke="#0F172A" strokeWidth="0.8" />
+                  <circle cx="16" cy="11" r="1.3" fill="#38BDF8" stroke="#0F172A" strokeWidth="0.6" />
+                  <circle cx="29" cy="11" r="1.3" fill="#38BDF8" stroke="#0F172A" strokeWidth="0.6" />
+                </g>
+              )}
+            </g>
+          )}
+
+          {/* ================================================================= */}
+          {/* BLACK PIECES: THE NINE TITANS / MARLEY EMPIRE                      */}
+          {/* ================================================================= */}
+          {!isWhite && (
+            <g filter="url(#aot-glow-titan)">
+              {/* BLACK PAWN: Pure Titan Silhouette with Menacing Grin */}
+              {type === 'p' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Titan Ground Dust Base */}
+                  <path d="M 11 39.5 L 34 39.5 L 32 35 L 13 35 Z" fill="#18181B" stroke="#EF4444" strokeWidth="1.2" />
+                  {/* Pure Titan Muscular Torso */}
+                  <path
+                    d="M 13 35 C 13 28 17 26 18 22 C 16 21 14 19 14 16 C 14 10 18 7 22.5 7 C 27 7 31 10 31 16 C 31 19 29 21 27 22 C 28 26 32 28 32 35 Z"
+                    fill="url(#titan-colossal-flesh)"
+                    stroke="#18181B"
+                    strokeWidth="1.5"
+                  />
+                  {/* Menacing Pure Titan Wide Grinning Mouth with Teeth */}
+                  <path d="M 17 17 C 19 21 26 21 28 17 Z" fill="#450A0A" stroke="#EF4444" strokeWidth="1" />
+                  <path d="M 18 18 L 27 18 M 19.5 17 L 19.5 19 M 22.5 17 L 22.5 20 M 25.5 17 L 25.5 19" stroke="#FEF08A" strokeWidth="1.2" />
+                  {/* Glowing Amber Eyes */}
+                  <circle cx="18.5" cy="13.5" r="1.4" fill="#FACC15" stroke="#18181B" strokeWidth="0.6" />
+                  <circle cx="26.5" cy="13.5" r="1.4" fill="#FACC15" stroke="#18181B" strokeWidth="0.6" />
+                  {/* Neck Muscle Sinew Lines */}
+                  <path d="M 19 24 L 20 34 M 26 24 L 25 34 M 22.5 23 L 22.5 35" stroke="#7F1D1D" strokeWidth="1.2" />
+                </g>
+              )}
+
+              {/* BLACK KNIGHT: Cart Titan / Sprinting Quadrupedal Titan */}
+              {type === 'n' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Base Platform */}
+                  <path d="M 9 39 L 36 39 L 34 35 L 11 35 Z" fill="#18181B" stroke="#B45309" strokeWidth="1.2" />
+                  {/* Cart Titan Elongated Head & Quadrupedal Body Profile */}
+                  <path
+                    d="M 22 8 C 32 10 38 16 38 36 L 14 36 C 14 28 20 30 20 18 C 21 21 16 24 14 25 C 10 27 6 29 4 27 C 3.5 25 7 22 8 20 C 6 18 8 13 12 12 C 13 10 16 9 19 8 Z"
+                    fill="url(#titan-colossal-flesh)"
+                    stroke="#18181B"
+                    strokeWidth="1.5"
+                  />
+                  {/* Cart Titan Reinforced Mechanical Faceplate & Muzzle */}
+                  <path d="M 4 27 L 14 25 L 16 29 L 6 31 Z" fill="#475569" stroke="#94A3B8" strokeWidth="1" />
+                  <path d="M 7 28 L 13 27" stroke="#F59E0B" strokeWidth="1.2" />
+                  {/* Armored Back Artillery Mount Straps */}
+                  <path d="M 20 15 C 26 18 30 24 29 32" stroke="#78350F" strokeWidth="2.4" fill="none" />
+                  <rect x="25" y="19" width="9" height="5" rx="1" fill="#334155" stroke="#94A3B8" strokeWidth="1" />
+                  {/* Glowing Amber Eye */}
+                  <circle cx="11.5" cy="16.5" r="1.3" fill="#FACC15" stroke="#18181B" strokeWidth="0.6" />
+                </g>
+              )}
+
+              {/* BLACK BISHOP: Beast Titan / Jaw Titan Armored Jawbones */}
+              {type === 'b' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Pedestal Base */}
+                  <path d="M 10 39.5 L 35 39.5 L 33 36 L 12 36 Z" fill="#18181B" stroke="#B45309" strokeWidth="1.4" />
+                  {/* Beast Titan Fur-Covered Body Silhouette */}
+                  <path
+                    d="M 14 36 C 12 31 14 27 16 25 C 15 22 13 19 13 15 C 13 10 18 6 22.5 5 C 27 6 32 10 32 15 C 32 19 30 22 29 25 C 31 27 33 31 31 36 Z"
+                    fill="#29140C"
+                    stroke="#18181B"
+                    strokeWidth="1.5"
+                  />
+                  {/* Jaw Titan Hardened Bone Armored Mask */}
+                  <path
+                    d="M 16 16 L 22.5 11 L 29 16 L 27 24 L 22.5 28 L 18 24 Z"
+                    fill="url(#titan-armor-plate)"
+                    stroke="#78350F"
+                    strokeWidth="1.4"
+                  />
+                  {/* Serrated Razor Hardened Teeth */}
+                  <path d="M 19 23 L 26 23" stroke="#FEF08A" strokeWidth="1.8" />
+                  <path d="M 20 21 L 20 24 M 22.5 21 L 22.5 25 M 25 21 L 25 24" stroke="#451A03" strokeWidth="1" />
+                  {/* Beast Titan Glowing Primal Amber Eyes */}
+                  <circle cx="19.5" cy="16" r="1.3" fill="#EF4444" stroke="#18181B" strokeWidth="0.6" />
+                  <circle cx="25.5" cy="16" r="1.3" fill="#EF4444" stroke="#18181B" strokeWidth="0.6" />
+                  {/* Top Bone Spire Finial */}
+                  <circle cx="22.5" cy="4" r="2.2" fill="#D97706" stroke="#18181B" strokeWidth="1" />
+                </g>
+              )}
+
+              {/* BLACK ROOK: Armored Titan Interlocking Hardened Plate Armor */}
+              {type === 'r' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Massive Hardened Base */}
+                  <path d="M 8 39.5 L 37 39.5 L 35 34 L 10 34 Z" fill="#18181B" stroke="#B45309" strokeWidth="1.4" />
+                  {/* Armored Fortress Torso */}
+                  <path d="M 12 34 L 13 16 L 32 16 L 33 34 Z" fill="url(#titan-colossal-flesh)" stroke="#18181B" strokeWidth="1.6" />
+                  {/* Heavy Interlocking Gold Armor Plates (Segmented) */}
+                  <rect x="14" y="27" width="8" height="6" rx="1" fill="url(#titan-armor-plate)" stroke="#78350F" strokeWidth="1" />
+                  <rect x="23" y="27" width="8" height="6" rx="1" fill="url(#titan-armor-plate)" stroke="#78350F" strokeWidth="1" />
+                  <rect x="14.5" y="20" width="16" height="6" rx="1" fill="url(#titan-armor-plate)" stroke="#78350F" strokeWidth="1" />
+                  {/* Fortified Heavy Shoulder Pauldrons & Castle Crenellations */}
+                  <path
+                    d="M 9 16 L 9 8 L 13 8 L 13 11 L 18 11 L 18 8 L 27 8 L 27 11 L 32 11 L 32 8 L 36 8 L 36 16 Z"
+                    fill="url(#titan-armor-plate)"
+                    stroke="#451A03"
+                    strokeWidth="1.5"
+                  />
+                  {/* Thermal Exhaust Slits in Armor */}
+                  <path d="M 17 23 L 20 23 M 25 23 L 28 23" stroke="#EF4444" strokeWidth="1.4" />
+                  <path d="M 11 34.5 L 34 34.5" stroke="#EF4444" strokeWidth="2.2" />
+                </g>
+              )}
+
+              {/* BLACK QUEEN: Female Titan Hardened Crystal Icon */}
+              {type === 'q' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Base Throne Pedestal */}
+                  <path d="M 10 39.5 L 35 39.5 C 35 36 33 34 31 32 L 14 32 C 12 34 10 36 10 39.5 Z" fill="#18181B" stroke="#0284C7" strokeWidth="1.5" />
+                  {/* Hardened Diamond Crystal Shards (Spikes) */}
+                  <polygon points="12,26 15,9 18,26" fill="url(#titan-crystal-grad)" stroke="#0369A1" strokeWidth="1" />
+                  <polygon points="20,24 22.5,5 25,24" fill="url(#titan-crystal-grad)" stroke="#0369A1" strokeWidth="1.2" />
+                  <polygon points="27,26 30,9 33,26" fill="url(#titan-crystal-grad)" stroke="#0369A1" strokeWidth="1" />
+                  {/* Female Titan Muscle & Hardened Skin Silhouette */}
+                  <path
+                    d="M 11 32 C 13 25 15 22 22.5 21 C 30 22 32 25 34 32 Z"
+                    fill="url(#titan-colossal-flesh)"
+                    stroke="#18181B"
+                    strokeWidth="1.5"
+                  />
+                  {/* Hardened Crystal Facets on Forearms & Chest */}
+                  <polygon points="18,26 22.5,23 27,26 22.5,29" fill="url(#titan-crystal-grad)" stroke="#E0F2FE" strokeWidth="1" />
+                  {/* Crystal Orb Jewels */}
+                  <circle cx="15" cy="8" r="1.8" fill="#38BDF8" stroke="#0F172A" strokeWidth="0.8" />
+                  <circle cx="22.5" cy="4" r="2.2" fill="#E0F2FE" stroke="#0284C7" strokeWidth="1" />
+                  <circle cx="30" cy="8" r="1.8" fill="#38BDF8" stroke="#0F172A" strokeWidth="0.8" />
+                  <path d="M 12 35.5 L 33 35.5" stroke="#38BDF8" strokeWidth="2" />
+                </g>
+              )}
+
+              {/* BLACK KING: Colossal Titan Head Outline with Steam Aura */}
+              {type === 'k' && (
+                <g strokeLinecap="round" strokeLinejoin="round">
+                  {/* Thermal Steam Aura Background Clouds */}
+                  <circle cx="15" cy="11" r="5" fill="url(#titan-steam-cloud)" />
+                  <circle cx="30" cy="11" r="5" fill="url(#titan-steam-cloud)" />
+                  <circle cx="22.5" cy="6" r="6" fill="url(#titan-steam-cloud)" />
+
+                  {/* King Base Stand */}
+                  <path d="M 10 39.5 L 35 39.5 C 35 35 33 33 31 31 L 14 31 C 12 33 10 35 10 39.5 Z" fill="#18181B" stroke="#EF4444" strokeWidth="1.6" />
+
+                  {/* Colossal Titan Exposed Striated Muscle Chest */}
+                  <path
+                    d="M 13 31 C 11 25 14 19 22.5 18 C 31 19 34 25 32 31 Z"
+                    fill="url(#titan-colossal-flesh)"
+                    stroke="#18181B"
+                    strokeWidth="1.5"
+                  />
+                  {/* Striated Sinew Bands */}
+                  <path d="M 17 24 L 20 31 M 28 24 L 25 31 M 22.5 21 L 22.5 31" stroke="#450A0A" strokeWidth="1.4" />
+
+                  {/* Colossal Titan Exposed Muscle Skull */}
+                  <path
+                    d="M 16 18 C 15 13 17 8 22.5 8 C 28 8 30 13 29 18 C 29 23 27 25 22.5 25 C 18 25 16 23 16 18 Z"
+                    fill="url(#titan-colossal-flesh)"
+                    stroke="#18181B"
+                    strokeWidth="1.6"
+                  />
+
+                  {/* Exposed Jaw & Teeth (Skinless) */}
+                  <path d="M 18 20 C 19 23 26 23 27 20 Z" fill="#450A0A" stroke="#EF4444" strokeWidth="1" />
+                  <path d="M 19 20.5 L 26 20.5 M 20.5 19.5 L 20.5 21.5 M 22.5 19.5 L 22.5 22 M 24.5 19.5 L 24.5 21.5" stroke="#FEF08A" strokeWidth="1.2" />
+
+                  {/* Sunken Hollow Glowing Eyes */}
+                  <circle cx="19" cy="14" r="1.4" fill="#FACC15" stroke="#450A0A" strokeWidth="0.8" />
+                  <circle cx="26" cy="14" r="1.4" fill="#FACC15" stroke="#450A0A" strokeWidth="0.8" />
+
+                  {/* Colossal Thermal Crown / Steam Vent Finial */}
+                  <path d="M 22.5 3 L 22.5 7 M 19 4.5 L 20.5 6.5 M 26 4.5 L 24.5 6.5" stroke="#EF4444" strokeWidth="1.8" />
+                  <circle cx="22.5" cy="3" r="1.8" fill="#FACC15" stroke="#EF4444" strokeWidth="0.8" />
+                </g>
+              )}
             </g>
           )}
         </svg>
@@ -549,4 +981,4 @@ export const ChessPiece: React.FC<ChessPieceProps> = ({
       {renderPieceSvg()}
     </div>
   );
-};
+});

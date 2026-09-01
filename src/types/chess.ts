@@ -1,10 +1,49 @@
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type PieceColor = 'w' | 'b';
 
-export type BoardThemeId = 'peshmerga' | 'ukh' | 'emerald' | 'wood' | 'ocean' | 'midnight' | 'marble' | 'custom';
-export type PieceThemeId = 'peshmerga' | 'ukh' | 'crystal_neon' | 'fide_3d' | 'classic' | 'neo' | 'alpha' | 'vintage';
+export type BoardThemeId = 'obsidian' | 'one-piece' | 'aot' | 'wall-maria' | 'batman' | 'gotham-city' | 'classic' | 'peshmerga' | 'ukh' | 'emerald' | 'wood' | 'ocean' | 'midnight' | 'marble' | 'custom';
+export type PieceThemeId = 'one-piece' | 'aot' | 'batman' | 'classic' | 'peshmerga' | 'ukh' | 'crystal_neon' | 'fide_3d' | 'neo' | 'alpha' | 'vintage';
 
-export type GameMode = 'ai' | 'pass_and_play' | 'puzzle' | 'analysis' | 'online_match';
+export type GameMode = 'ai' | 'pass_and_play' | 'daily_puzzle' | 'puzzle' | 'analysis' | 'online_match' | 'multiplayer' | 'authoring' | 'logging' | 'database' | 'login' | 'profile_page';
+
+export interface AuthoredPuzzle {
+  id: string;
+  title: string;
+  description: string;
+  theme: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Master';
+  rating: number;
+  fen: string;
+  playerColor: PieceColor;
+  solutionMoves: string[];
+  hints?: string[];
+  authorUid?: string;
+  authorName: string;
+  authorBadge?: string;
+  createdAt: string;
+  likesCount?: number;
+  solvesCount?: number;
+  isPublished?: boolean;
+}
+
+export interface MatchLogRecord {
+  id: string;
+  date: string;
+  mode: GameMode;
+  opponentName: string;
+  opponentAvatar?: string;
+  opponentElo?: number;
+  playerColor: PieceColor;
+  result: 'win' | 'loss' | 'draw' | 'executed' | 'mercied';
+  reason: string;
+  movesCount: number;
+  timeControlName: string;
+  pgn: string;
+  finalFen: string;
+  respectChange: number;
+  eloChange: number;
+  accuracy?: number;
+}
 
 export type UserRole = 'owner' | 'developer' | 'admin' | 'grandmaster' | 'moderator' | 'member';
 
@@ -14,6 +53,7 @@ export interface DailyPuzzleProgress {
   streak: number;
   lastSolvedDate: string;
   totalDailySolved: number;
+  solvedDates?: string[];
 }
 
 export interface FriendUser {
@@ -27,6 +67,7 @@ export interface FriendUser {
   rankBadge: string;
   role?: UserRole;
   badgeNumber?: number;
+  isPublic?: boolean;
   isOnline?: boolean;
   lastSeen?: string;
 }
@@ -65,10 +106,6 @@ export interface DirectMessageItem {
 
 export interface OnlineMatchPlayer {
   uid: string;
-  /** True for engine-driven opponents (worldwide challengers). */
-  isBot?: boolean;
-  /** Elo of the bot personality driving this opponent, when isBot. */
-  botId?: string;
   displayName: string;
   username?: string;
   photoURL?: string;
@@ -79,26 +116,17 @@ export interface OnlineMatchPlayer {
   rankBadge?: string;
   country?: string;
   flag?: string;
+  isBot?: boolean;
+  botId?: string;
 }
 
-export type OnlineMatchStatus =
-  | 'waiting'
-  | 'in_progress'
-  | 'checkmate'
-  | 'resigned'
-  | 'draw'
-  | 'timeout'
-  | 'aborted'
-  | 'abandoned';
+export type OnlineMatchStatus = 'waiting' | 'in_progress' | 'checkmate' | 'resigned' | 'draw' | 'timeout' | 'aborted';
 
-/** Authoritative clock state. Everything is milliseconds. */
 export interface OnlineMatchClock {
   whiteMs: number;
   blackMs: number;
   incrementMs: number;
-  /** Server-corrected epoch ms at which the side to move started thinking. */
   turnStartedAt: number;
-  /** False until both sides have moved (so an unanswered challenge never flags). */
   running: boolean;
 }
 
@@ -109,43 +137,37 @@ export interface OnlineMatchSession {
   whitePlayer: OnlineMatchPlayer;
   blackPlayer: OnlineMatchPlayer;
   fen: string;
+  startFen?: string;
   pgn: string;
+  moves?: string[];
+  ucis?: string[];
+  moveCount?: number;
   turn: 'w' | 'b';
   status: OnlineMatchStatus;
   winner: 'w' | 'b' | 'draw' | null;
   reason?: string;
   timeControl: TimeControl;
-  /** Position the game started from (Chess960/custom ready). */
-  startFen: string;
-  /** SAN move list — replayed by every client to verify `fen` was not forged. */
-  moves: string[];
-  /** The same moves in UCI, for the engine. */
-  ucis: string[];
-  moveCount: number;
-  clock: OnlineMatchClock;
-  lastMoveBy?: string | null;
-  lastMoveSan?: string | null;
-  lastMoveFrom?: string;
-  lastMoveTo?: string;
-  lastMoveTimestamp?: number;
-  /** Presence heartbeats (server-corrected epoch ms). */
-  whiteSeenAt?: number;
-  blackSeenAt?: number;
-  drawOfferFrom?: string | null;
-  drawDeclinedAt?: number | null;
-  rematchOfferFrom?: string | null;
-  rematchMatchId?: string | null;
-  /** True when the opponent is an engine personality run by the other client. */
+  clock?: OnlineMatchClock;
   vsBot?: boolean;
   isRated?: boolean;
+  drawDeclinedAt?: number | null;
+  rematchMatchId?: string | null;
+  lastMoveBy?: string | null;
+  lastMoveSan?: string | null;
+  whiteSeenAt?: number;
+  blackSeenAt?: number;
   endedAt?: number | null;
-  /** Resolved by the Firestore server; used to correct client clock drift. */
-  serverStamp?: unknown;
+  whiteSecondsRemaining: number;
+  blackSecondsRemaining: number;
+  lastMoveTimestamp?: number;
+  lastMoveFrom?: string;
+  lastMoveTo?: string;
+  drawOfferFrom?: string | null;
+  rematchOfferFrom?: string | null;
   createdAt: string;
   updatedAt?: string;
-  /** Legacy fields kept so old documents still render. */
-  whiteSecondsRemaining?: number;
-  blackSecondsRemaining?: number;
+  tournamentId?: string;
+  tournamentMatchId?: string;
 }
 
 export interface RespectProfile {
@@ -159,6 +181,7 @@ export interface RespectProfile {
   rankBadge: string;
   role?: UserRole;
   badgeNumber?: number;
+  isPublic?: boolean;
   customBadge?: string;
   isOwner?: boolean;
   isAdmin?: boolean;
@@ -181,6 +204,7 @@ export interface RespectLeaderboardEntry {
   isImmortal?: boolean;
   role?: UserRole;
   badgeNumber?: number;
+  isPublic?: boolean;
   badgeTag?: string;
 }
 
@@ -197,6 +221,39 @@ export interface UserFeedback {
   status: 'pending' | 'reviewed' | 'resolved';
   developerNote?: string;
   createdAt?: any;
+}
+
+export interface TournamentPlayer {
+  uid: string;
+  displayName: string;
+  elo: number;
+  avatar?: string;
+  rankBadge?: string;
+}
+
+export interface TournamentMatchNode {
+  id: string;
+  round: number;
+  player1: TournamentPlayer | null;
+  player2: TournamentPlayer | null;
+  winnerId: string | null;
+  matchSessionId: string | null;
+  nextMatchId: string | null;
+  status: 'pending' | 'ready' | 'in_progress' | 'completed';
+}
+
+export interface Tournament {
+  id: string;
+  name: string;
+  creatorId: string;
+  creatorName: string;
+  status: 'registration' | 'in_progress' | 'completed';
+  maxPlayers: number;
+  players: TournamentPlayer[];
+  timeControl: TimeControl;
+  matches: TournamentMatchNode[];
+  winnerId?: string;
+  createdAt: string;
 }
 
 export interface TimeControl {
@@ -262,6 +319,9 @@ export interface AppSettings {
   boardTheme: BoardThemeId;
   uiThemeId?: string;
   pieceTheme: PieceThemeId;
+  whitePieceTheme?: PieceThemeId;
+  blackPieceTheme?: PieceThemeId;
+  crossoverEnabled?: boolean;
   showCoordinates: boolean;
   highlightLastMove: boolean;
   showEvalBar: boolean;
@@ -272,4 +332,27 @@ export interface OpeningInfo {
   eco: string;
   name: string;
   variation?: string;
+}
+
+export type NotificationType = 'challenge' | 'friend_request' | 'achievement' | 'system';
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  link?: string;
+  actionData?: {
+    matchId?: string;
+    challengerId?: string;
+    challengerName?: string;
+    challengerAvatar?: string;
+    timeControlName?: string;
+    timeControlSeconds?: number;
+    status?: 'pending' | 'accepted' | 'declined' | 'expired';
+    expiresAt?: number;
+  };
 }

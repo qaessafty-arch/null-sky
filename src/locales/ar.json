@@ -1,0 +1,59 @@
+{
+  "sidebar": {
+    "playAI": "اللعب ضد الذكاء الاصطناعي",
+    "multiplayer": "متعدد اللاعبين",
+    "puzzles": "ألغاز",
+    "analysis": "تحليل",
+    "profile": "الملف الشخصي",
+    "worldwide": "عالمي",
+    "friends": "الأصدقاء",
+    "settings": "الإعدادات",
+    "language": "اللغة"
+  },
+  "login": {
+    "login": "تسجيل الدخول",
+    "register": "تسجيل جديد",
+    "password": "كلمة المرور",
+    "playAsGuest": "العب كضيف",
+    "email": "البريد الإلكتروني"
+  },
+  "game": {
+    "start": "ابدأ",
+    "checkmate": "كش مات",
+    "draw": "تعادل",
+    "offerDraw": "اقتراح تعادل",
+    "resign": "استسلام",
+    "rating": "التقييم",
+    "time": "الوقت"
+  },
+  "leaderboard": {
+    "worldwideLeaderboard": "لائحة المتصدرين عالمياً",
+    "rank": "المركز",
+    "wins": "انتصارات",
+    "losses": "هزائم"
+  },
+  "friends": {
+    "addFriend": "إضافة صديق",
+    "accept": "قبول",
+    "decline": "رفض",
+    "block": "حظر"
+  },
+  "chat": {
+    "sendMessage": "أرسل رسالة...",
+    "goodGame": "لعبة جيدة!",
+    "niceMove": "حركة رائعة!"
+  },
+  "profile": {
+    "gameStats": "إحصائيات اللعبة",
+    "matchHistory": "سجل المباريات",
+    "peakRating": "أعلى تقييم"
+  },
+  "settings": {
+    "language": "اللغة",
+    "selectLanguage": "اختر اللغة",
+    "english": "English",
+    "ckb": "کوردی سۆرانی",
+    "kmr": "Kurdî Kurmancî",
+    "ar": "العربية"
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { MoveLog, OpeningInfo, MoveClassification } from '../types/chess';
-import { Copy, Check, BookOpen } from 'lucide-react';
+import { Copy, Check, BookOpen, Layers } from 'lucide-react';
 
 interface MoveHistoryProps {
   moveLogs: MoveLog[];
@@ -64,80 +64,80 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full glass-card overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-full obsidian-panel overflow-hidden shadow-2xl" dir="ltr">
       {/* Header with Opening Badge */}
-      <div className="p-3.5 border-b border-white/10 bg-white/[0.03] flex items-center justify-between backdrop-blur-md">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
+      <div className="p-4 border-b border-[#1F293D] bg-[#111827] flex items-center justify-between backdrop-blur-xl">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="p-1.5 rounded-lg bg-[#0B0F19] border border-[#F59E0B]/30 text-[#F59E0B]">
+            <BookOpen className="w-4 h-4" />
+          </div>
           <div className="truncate">
             {openingInfo ? (
               <div className="flex items-center gap-2 truncate">
-                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <span className="font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#F59E0B] text-[#0B0F19] shadow-sm uppercase">
                   {openingInfo.eco}
                 </span>
-                <span className="text-xs font-semibold text-white/90 truncate">
+                <span className="text-[11px] font-black text-white tracking-tight truncate">
                   {openingInfo.name}
-                  {openingInfo.variation ? `: ${openingInfo.variation}` : ''}
                 </span>
               </div>
             ) : (
-              <span className="text-xs font-medium text-white/40">Opening: Initial State</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#94A3B8] opacity-50">Opening Analysis</span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={handleCopyFen}
-            className="px-2 py-1 text-xs text-white/60 hover:text-white hover:bg-white/10 rounded-lg border border-transparent hover:border-white/10 transition-all font-mono text-[10px]"
+            className="px-2 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1F293D] text-[9px] font-black text-[#94A3B8] hover:text-[#F59E0B] hover:border-[#F59E0B]/30 transition-all interactive-btn uppercase tracking-tighter"
             title="Copy FEN string"
           >
-            {copiedFen ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : 'FEN'}
+            {copiedFen ? <Check className="w-3.5 h-3.5 text-[#10B981]" /> : 'FEN'}
           </button>
           <button
             onClick={handleCopyPgn}
-            className="p-1.5 text-xs text-white/60 hover:text-white hover:bg-white/10 rounded-lg border border-transparent hover:border-white/10 transition-all"
+            className="p-1.5 rounded-lg bg-[#0B0F19] border border-[#1F293D] text-[#94A3B8] hover:text-[#F59E0B] hover:border-[#F59E0B]/30 transition-all interactive-btn"
             title="Copy PGN notation"
           >
-            {copiedPgn ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copiedPgn ? <Check className="w-3.5 h-3.5 text-[#10B981]" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
       {/* Move list table */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-1 font-mono text-sm max-h-[300px]">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-1 font-mono no-scrollbar">
         {movePairs.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-white/30 text-xs italic py-8">
-            Moves will appear here as you play
+          <div className="h-full flex flex-col items-center justify-center text-[#94A3B8] opacity-20 py-12 gap-3">
+            <Layers className="w-12 h-12 stroke-[1]" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Moves...</span>
           </div>
         ) : (
           movePairs.map(pair => (
             <div
               key={pair.turnNumber}
-              className={`grid grid-cols-12 items-center px-2.5 py-1 rounded-xl transition-colors ${
-                pair.turnNumber % 2 === 0 ? 'bg-white/[0.02]' : 'bg-transparent'
+              className={`grid grid-cols-12 items-center px-2 py-1 rounded-xl transition-colors ${
+                pair.turnNumber % 2 === 0 ? 'bg-[#0B0F19]/20' : 'bg-transparent'
               }`}
             >
               {/* Turn Number */}
-              <span className="col-span-2 text-white/30 text-xs font-bold">{pair.turnNumber}.</span>
+              <span className="col-span-2 text-[10px] font-black text-[#94A3B8] opacity-40">{pair.turnNumber}.</span>
 
               {/* White Move */}
-              <div className="col-span-5 flex items-center justify-between pr-2">
+              <div className="col-span-5 flex items-center justify-between pr-1">
                 {pair.white && (
                   <button
                     onClick={() => onSelectMoveIndex(pair.white!.index)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-left font-semibold text-xs transition-all ${
+                    className={`w-full flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg text-left font-black text-[11px] transition-all interactive-btn ${
                       currentMoveIndex === pair.white.index
-                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-white border border-blue-400/40 shadow-sm backdrop-blur-md'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                        ? 'bg-[#F59E0B] text-[#0B0F19] shadow-lg shadow-[#F59E0B]/20'
+                        : 'text-white hover:bg-[#111827] border border-transparent hover:border-[#1F293D]'
                     }`}
                   >
                     <span>{pair.white.log.san}</span>
                     {pair.white.log.classification && BADGE_MAP[pair.white.log.classification] && (
                       <span
-                        className={`text-[9px] px-1 py-0.2 rounded border ${
-                          BADGE_MAP[pair.white.log.classification].bg
-                        } ${BADGE_MAP[pair.white.log.classification].border}`}
+                        className="text-[10px] leading-none"
                         title={BADGE_MAP[pair.white.log.classification].text}
                       >
                         {BADGE_MAP[pair.white.log.classification].icon}
@@ -152,18 +152,16 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
                 {pair.black && (
                   <button
                     onClick={() => onSelectMoveIndex(pair.black!.index)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-left font-semibold text-xs transition-all ${
+                    className={`w-full flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg text-left font-black text-[11px] transition-all interactive-btn ${
                       currentMoveIndex === pair.black.index
-                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-white border border-blue-400/40 shadow-sm backdrop-blur-md'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'bg-[#F59E0B] text-[#0B0F19] shadow-lg shadow-[#F59E0B]/20'
+                        : 'text-[#94A3B8] hover:text-white hover:bg-[#111827] border border-transparent hover:border-[#1F293D]'
                     }`}
                   >
                     <span>{pair.black.log.san}</span>
                     {pair.black.log.classification && BADGE_MAP[pair.black.log.classification] && (
                       <span
-                        className={`text-[9px] px-1 py-0.2 rounded border ${
-                          BADGE_MAP[pair.black.log.classification].bg
-                        } ${BADGE_MAP[pair.black.log.classification].border}`}
+                        className="text-[10px] leading-none"
                         title={BADGE_MAP[pair.black.log.classification].text}
                       >
                         {BADGE_MAP[pair.black.log.classification].icon}

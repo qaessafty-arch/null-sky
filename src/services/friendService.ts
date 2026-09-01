@@ -14,7 +14,7 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { db, handleFirestoreError, OperationType } from '../utils/firebase';
 import { FriendUser, FriendRequestItem, UserRole } from '../types/chess';
 import { UserProfileData } from '../context/AuthContext';
 
@@ -35,7 +35,10 @@ export const checkUsernameAvailability = async (username: string, currentUid?: s
     // If it belongs to current user, it is available
     const docData = snap.docs[0].data();
     return docData.uid === currentUid;
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || (e instanceof Error && e.message.includes('permission'))) {
+      handleFirestoreError(e, OperationType.LIST, 'users');
+    }
     console.error('Error checking username availability:', e);
     return true;
   }
@@ -79,7 +82,10 @@ export const searchUsersInDirectory = async (searchQuery: string, currentUid?: s
     });
 
     return results;
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || (e instanceof Error && e.message.includes('permission'))) {
+      handleFirestoreError(e, OperationType.LIST, 'users');
+    }
     console.error('Error searching users:', e);
     return [];
   }
@@ -90,6 +96,17 @@ export const sendFriendRequest = async (
   currentUser: { uid: string; displayName: string; username?: string; photoURL?: string; elo?: any; honorRank?: string },
   targetUser: { uid: string; displayName: string; username?: string }
 ): Promise<{ success: boolean; message: string }> => {
+  try {
+    const rateLimitRes = await fetch('/api/friends/rate-limit-check', { method: 'POST' });
+    if (!rateLimitRes.ok) {
+      if (rateLimitRes.status === 429) {
+        return { success: false, message: 'Too many friend requests sent. Please wait.' };
+      }
+    }
+  } catch(e) {
+    console.warn('Rate limit check failed', e);
+  }
+
   if (currentUser.uid === targetUser.uid) {
     return { success: false, message: 'You cannot add yourself as a friend.' };
   }
@@ -102,7 +119,21 @@ export const sendFriendRequest = async (
       where('toUserId', '==', targetUser.uid),
       where('status', '==', 'pending')
     );
-    const existing = await getDocs(q);
+    
+    // Check if blocked by target
+    const targetBlockRef = doc(db, `users/${targetUser.uid}/blocked/${currentUser.uid}`);
+    const targetBlockSnap = await getDoc(targetBlockRef);
+    if (targetBlockSnap.exists()) {
+      return { success: false, message: 'You cannot send a friend request to this user.' };
+    }
+    
+    // Check if we blocked target
+    const myBlockRef = doc(db, `users/${currentUser.uid}/blocked/${targetUser.uid}`);
+    const myBlockSnap = await getDoc(myBlockRef);
+    if (myBlockSnap.exists()) {
+      return { success: false, message: 'You have blocked this user. Unblock them first.' };
+    }
+const existing = await getDocs(q);
     if (!existing.empty) {
       return { success: false, message: 'A friend request is already pending.' };
     }
@@ -268,4 +299,41 @@ export const removeFriendRelationship = async (userId: string, friendId: string)
     console.error('Error removing friend:', e);
     return false;
   }
+};
+
+export const blockUser = async (currentUid: string, targetUid: string, targetName: string): Promise<boolean> => {
+  try {
+    const blockRef = doc(db, `users/${currentUid}/blocked/${targetUid}`);
+    await setDoc(blockRef, { uid: targetUid, displayName: targetName, blockedAt: new Date().toISOString() });
+    
+    // Also remove from friends list if they are friends
+    const myFriendRef = doc(db, `users/${currentUid}/friends/${targetUid}`);
+    const theirFriendRef = doc(db, `users/${targetUid}/friends/${currentUid}`);
+    await deleteDoc(myFriendRef);
+    await deleteDoc(theirFriendRef);
+    
+    return true;
+  } catch (e) {
+    console.error('Failed to block user', e);
+    return false;
+  }
+};
+
+export const unblockUser = async (currentUid: string, targetUid: string): Promise<boolean> => {
+  try {
+    const blockRef = doc(db, `users/${currentUid}/blocked/${targetUid}`);
+    await deleteDoc(blockRef);
+    return true;
+  } catch (e) {
+    console.error('Failed to unblock user', e);
+    return false;
+  }
+};
+
+export const listenToBlockedUsers = (userId: string, callback: (blockedIds: string[]) => void) => {
+  if (!userId) return () => {};
+  const q = query(collection(db, `users/${userId}/blocked`));
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => d.id));
+  });
 };

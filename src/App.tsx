@@ -12,15 +12,20 @@ import {
   OpeningInfo,
   RespectProfile
 } from './types/chess';
-import { BOT_PROFILES, TIME_CONTROLS, evaluateBoard, getCapturedMaterial, classifyMove } from './utils/chessEngine';
-import { engine } from './engine/client';
+import { BOT_PROFILES, TIME_CONTROLS, getBotMove, evaluateBoard, getCapturedMaterial, classifyMove, findBestMove } from './utils/chessEngine';
 import { detectOpening } from './utils/openings';
 import { soundManager } from './utils/audio';
+import { AntiCheatEngine } from "./utils/security";
+import { socketService } from './utils/socket';
 import { getActiveTheme, applyThemeToDOM } from './utils/themePresets';
 import { getRespectProfile, recordVictory, recordMercy } from './utils/respectSystem';
 import { useAuth } from './context/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { ChessBoard } from './components/ChessBoard';
 import { EvalBar } from './components/EvalBar';
 import { CapturedPieces } from './components/CapturedPieces';
@@ -30,8 +35,9 @@ import { GameControls } from './components/GameControls';
 import { PromotionModal } from './components/PromotionModal';
 import { GameOverModal } from './components/GameOverModal';
 import { NewGameModal } from './components/NewGameModal';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsModal, SettingsTab } from './components/SettingsModal';
 import { PuzzleMode } from './components/PuzzleMode';
+import { DailyPuzzleView } from './components/DailyPuzzleView';
 import { AnalysisPanel } from './components/AnalysisPanel';
 import { CheckmateJudgmentModal } from './components/CheckmateJudgmentModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
@@ -40,20 +46,29 @@ import { FriendsModal } from './components/FriendsModal';
 import { FriendChatModal } from './components/FriendChatModal';
 import { OnlineMatchView } from './components/OnlineMatchView';
 import { WorldwideMatchModal } from './components/WorldwideMatchModal';
+import { WorldwideLeaderboardView } from './components/WorldwideLeaderboardView';
+import { AuthoringView } from './components/AuthoringView';
+import { LoggingView } from './components/LoggingView';
+import { DatabaseView } from './components/DatabaseView';
+import { MultiplayerLobbyView } from './components/MultiplayerLobbyView';
+import { LoginPage } from './components/LoginPage';
+import { UserProfilePage } from './components/UserProfilePage';
+import { logCompletedGame } from './services/loggingService';
 import { FriendUser } from './types/chess';
 
 export default function App() {
   const { user, profile: authProfile, updateRespectMetrics } = useAuth();
+  const { t, i18n } = useTranslation();
 
-  // Global Settings with Peshmerga default
+  // Global Settings with Obsidian default
   const [settings, setSettings] = useState<AppSettings>({
     sound: true,
     volume: 0.7,
     showLegalMoves: true,
     autoQueen: false,
     flipBoard: false,
-    boardTheme: 'peshmerga',
-    pieceTheme: 'peshmerga',
+    boardTheme: 'obsidian',
+    pieceTheme: 'classic',
     showCoordinates: true,
     highlightLastMove: true,
     showEvalBar: true,
@@ -63,7 +78,12 @@ export default function App() {
   // Respect System Profile
   const [respectProfile, setRespectProfile] = useState<RespectProfile>(() => getRespectProfile());
 
-  // Keep respectProfile synchronized with cloud auth profile if logged in
+  useEffect(() => {
+    AntiCheatEngine.initializeTelemetry();
+  }, []);
+
+  // Sync respect profile
+
   useEffect(() => {
     if (authProfile) {
       setRespectProfile({
@@ -81,12 +101,8 @@ export default function App() {
   const [activeMode, setActiveMode] = useState<GameMode>('ai');
 
   // Match Configuration
-  const [currentBot, setCurrentBot] = useState<BotProfile>(
-    () => BOT_PROFILES.find(bot => bot.id === 'bot-bishop') ?? BOT_PROFILES[3]
-  ); // Bishop Tactician (~1450 Elo)
-  const [timeControl, setTimeControl] = useState<TimeControl>(
-    () => TIME_CONTROLS.find(control => control.id === 'rapid-10') ?? TIME_CONTROLS[6]
-  ); // Rapid 10 min
+  const [currentBot, setCurrentBot] = useState<BotProfile>(BOT_PROFILES[2]); // Bishop Tactician (1400 Elo)
+  const [timeControl, setTimeControl] = useState<TimeControl>(TIME_CONTROLS[5]); // Rapid 10 min
   const [playerColor, setPlayerColor] = useState<PieceColor>('w');
 
   // Chess Game State
@@ -94,6 +110,7 @@ export default function App() {
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
   const [moveLogs, setMoveLogs] = useState<MoveLog[]>([]);
+  const [redoStack, setRedoStack] = useState<MoveLog[]>([]);
   const [viewingMoveIndex, setViewingMoveIndex] = useState<number>(-1);
   const [evalScore, setEvalScore] = useState<number>(0);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
@@ -104,9 +121,12 @@ export default function App() {
   const [blackTime, setBlackTime] = useState<number>(timeControl.initialSeconds);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(false);
 
-  // Modals
+  // Navigation & Modals
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('themes');
   const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
@@ -117,27 +137,29 @@ export default function App() {
   const [pendingCheckmateResult, setPendingCheckmateResult] = useState<GameResult | null>(null);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
 
-  // Join a match directly from an invite link (?match=<id>)
+  // Tab focus tracking for anti-cheat
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const linkedMatch = params.get('match');
-      if (linkedMatch) {
-        setActiveOnlineMatchId(linkedMatch);
-        setActiveMode('online_match');
+    const handleVisibilityChange = () => {
+      if (document.hidden && activeMode === 'online_match' && activeOnlineMatchId && user) {
+        socketService.emitTabBlur(activeOnlineMatchId, user.uid);
       }
-    } catch {
-      // URL parsing is best-effort
-    }
-  }, []);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeMode, activeOnlineMatchId, user]);
 
   // Synchronize audio sound toggle with soundManager
+
   useEffect(() => {
     soundManager.setEnabled(settings.sound);
     soundManager.setVolume(settings.volume);
-  }, [settings.sound, settings.volume]);
+    soundManager.setTheme(settings.pieceTheme);
+  }, [settings.sound, settings.volume, settings.pieceTheme]);
 
   // Initialize and apply user theme on mount
+
   useEffect(() => {
     try {
       const activeTheme = getActiveTheme();
@@ -147,6 +169,20 @@ export default function App() {
       console.error('Failed to apply initial theme:', e);
     }
   }, []);
+
+  // Update layout and direction for i18n
+  useEffect(() => {
+    const isRtl = i18n.language === 'ckb' || i18n.language === 'ar';
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = i18n.language;
+    if (isRtl) {
+      document.body.classList.add('font-vazirmatn');
+      document.body.classList.remove('font-ui');
+    } else {
+      document.body.classList.remove('font-vazirmatn');
+      document.body.classList.add('font-ui');
+    }
+  }, [i18n.language]);
 
   // Derived Board View Game (if user is browsing move history)
   const displayGame = React.useMemo(() => {
@@ -182,6 +218,8 @@ export default function App() {
   }, []);
 
   // Clock countdown interval
+
+
   useEffect(() => {
     if (!isClockRunning || gameResult || timeControl.category === 'unlimited') return;
 
@@ -218,6 +256,7 @@ export default function App() {
     (from: Square, to: Square, promotionPiece?: PieceType) => {
       try {
         const prevEval = evalScore;
+        AntiCheatEngine.recordMoveTiming();
         const isWhiteTurn = game.turn() === 'w';
 
         const newGame = new Chess(game.fen());
@@ -228,6 +267,8 @@ export default function App() {
         });
 
         if (!moveResult) return false;
+
+        soundManager.setLastMoveInfo(moveResult.piece, moveResult.color);
 
         // Sound effects
         if (newGame.isCheckmate()) {
@@ -282,6 +323,7 @@ export default function App() {
         setGame(newGame);
         setLastMove({ from: moveResult.from, to: moveResult.to });
         setMoveLogs(prev => [...prev, newLog]);
+        setRedoStack([]);
         setViewingMoveIndex(-1);
         setEvalScore(newScore);
 
@@ -312,10 +354,7 @@ export default function App() {
     },
     [game, evalScore, timeControl, isClockRunning, checkGameOver, activeMode, playerColor]
   );
-
-  // Trigger AI Move when it's the bot's turn.
-  // The search runs in a Web Worker, so a 2600-rated bot thinking for three
-  // seconds never freezes the board or the clocks.
+  // Trigger AI Move when it's bot's turn
   useEffect(() => {
     if (activeMode !== 'ai' || gameResult || isJudgmentModalOpen) {
       setIsAiThinking(false);
@@ -326,45 +365,36 @@ export default function App() {
       (playerColor === 'w' && game.turn() === 'b') ||
       (playerColor === 'b' && game.turn() === 'w');
 
-    if (!isAiTurn || game.isGameOver()) {
+    if (!isAiTurn) {
       setIsAiThinking(false);
       return;
     }
 
-    let cancelled = false;
     setIsAiThinking(true);
-    const startedAt = Date.now();
-    const fen = game.fen();
 
-    engine
-      .botMove({ fen }, currentBot.id)
-      .then(async result => {
-        if (cancelled || !result.bestMove) return;
-        // Keep a natural minimum think time for the fast/weak bots.
-        const minimumDelay = 260;
-        const elapsed = Date.now() - startedAt;
-        if (elapsed < minimumDelay) {
-          await new Promise(resolve => setTimeout(resolve, minimumDelay - elapsed));
+    // Natural bot think delay (300ms - 750ms)
+    const delay = Math.min(800, Math.max(300, 200 + currentBot.depth * 100));
+
+    const timeoutId = setTimeout(() => {
+      try {
+        const botMove = getBotMove(game, currentBot);
+        if (botMove) {
+          executeMove(botMove.from as Square, botMove.to as Square, botMove.promotion as PieceType | undefined);
         }
-        if (cancelled) return;
-        executeMove(
-          result.bestMove.slice(0, 2) as Square,
-          result.bestMove.slice(2, 4) as Square,
-          result.bestMove[4] as PieceType | undefined
-        );
-      })
-      .catch(err => console.error('AI move calculation error:', err))
-      .finally(() => {
-        if (!cancelled) setIsAiThinking(false);
-      });
+      } catch (err) {
+        console.error('AI Move calculation error:', err);
+      } finally {
+        setIsAiThinking(false);
+      }
+    }, delay);
 
     return () => {
-      cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [activeMode, game, playerColor, gameResult, currentBot, executeMove, isJudgmentModalOpen]);
 
   // Handle board square move attempts
-  const handleBoardMove = (from: Square, to: Square) => {
+  const handleBoardMove = useCallback((from: Square, to: Square) => {
     if (gameResult || isAiThinking || isJudgmentModalOpen) return;
 
     // Check if player is allowed to move in AI mode
@@ -391,7 +421,7 @@ export default function App() {
     }
 
     executeMove(from, to);
-  };
+  }, [gameResult, isAiThinking, isJudgmentModalOpen, activeMode, playerColor, game, settings.autoQueen, executeMove]);
 
   const handlePromotionSelect = (promoPiece: PieceType) => {
     if (pendingPromotion) {
@@ -423,6 +453,7 @@ export default function App() {
     setGame(freshGame);
     setLastMove(null);
     setMoveLogs([]);
+    setRedoStack([]);
     setViewingMoveIndex(-1);
     setEvalScore(0);
     setGameResult(null);
@@ -450,24 +481,81 @@ export default function App() {
 
   // Undo last move
   const handleUndo = () => {
+    if (activeMode === 'multiplayer' || activeMode === 'puzzle' || activeMode === 'online_match' || activeMode === 'analysis' || activeMode === 'authoring' || activeMode === 'logging' || activeMode === 'database' || activeMode === 'login' || activeMode === 'profile_page') return;
     if (moveLogs.length === 0 || gameResult || isAiThinking) return;
 
     // In AI mode, undo two moves (player move + AI move) so it's user's turn again
     const undoCount = activeMode === 'ai' ? 2 : 1;
-    const newGame = new Chess();
     const remainingLogs = moveLogs.slice(0, Math.max(0, moveLogs.length - undoCount));
+    const undoneLogs = moveLogs.slice(Math.max(0, moveLogs.length - undoCount));
 
+    const newGame = new Chess();
     for (const log of remainingLogs) {
       newGame.move({ from: log.from, to: log.to, promotion: log.promotion });
     }
 
     setGame(newGame);
     setMoveLogs(remainingLogs);
+    setRedoStack(prev => [...undoneLogs, ...prev]);
     setViewingMoveIndex(-1);
     setLastMove(remainingLogs.length > 0 ? { from: remainingLogs[remainingLogs.length - 1].from, to: remainingLogs[remainingLogs.length - 1].to } : null);
     setEvalScore(evaluateBoard(newGame));
     soundManager.playMove();
   };
+
+  // Redo last undone move
+  const handleRedo = () => {
+    if (activeMode === 'multiplayer' || activeMode === 'puzzle' || activeMode === 'online_match' || activeMode === 'analysis' || activeMode === 'authoring' || activeMode === 'logging' || activeMode === 'database' || activeMode === 'login' || activeMode === 'profile_page') return;
+    if (redoStack.length === 0 || gameResult || isAiThinking) return;
+
+    const redoCount = activeMode === 'ai' ? Math.min(2, redoStack.length) : 1;
+    const movesToRedo = redoStack.slice(0, redoCount);
+    const nextLogs = [...moveLogs, ...movesToRedo];
+
+    const newGame = new Chess();
+    for (const log of nextLogs) {
+      newGame.move({ from: log.from, to: log.to, promotion: log.promotion });
+    }
+
+    setGame(newGame);
+    setMoveLogs(nextLogs);
+    setRedoStack(prev => prev.slice(redoCount));
+    setViewingMoveIndex(-1);
+    const last = movesToRedo[movesToRedo.length - 1];
+    setLastMove({ from: last.from, to: last.to });
+    setEvalScore(evaluateBoard(newGame));
+    soundManager.playMove();
+  };
+
+  const handleUndoRef = useRef(handleUndo);
+  const handleRedoRef = useRef(handleRedo);
+  
+  useEffect(() => {
+    handleUndoRef.current = handleUndo;
+    handleRedoRef.current = handleRedo;
+  }, [handleUndo, handleRedo]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedoRef.current();
+        } else {
+          e.preventDefault();
+          handleUndoRef.current();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+        e.preventDefault();
+        handleRedoRef.current();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Checkmate Judgment Decisions
   const handleExecuteJudgment = () => {
@@ -514,35 +602,50 @@ export default function App() {
     }
   };
 
-  // Provide an engine tactical hint (searched off the main thread)
-  const handleGetHint = async () => {
+  // Provide engine tactical hint
+  const handleGetHint = () => {
     if (gameResult || isAiThinking) return;
-    setHintMessage('💡 Engine is calculating…');
     try {
-      const result = await engine.search({ fen: game.fen() }, { depth: 12, timeMs: 900 });
-      if (!result.bestMove) {
-        setHintMessage(null);
-        return;
+      const isWhite = game.turn() === 'w';
+      const best = findBestMove(game, 3, isWhite);
+      if (best.move) {
+        soundManager.playCheck();
+        setHintMessage(`💡 Engine Recommendation: Play ${best.move.san} (${best.move.from} to ${best.move.to})`);
+        setTimeout(() => {
+          setHintMessage(null);
+        }, 5000);
       }
-      const probe = new Chess(game.fen());
-      const applied = probe.move({
-        from: result.bestMove.slice(0, 2) as Square,
-        to: result.bestMove.slice(2, 4) as Square,
-        promotion: (result.bestMove[4] as PieceType | undefined) ?? 'q'
-      });
-      soundManager.playCheck();
-      const evaluation =
-        result.mateIn !== null
-          ? `mate in ${Math.abs(result.mateIn)}`
-          : `${result.scoreWhite >= 0 ? '+' : ''}${(result.scoreWhite / 100).toFixed(2)}`;
-      setHintMessage(
-        `💡 Engine (depth ${result.depth}): play ${applied?.san ?? result.bestMove} — evaluation ${evaluation}`
-      );
-      setTimeout(() => setHintMessage(null), 6000);
     } catch {
-      setHintMessage(null);
+      // Ignore
     }
   };
+  // Automatic logging of finished games
+  useEffect(() => {
+    if (!gameResult) return;
+    try {
+      const isWin = gameResult.winner === playerColor;
+      const isDraw = gameResult.winner === 'draw';
+      const resultType = isWin ? 'win' : isDraw ? 'draw' : 'loss';
+      logCompletedGame({
+        userId: user?.uid,
+        mode: activeMode,
+        opponentName: activeMode === 'ai' ? currentBot.name : 'Opponent Player',
+        opponentAvatar: activeMode === 'ai' ? currentBot.avatar : '♚',
+        opponentElo: activeMode === 'ai' ? currentBot.elo : 1200,
+        playerColor: playerColor,
+        result: resultType,
+        reason: gameResult.reason,
+        movesCount: moveLogs.length,
+        timeControlName: timeControl.name,
+        pgn: game.pgn(),
+        finalFen: game.fen(),
+        respectChange: isWin ? 20 : isDraw ? 5 : 0,
+        eloChange: isWin ? 15 : isDraw ? 0 : -10
+      });
+    } catch (e) {
+      console.warn('Auto match log failed:', e);
+    }
+  }, [gameResult]);
 
   // Material summary
   const capturedMaterial = getCapturedMaterial(displayGame);
@@ -556,10 +659,34 @@ export default function App() {
       ? settings.flipBoard || game.turn() === 'b'
       : settings.flipBoard || playerColor === 'b';
 
+  const isOnePieceTheme =
+    settings.boardTheme === 'one-piece' ||
+    settings.pieceTheme === 'one-piece' ||
+    settings.whitePieceTheme === 'one-piece' ||
+    settings.blackPieceTheme === 'one-piece';
+
+  const isAotTheme =
+    settings.boardTheme === 'aot' ||
+    settings.pieceTheme === 'aot' ||
+    settings.whitePieceTheme === 'aot' ||
+    settings.blackPieceTheme === 'aot';
+
+  const isPeshmergaTheme = 
+    settings.boardTheme === 'peshmerga';
+  const isBatmanTheme =
+    settings.boardTheme === 'batman' ||
+    settings.boardTheme === 'gotham-city' ||
+    settings.pieceTheme === 'batman' ||
+    settings.whitePieceTheme === 'batman' ||
+    settings.blackPieceTheme === 'batman';
+
   return (
-    <div className="min-h-screen bg-[var(--app-bg,#10140e)] text-[var(--text-main,#FDFCF7)] flex flex-col selection:bg-[#F5C453]/30 selection:text-[#F5C453] relative overflow-x-hidden font-ui transition-colors duration-300">
-      {/* Ambient Peshmerga Radial Mesh Gradient */}
-      <div className="mesh-gradient" />
+    <div id="app-root-container" className="flex flex-col min-h-screen bg-[#0B0F19] text-white overflow-hidden font-sans selection:bg-[#F59E0B]/30 relative transition-colors duration-500">
+      {/* Background Ambient Glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#F59E0B]/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#F59E0B]/5 blur-[120px] rounded-full" />
+      </div>
 
       {/* Sleek Tactical Hint Banner */}
       {hintMessage && (
@@ -576,8 +703,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Header */}
-      <Header
+      {/* Collapsible Left Navigation Sidebar */}
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
         activeMode={activeMode}
         onSelectMode={mode => {
           if (activeMode === 'online_match') {
@@ -585,205 +714,312 @@ export default function App() {
           }
           setActiveMode(mode);
         }}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-        onOpenThemes={() => setIsSettingsModalOpen(true)}
-        onOpenLeaderboard={() => setIsLeaderboardModalOpen(true)}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenFriends={() => setIsFriendsModalOpen(true)}
         onOpenWorldwideMatch={() => setIsWorldwideMatchModalOpen(true)}
-        onNewGame={() => setIsNewGameModalOpen(true)}
+        onOpenLeaderboard={() => setActiveMode('leaderboard')}
+        onOpenThemes={() => setIsThemeModalOpen(true)}
+        onOpenSettings={() => {
+          setSettingsTab('themes');
+          setIsSettingsModalOpen(true);
+        }}
+        onOpenProfile={() => setActiveMode('profile_page')}
+        currentThemeName={settings.pieceTheme}
+      />
+
+      {/* Top Header */}
+      {/* Ambient Dynamic Glow Backdrop */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="ambient-sphere w-[600px] h-[600px] bg-cyan-500/20 top-[-10%] left-[-10%] animate-[ambient-float_20s_infinite_ease-in-out]" />
+        <div className="ambient-sphere w-[500px] h-[500px] bg-orange-500/15 bottom-[10%] right-[-5%] animate-[ambient-float_25s_infinite_ease-in-out_reverse]" />
+        <div className="ambient-sphere w-[400px] h-[400px] bg-blue-500/10 top-[40%] left-[20%] animate-[ambient-float_18s_infinite_linear]" />
+      </div>
+
+      <Header
+        onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+        isSidebarOpen={isSidebarOpen}
+        onOpenProfile={() => setActiveMode('profile_page')}
+        onOpenLogin={() => setActiveMode('login')}
         respectProfile={respectProfile}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col justify-center max-w-7xl w-full mx-auto p-2 sm:p-4 md:p-6 z-10">
-        {activeMode === 'online_match' && activeOnlineMatchId ? (
-          <OnlineMatchView
-            matchId={activeOnlineMatchId}
-            settings={settings}
-            onSwitchMatch={newMatchId => setActiveOnlineMatchId(newMatchId)}
-            onClose={() => {
-              setActiveOnlineMatchId(null);
-              setActiveMode('ai');
-              try {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('match');
-                window.history.replaceState({}, '', url.toString());
-              } catch {
-                // ignore
-              }
-            }}
-          />
-        ) : activeMode === 'puzzle' ? (
-          <PuzzleMode settings={settings} />
-        ) : activeMode === 'analysis' ? (
-          <AnalysisPanel settings={settings} initialPgn={game.pgn()} initialFen={game.fen()} />
-        ) : (
-          /* Live Match View (Play AI / Pass & Play) */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start justify-center">
-            {/* Center Left: Chess Board & Eval Bar Area */}
-            <div className="lg:col-span-8 flex flex-col items-center justify-center">
-              {/* Top Player Status / Clock Bar */}
-              <div className="w-full max-w-[560px] mb-2 flex flex-col gap-1.5">
-                <ChessClock
-                  timeSeconds={isBoardFlipped ? whiteTime : blackTime}
-                  isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
-                  isWhite={isBoardFlipped}
-                  playerName={
-                    activeMode === 'ai'
-                      ? isBoardFlipped
-                        ? 'Player (You)'
-                        : `${currentBot.name}`
-                      : isBoardFlipped
-                      ? 'White Player'
-                      : 'Black Player'
+      <main className="flex-1 flex flex-col justify-start overflow-y-auto w-full z-10 min-h-0 no-scrollbar">
+        <AnimatePresence mode="wait" initial={false}>
+          {activeMode === 'login' ? (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+              className="w-full h-full"
+            >
+              <LoginPage
+                onSuccess={() => setActiveMode('profile_page')}
+                onCancel={() => setActiveMode('ai')}
+                onNavigateHome={() => setActiveMode('ai')}
+              />
+            </motion.div>
+          ) : activeMode === 'profile_page' ? (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full"
+            >
+              <UserProfilePage
+                onChallenge={() => {
+                  setActiveMode('ai');
+                  setIsNewGameModalOpen(true);
+                }}
+                onAnalyzeGame={(pgn, fen) => {
+                  try {
+                    const g = fen ? new Chess(fen) : new Chess();
+                    setGame(g);
+                    setActiveMode('analysis');
+                  } catch {
+                    setActiveMode('analysis');
                   }
-                  playerTitle={activeMode === 'ai' && !isBoardFlipped ? currentBot.title : undefined}
-                  avatar={activeMode === 'ai' && !isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♔' : '♚'}
-                  elo={activeMode === 'ai' && !isBoardFlipped ? currentBot.elo : respectProfile.elo}
-                  isUnlimited={timeControl.category === 'unlimited'}
-                />
-
-                <div className="px-2 flex items-center justify-between">
-                  <CapturedPieces
-                    pieces={isBoardFlipped ? capturedMaterial.capturedByBlack : capturedMaterial.capturedByWhite}
-                    pieceTheme={settings.pieceTheme}
-                    colorOfCapturedPieces={isBoardFlipped ? 'w' : 'b'}
-                    materialAdvantage={
-                      isBoardFlipped
-                        ? capturedMaterial.materialDifference < 0
-                          ? Math.abs(capturedMaterial.materialDifference)
-                          : 0
-                        : capturedMaterial.materialDifference > 0
-                        ? capturedMaterial.materialDifference
-                        : 0
+                }}
+                onEditProfileModal={() => setIsProfileModalOpen(true)}
+                onNavigateHome={() => setActiveMode('ai')}
+              />
+            </motion.div>
+          ) : activeMode === 'online_match' && activeOnlineMatchId ? (
+            <OnlineMatchView
+              matchId={activeOnlineMatchId}
+              settings={settings}
+              onClose={() => {
+                setActiveOnlineMatchId(null);
+                setActiveMode('ai');
+              }}
+            />
+          ) : (activeMode === 'multiplayer' || (activeMode === 'online_match' && !activeOnlineMatchId)) ? (
+            <MultiplayerLobbyView
+              settings={settings}
+              onStartMatch={matchId => {
+                setActiveOnlineMatchId(matchId);
+                setActiveMode('online_match');
+              }}
+              onOpenWorldwideModal={() => setIsWorldwideMatchModalOpen(true)}
+            />
+          ) : activeMode === 'authoring' ? (
+            <AuthoringView
+              settings={settings}
+              onOpenAnalysisWithFen={fen => {
+                try {
+                  const g = new Chess(fen);
+                  setGame(g);
+                  setActiveMode('analysis');
+                } catch {}
+              }}
+            />
+          ) : activeMode === 'logging' ? (
+            <LoggingView
+              settings={settings}
+              onOpenAnalysisWithFen={fen => {
+                try {
+                  const g = new Chess(fen);
+                  setGame(g);
+                  setActiveMode('analysis');
+                } catch {}
+              }}
+            />
+          ) : activeMode === 'leaderboard' ? (
+            <WorldwideLeaderboardView />
+          ) : activeMode === 'database' ? (
+            <DatabaseView
+              onClose={() => setActiveMode('ai')}
+            />
+          ) : activeMode === 'daily_puzzle' ? (
+            <DailyPuzzleView
+              settings={settings}
+              onNavigateMode={mode => setActiveMode(mode)}
+            />
+          ) : activeMode === 'puzzle' ? (
+            <PuzzleMode settings={settings} />
+          ) : activeMode === 'analysis' ? (
+            <AnalysisPanel settings={settings} initialPgn={game.pgn()} initialFen={game.fen()} />
+          ) : (
+            /* Live Match View (Play AI / Pass & Play) */
+            <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start justify-center">
+              {/* Center Left: Chess Board & Eval Bar Area */}
+              <div className="lg:col-span-8 flex flex-col items-center justify-center gap-6">
+                {/* Top Player Status / Clock Bar */}
+                <div className="w-full max-w-[600px] flex flex-col gap-3">
+                  <ChessClock
+                    timeSeconds={isBoardFlipped ? whiteTime : blackTime}
+                    isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
+                    isWhite={isBoardFlipped}
+                    playerName={
+                      activeMode === 'ai'
+                        ? isBoardFlipped
+                          ? 'Player (You)'
+                          : `${currentBot.name}`
+                        : isBoardFlipped
+                        ? 'White Player'
+                        : 'Black Player'
                     }
+                    playerTitle={activeMode === 'ai' && !isBoardFlipped ? currentBot.title : undefined}
+                    avatar={activeMode === 'ai' && !isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♔' : '♚'}
+                    elo={activeMode === 'ai' && !isBoardFlipped ? currentBot.elo : respectProfile.elo}
+                    isUnlimited={timeControl.category === 'unlimited'}
                   />
 
-                  {isAiThinking && !isBoardFlipped && (
-                    <div className="flex items-center gap-2 text-xs text-[#F5C453] font-mono animate-pulse px-2.5 py-1 rounded-full bg-[#52673A]/30 border border-[#F5C453]/40">
-                      <span className="w-2 h-2 rounded-full bg-[#F5C453] animate-ping" />
-                      <span>{currentBot.name} is calculating...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Main Board Stage with Evaluation Bar */}
-              <div className="flex items-center justify-center gap-2 sm:gap-3 w-full">
-                {settings.showEvalBar && (
-                  <EvalBar score={evalScore} isFlipped={isBoardFlipped} />
-                )}
-
-                <ChessBoard
-                  game={displayGame}
-                  isFlipped={isBoardFlipped}
-                  boardTheme={settings.boardTheme}
-                  pieceTheme={settings.pieceTheme}
-                  showCoordinates={settings.showCoordinates}
-                  highlightLastMove={settings.highlightLastMove}
-                  showLegalMoves={settings.showLegalMoves}
-                  lastMove={lastMove}
-                  onMove={handleBoardMove}
-                  disabled={viewingMoveIndex !== -1 || isAiThinking || !!gameResult || isJudgmentModalOpen}
-                />
-              </div>
-
-              {/* Bottom Player Status / Clock Bar */}
-              <div className="w-full max-w-[560px] mt-2 flex flex-col gap-1.5">
-                <div className="px-2 flex items-center justify-between">
-                  <CapturedPieces
-                    pieces={isBoardFlipped ? capturedMaterial.capturedByWhite : capturedMaterial.capturedByBlack}
-                    pieceTheme={settings.pieceTheme}
-                    colorOfCapturedPieces={isBoardFlipped ? 'b' : 'w'}
-                    materialAdvantage={
-                      isBoardFlipped
-                        ? capturedMaterial.materialDifference > 0
+                  <div className="px-1 flex items-center justify-between">
+                    <CapturedPieces
+                      pieces={isBoardFlipped ? capturedMaterial.capturedByBlack : capturedMaterial.capturedByWhite}
+                      pieceTheme={settings.pieceTheme}
+                      colorOfCapturedPieces={isBoardFlipped ? 'w' : 'b'}
+                      materialAdvantage={
+                        isBoardFlipped
+                          ? capturedMaterial.materialDifference < 0
+                            ? Math.abs(capturedMaterial.materialDifference)
+                            : 0
+                          : capturedMaterial.materialDifference > 0
                           ? capturedMaterial.materialDifference
                           : 0
-                        : capturedMaterial.materialDifference < 0
-                        ? Math.abs(capturedMaterial.materialDifference)
-                        : 0
-                    }
-                  />
+                      }
+                    />
 
-                  {isAiThinking && isBoardFlipped && (
-                    <div className="flex items-center gap-2 text-xs text-[#F5C453] font-mono animate-pulse px-2.5 py-1 rounded-full bg-[#52673A]/30 border border-[#F5C453]/40">
-                      <span className="w-2 h-2 rounded-full bg-[#F5C453] animate-ping" />
-                      <span>{currentBot.name} is calculating...</span>
-                    </div>
+                    {isAiThinking && !isBoardFlipped && (
+                      <div className="flex items-center gap-2 text-[10px] text-[#F59E0B] font-black uppercase tracking-widest animate-pulse px-3 py-1 rounded-full bg-[#111827] border border-[#F59E0B]/30 shadow-lg">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] animate-ping" />
+                        <span>Calculating Path...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Main Board Stage with Evaluation Bar */}
+                <div className="flex items-center justify-center gap-4 sm:gap-6 w-full">
+                  {settings.showEvalBar && (
+                    <EvalBar score={evalScore} isFlipped={isBoardFlipped} />
                   )}
+
+                  <div className="relative group w-full max-w-[600px]">
+                    <div className="absolute -inset-4 bg-[#F59E0B]/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <ChessBoard
+                      game={displayGame}
+                      isFlipped={isBoardFlipped}
+                      boardTheme={settings.boardTheme}
+                      pieceTheme={settings.pieceTheme}
+                      whitePieceTheme={settings.whitePieceTheme}
+                      blackPieceTheme={settings.blackPieceTheme}
+                      showCoordinates={settings.showCoordinates}
+                      highlightLastMove={settings.highlightLastMove}
+                      showLegalMoves={settings.showLegalMoves}
+                      lastMove={lastMove}
+                      onMove={handleBoardMove}
+                      disabled={viewingMoveIndex !== -1 || isAiThinking || !!gameResult || isJudgmentModalOpen}
+                    />
+                  </div>
                 </div>
 
-                <ChessClock
-                  timeSeconds={isBoardFlipped ? blackTime : whiteTime}
-                  isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'b' : game.turn() === 'w')}
-                  isWhite={!isBoardFlipped}
-                  playerName={
-                    activeMode === 'ai'
-                      ? isBoardFlipped
-                        ? `${currentBot.name}`
-                        : 'Player (You)'
-                      : isBoardFlipped
-                      ? 'Black Player'
-                      : 'White Player'
-                  }
-                  playerTitle={activeMode === 'ai' && isBoardFlipped ? currentBot.title : undefined}
-                  avatar={activeMode === 'ai' && isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♚' : '♔'}
-                  elo={activeMode === 'ai' && isBoardFlipped ? currentBot.elo : respectProfile.elo}
-                  isUnlimited={timeControl.category === 'unlimited'}
-                />
-              </div>
-            </div>
+                {/* Bottom Player Status / Clock Bar */}
+                <div className="w-full max-w-[600px] flex flex-col gap-3">
+                  <div className="px-1 flex items-center justify-between">
+                    <CapturedPieces
+                      pieces={isBoardFlipped ? capturedMaterial.capturedByWhite : capturedMaterial.capturedByBlack}
+                      pieceTheme={settings.pieceTheme}
+                      colorOfCapturedPieces={isBoardFlipped ? 'b' : 'w'}
+                      materialAdvantage={
+                        isBoardFlipped
+                          ? capturedMaterial.materialDifference > 0
+                            ? capturedMaterial.materialDifference
+                            : 0
+                          : capturedMaterial.materialDifference < 0
+                          ? Math.abs(capturedMaterial.materialDifference)
+                          : 0
+                      }
+                    />
 
-            {/* Right Sidebar: History & Tactical Controls */}
-            <div className="lg:col-span-4 flex flex-col gap-3 w-full max-w-[560px] mx-auto lg:max-w-none">
-              {/* Game Control Action Buttons */}
-              <GameControls
-                onNewGame={() => setIsNewGameModalOpen(true)}
-                onFlipBoard={() => setSettings(s => ({ ...s, flipBoard: !s.flipBoard }))}
-                onUndo={handleUndo}
-                onResign={handleResign}
-                onHint={handleGetHint}
-                soundEnabled={settings.sound}
-                onToggleSound={() => setSettings(s => ({ ...s, sound: !s.sound }))}
-                canUndo={moveLogs.length > 0 && !gameResult && !isAiThinking}
-                isAiMode={activeMode === 'ai'}
-              />
+                    {isAiThinking && isBoardFlipped && (
+                      <div className="flex items-center gap-2 text-[10px] text-[#F59E0B] font-black uppercase tracking-widest animate-pulse px-3 py-1 rounded-full bg-[#111827] border border-[#F59E0B]/30 shadow-lg">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] animate-ping" />
+                        <span>Calculating Path...</span>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Move Notation & History Log */}
-              <div className="h-[340px] sm:h-[400px]">
-                <MoveHistory
-                  moveLogs={moveLogs}
-                  currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
-                  onSelectMoveIndex={idx => {
-                    if (idx === moveLogs.length - 1) {
-                      setViewingMoveIndex(-1);
-                    } else {
-                      setViewingMoveIndex(idx);
+                  <ChessClock
+                    timeSeconds={isBoardFlipped ? blackTime : whiteTime}
+                    isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'b' : game.turn() === 'w')}
+                    isWhite={!isBoardFlipped}
+                    playerName={
+                      activeMode === 'ai'
+                        ? isBoardFlipped
+                          ? `${currentBot.name}`
+                          : 'Player (You)'
+                        : isBoardFlipped
+                        ? 'Black Player'
+                        : 'White Player'
                     }
-                  }}
-                  openingInfo={openingInfo}
-                  pgn={game.pgn()}
-                  fen={displayGame.fen()}
-                />
+                    playerTitle={activeMode === 'ai' && isBoardFlipped ? currentBot.title : undefined}
+                    avatar={activeMode === 'ai' && isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♚' : '♔'}
+                    elo={activeMode === 'ai' && isBoardFlipped ? currentBot.elo : respectProfile.elo}
+                    isUnlimited={timeControl.category === 'unlimited'}
+                  />
+                </div>
               </div>
 
-              {/* Quick Game Info Card */}
-              <div className="p-3.5 glass-card flex items-center justify-between text-xs text-[#DFD0B0]/70">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#F5C453] shadow-[0_0_8px_rgba(245,196,83,0.6)]" />
-                  <span className="font-bold text-[#FDFCF7]">
-                    {activeMode === 'ai' ? `Vs ${currentBot.name} (${currentBot.elo} Elo)` : 'Pass & Play Local'}
-                  </span>
+              {/* Right Sidebar: History & Tactical Controls */}
+              <div className="lg:col-span-4 flex flex-col gap-5 w-full max-w-[600px] mx-auto lg:max-w-none">
+                {/* Game Control Action Buttons */}
+                <GameControls
+                  onNewGame={() => setIsNewGameModalOpen(true)}
+                  onFlipBoard={() => setSettings(s => ({ ...s, flipBoard: !s.flipBoard }))}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  onResign={handleResign}
+                  onHint={handleGetHint}
+                  soundEnabled={settings.sound}
+                  onToggleSound={() => setSettings(s => ({ ...s, sound: !s.sound }))}
+                  canUndo={moveLogs.length > 0 && !gameResult && !isAiThinking && activeMode !== 'multiplayer' && activeMode !== 'puzzle' && activeMode !== 'online_match'}
+                  canRedo={redoStack.length > 0 && !gameResult && !isAiThinking && activeMode !== 'multiplayer' && activeMode !== 'puzzle' && activeMode !== 'online_match'}
+                  isAiMode={activeMode === 'ai'}
+                />
+
+                {/* Move Notation & History Log */}
+                <div className="h-[400px] lg:h-[500px]">
+                  <MoveHistory
+                    moveLogs={moveLogs}
+                    currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
+                    onSelectMoveIndex={idx => {
+                      if (idx === moveLogs.length - 1) {
+                        setViewingMoveIndex(-1);
+                      } else {
+                        setViewingMoveIndex(idx);
+                      }
+                    }}
+                    openingInfo={openingInfo}
+                    pgn={game.pgn()}
+                    fen={displayGame.fen()}
+                  />
                 </div>
-                <span className="font-mono font-bold text-[#F5C453] px-2 py-0.5 rounded-md bg-[#52673A]/40 border border-[#F5C453]/30">
-                  {timeControl.name}
-                </span>
+
+                {/* Quick Game Info Card */}
+                <div className="p-4 obsidian-panel flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] gold-glow" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
+                        {activeMode === 'ai' ? `VS ${currentBot.name}` : 'Local Session'}
+                      </span>
+                      <span className="text-[9px] font-mono text-[#94A3B8] mt-1">
+                        Active Simulation • 60 FPS
+                      </span>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1F293D] text-[10px] font-black text-[#F59E0B] uppercase tracking-tighter">
+                    {timeControl.name}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Promotion Selector Modal */}
@@ -812,6 +1048,7 @@ export default function App() {
       {gameResult && !isJudgmentModalOpen && (
         <GameOverModal
           result={gameResult}
+          pgn={game.pgn()}
           onRematch={() => {
             handleStartGame({
               mode: activeMode,
@@ -837,6 +1074,10 @@ export default function App() {
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
         onStartGame={handleStartGame}
+        onOpenDailyPuzzle={() => {
+          setIsNewGameModalOpen(false);
+          setActiveMode('daily_puzzle');
+        }}
         onOpenWorldwideMatch={() => {
           setIsNewGameModalOpen(false);
           setIsWorldwideMatchModalOpen(true);
@@ -855,14 +1096,31 @@ export default function App() {
         }}
       />
 
-      {/* Settings Modal */}
+      {/* Dedicated Theme Selector Modal (AoT, Batman, Classic & Crossover) */}
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        settings={settings}
+        onUpdateSettings={newS => setSettings(prev => ({ ...prev, ...newS }))}
+      />
+
+      {/* Settings Modal Hub */}
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
+        initialTab={settingsTab}
         onUpdateSettings={newS => setSettings(prev => ({ ...prev, ...newS }))}
         onThemeChange={theme => {
           setSettings(prev => ({ ...prev, uiThemeId: theme.id }));
+        }}
+        onOpenAnalysisWithFen={fen => {
+          try {
+            const g = new Chess(fen);
+            setGame(g);
+            setIsSettingsModalOpen(false);
+            setActiveMode('analysis');
+          } catch {}
         }}
       />
 

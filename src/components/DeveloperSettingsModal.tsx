@@ -21,9 +21,12 @@ import {
   Unlock,
   ExternalLink,
   Flame,
-  BadgeAlert
+  BadgeAlert,
+  Database
 } from 'lucide-react';
 import { UserRole, UserFeedback } from '../types/chess';
+import { DatabaseView } from './DatabaseView';
+import { StickerManager } from './StickerManager';
 
 interface DeveloperSettingsModalProps {
   isOpen: boolean;
@@ -47,7 +50,7 @@ export const DeveloperSettingsModal: React.FC<DeveloperSettingsModalProps> = ({ 
     updateUserRoleAndBadge
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'roles_badges' | 'feedback' | 'stats_editor' | 'system_switcher'>('roles_badges');
+  const [activeTab, setActiveTab] = useState<'roles_badges' | 'feedback' | 'stats_editor' | 'system_switcher' | 'database_explorer' | 'stickers'>('roles_badges');
   
   // Data states
   const [usersList, setUsersList] = useState<UserProfileData[]>([]);
@@ -281,6 +284,30 @@ export const DeveloperSettingsModal: React.FC<DeveloperSettingsModalProps> = ({ 
           >
             <Sliders className="w-3.5 h-3.5 text-emerald-400" />
             <span>🛠️ Instant Account Switcher</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('database_explorer')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'database_explorer'
+                ? 'bg-gradient-to-r from-[#52673A] to-[#8C2425] text-[#F5C453] border border-[#F5C453]/60 shadow-md'
+                : 'bg-emerald-950/40 text-emerald-300 hover:text-white hover:bg-emerald-900/50 border border-emerald-500/30'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-400" />
+            <span>🗄️ Cloud Database Explorer</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('stickers')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'stickers'
+                ? 'bg-gradient-to-r from-[#52673A] to-[#8C2425] text-[#F5C453] border border-[#F5C453]/60 shadow-md'
+                : 'bg-purple-950/40 text-purple-300 hover:text-white hover:bg-purple-900/50 border border-purple-500/30'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 text-purple-400" />
+            <span>🌟 Sticker Manager</span>
           </button>
         </div>
 
@@ -848,6 +875,23 @@ export const DeveloperSettingsModal: React.FC<DeveloperSettingsModalProps> = ({ 
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              TAB 5: CLOUD DATABASE EXPLORER
+              ======================================================== */}
+          {activeTab === 'database_explorer' && (
+            <div className="animate-in fade-in duration-150">
+              <DatabaseView />
+            </div>
+          )}
+          {/* ========================================================
+              TAB 6: STICKER MANAGER
+              ======================================================== */}
+          {activeTab === 'stickers' && (
+            <div className="animate-in fade-in duration-150">
+              <StickerManager />
             </div>
           )}
         </div>

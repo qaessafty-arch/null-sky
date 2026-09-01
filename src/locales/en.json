@@ -1,0 +1,59 @@
+{
+  "sidebar": {
+    "playAI": "Play AI",
+    "multiplayer": "Multiplayer",
+    "puzzles": "Puzzles",
+    "analysis": "Analysis",
+    "profile": "Profile",
+    "worldwide": "Worldwide",
+    "friends": "Friends",
+    "settings": "Settings",
+    "language": "Language"
+  },
+  "login": {
+    "login": "Login",
+    "register": "Register",
+    "password": "Password",
+    "playAsGuest": "Play as Guest",
+    "email": "Email"
+  },
+  "game": {
+    "start": "Start",
+    "checkmate": "Checkmate",
+    "draw": "Draw",
+    "offerDraw": "Offer Draw",
+    "resign": "Resign",
+    "rating": "Rating",
+    "time": "Time"
+  },
+  "leaderboard": {
+    "worldwideLeaderboard": "Worldwide Leaderboard",
+    "rank": "Rank",
+    "wins": "Wins",
+    "losses": "Losses"
+  },
+  "friends": {
+    "addFriend": "Add Friend",
+    "accept": "Accept",
+    "decline": "Decline",
+    "block": "Block"
+  },
+  "chat": {
+    "sendMessage": "Send message...",
+    "goodGame": "Good game!",
+    "niceMove": "Nice move!"
+  },
+  "profile": {
+    "gameStats": "Game Stats",
+    "matchHistory": "Match History",
+    "peakRating": "Peak Rating"
+  },
+  "settings": {
+    "language": "Language",
+    "selectLanguage": "Select Language",
+    "english": "English",
+    "ckb": "کوردی سۆرانی",
+    "kmr": "Kurdî Kurmancî",
+    "ar": "العربية"
+  }
+}

@@ -13,9 +13,9 @@ export default defineConfig(() => {
         output: {
           manualChunks: {
             react: ['react', 'react-dom'],
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/database', 'firebase/storage'],
+            motion: ['motion/react'],
             chess: ['chess.js'],
-            motion: ['motion']
           }
         }
       },

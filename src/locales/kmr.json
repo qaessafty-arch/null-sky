@@ -1,0 +1,59 @@
+{
+  "sidebar": {
+    "playAI": "Lîstik bi AI",
+    "multiplayer": "Pir-lîstikvan",
+    "puzzles": "Pêşbirk",
+    "analysis": "Analîz",
+    "profile": "Profîl",
+    "worldwide": "Cîhanî",
+    "friends": "Hevalan",
+    "settings": "Mîhengan",
+    "language": "Ziman"
+  },
+  "login": {
+    "login": "Têketin",
+    "register": "Tomarkirin",
+    "password": "Şîfre",
+    "playAsGuest": "Wek Mêvan Lîstin",
+    "email": "E-name"
+  },
+  "game": {
+    "start": "Destpêkirin",
+    "checkmate": "Mat",
+    "draw": "Wekhev",
+    "offerDraw": "Pêşniyara Wekhevî",
+    "resign": "Teslîmbûn",
+    "rating": "Rêje",
+    "time": "Dem"
+  },
+  "leaderboard": {
+    "worldwideLeaderboard": "Rêzbendiya Cîhanî",
+    "rank": "Rêz",
+    "wins": "Serkeftin",
+    "losses": "Winda"
+  },
+  "friends": {
+    "addFriend": "Heval Zêde Bikin",
+    "accept": "Qebûl kirin",
+    "decline": "Red kirin",
+    "block": "Asten kirin"
+  },
+  "chat": {
+    "sendMessage": "Peyam bişîne...",
+    "goodGame": "Lîstika baş!",
+    "niceMove": "Gava baş!"
+  },
+  "profile": {
+    "gameStats": "Amarên Lîstikê",
+    "matchHistory": "Dîroka Lîstikê",
+    "peakRating": "Rêjeya Herî Bilind"
+  },
+  "settings": {
+    "language": "Ziman",
+    "selectLanguage": "Ziman Hilbijêrin",
+    "english": "English",
+    "ckb": "کوردی سۆرانی",
+    "kmr": "Kurdî Kurmancî",
+    "ar": "العربية"
+  }
+}

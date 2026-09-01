@@ -1,5 +1,5 @@
 import React from 'react';
-import { Timer, Zap } from 'lucide-react';
+import { Timer, Zap, Shield, Flame } from 'lucide-react';
 
 interface ChessClockProps {
   timeSeconds: number;
@@ -10,6 +10,7 @@ interface ChessClockProps {
   avatar?: string;
   elo?: number;
   isUnlimited?: boolean;
+  aotVariant?: 'scout' | 'titan';
 }
 
 export const ChessClock: React.FC<ChessClockProps> = ({
@@ -20,69 +21,113 @@ export const ChessClock: React.FC<ChessClockProps> = ({
   playerTitle,
   avatar,
   elo,
-  isUnlimited = false
+  isUnlimited = false,
+  aotVariant
 }) => {
-  const minutes = Math.floor(timeSeconds / 60);
-  const seconds = timeSeconds % 60;
-  const isLowTime = !isUnlimited && timeSeconds <= 20;
-  const isCritical = !isUnlimited && timeSeconds <= 10;
+  const renderTitleBadge = (title: string | undefined) => {
+    if (!title || !['GM', 'IM', 'FM', 'NM'].includes(title)) return null;
+    let bg = 'bg-slate-700/50 text-slate-300 border-slate-600/50';
+    if (title === 'GM') bg = 'bg-red-500/20 text-red-300 border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.3)]';
+    else if (title === 'IM') bg = 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.3)]';
+    else if (title === 'FM') bg = 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.3)]';
+    else if (title === 'NM') bg = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]';
+    
+    return (
+      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm border ${bg} ml-2`}>
+        {title}
+      </span>
+    );
+  };
+
+  const safeTime = isNaN(timeSeconds) ? 0 : Math.max(0, timeSeconds);
+  const minutes = Math.floor(safeTime / 60);
+  const seconds = Math.floor(safeTime % 60);
+  const isLowTime = !isUnlimited && safeTime < 30;
+  const isCritical = !isUnlimited && safeTime <= 10;
 
   const formattedTime = isUnlimited
     ? '∞'
     : `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
+  // Custom AoT styling
+  const isScout = aotVariant === 'scout';
+  const isTitan = aotVariant === 'titan';
+
+  let cardClasses = 'bg-white/[0.04] border-white/10';
+  if (isScout) {
+    cardClasses = isActive
+      ? 'bg-[#5d6f54]/25 border-emerald-400/60 shadow-[0_0_25px_rgba(34,197,94,0.35)]'
+      : 'bg-[#5d6f54]/10 border-emerald-500/20';
+  } else if (isTitan) {
+    cardClasses = isActive
+      ? 'bg-red-950/40 border-red-500/60 shadow-[0_0_25px_rgba(239,68,68,0.35)]'
+      : 'bg-red-950/20 border-red-500/20';
+  } else if (isActive) {
+    cardClasses = 'bg-white/10 border-blue-400/50 shadow-[0_0_20px_rgba(96,165,250,0.2)]';
+  }
+
   return (
     <div
-      className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all duration-200 border backdrop-blur-md ${
-        isActive
-          ? 'bg-white/10 border-blue-400/50 shadow-[0_0_20px_rgba(96,165,250,0.2)]'
-          : 'bg-white/[0.04] border-white/10'
+      className={`flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 border backdrop-blur-xl ${
+        isActive 
+          ? 'bg-[#111827] border-[#F59E0B]/50 shadow-[0_0_30px_rgba(245,158,11,0.2)]' 
+          : 'bg-[#111827]/40 border-[#1F293D] grayscale-[0.4] opacity-80'
       }`}
     >
       {/* Player Identity */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <div className="relative">
-          <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-lg shadow-sm backdrop-blur-md">
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg border transition-all duration-500 ${
+              isActive
+                ? 'bg-[#0B0F19] border-[#F59E0B] text-[#F59E0B] scale-105'
+                : 'bg-[#0B0F19] border-[#1F293D] text-[#94A3B8]'
+            }`}
+          >
             {avatar || (isWhite ? '♔' : '♚')}
           </div>
           {isActive && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#0a0a0c] animate-ping" />
+            <span className="absolute -bottom-1 -right-1 status-dot status-dot-online ring-2 ring-[#111827]" />
           )}
         </div>
 
         <div>
-          <div className="flex items-center gap-1.5">
-            {playerTitle && (
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                {playerTitle}
-              </span>
-            )}
-            <span className="text-xs sm:text-sm font-semibold text-white/90 leading-none">
+          <div className="flex items-center gap-2 flex-wrap">
+            {playerTitle && renderTitleBadge(playerTitle)}
+            <span className={`text-xs sm:text-sm font-black tracking-tight transition-colors duration-300 ${
+              isActive ? 'text-white' : 'text-[#94A3B8]'
+            }`}>
               {playerName}
             </span>
           </div>
           {elo !== undefined && (
-            <span className="text-[11px] font-mono text-white/50">
-              Rating: <strong className="text-white/80 font-bold">{elo}</strong>
-            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[10px] font-mono text-[#94A3B8] opacity-60 uppercase tracking-widest">Rating</span>
+              <span className="text-[11px] font-mono font-black text-[#F59E0B]">{elo}</span>
+            </div>
           )}
         </div>
       </div>
 
       {/* Clock Display */}
       <div
-        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-mono font-bold text-sm sm:text-base border transition-all backdrop-blur-md ${
+        className={`flex items-center gap-3 px-4 py-2 rounded-xl font-mono font-black text-sm sm:text-lg border transition-all duration-300 ${
           isCritical
-            ? 'bg-rose-950/80 text-rose-300 border-rose-500/80 animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.4)]'
+            ? 'bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444] animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.3)]'
             : isLowTime
-            ? 'bg-amber-950/70 text-amber-300 border-amber-500/70'
+            ? 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.2)]'
             : isActive
-            ? 'bg-blue-950/40 text-blue-200 border-blue-400/40 shadow-inner shadow-blue-500/10'
-            : 'bg-white/[0.03] text-white/50 border-white/10'
+            ? 'bg-[#0B0F19] text-white border-[#F59E0B]/30 shadow-inner'
+            : 'bg-[#0B0F19]/40 text-[#94A3B8] border-transparent opacity-40'
         }`}
       >
-        <Timer className={`w-3.5 h-3.5 ${isActive ? 'text-blue-400' : 'text-white/40'}`} />
-        <span className="tracking-wider">{formattedTime}</span>
+        <Timer
+          className={`w-4 h-4 ${
+            isActive ? 'text-[#F59E0B] animate-spin-slow' : 'text-[#94A3B8]'
+          }`}
+          style={{ animationDuration: '4s' }}
+        />
+        <span className="tracking-tighter">{formattedTime}</span>
       </div>
     </div>
   );

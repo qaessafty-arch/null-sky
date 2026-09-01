@@ -1,5 +1,6 @@
 import React from 'react';
-import { Shield, Sparkles, Sword, HeartHandshake, X } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Shield, Sword, HeartHandshake, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface CheckmateJudgmentModalProps {
@@ -31,110 +32,106 @@ export const CheckmateJudgmentModal: React.FC<CheckmateJudgmentModalProps> = ({
   };
 
   const handleExecuteClick = () => {
-    triggerConfetti(['#8C2425', '#F5C453', '#DFD0B0', '#435433']);
+    triggerConfetti(['#EF4444', '#F59E0B', '#0B0F19']);
     onExecute();
   };
 
   const handleMercyClick = () => {
-    triggerConfetti(['#F5C453', '#10B981', '#38BDF8', '#DFD0B0']);
+    triggerConfetti(['#F59E0B', '#10B981', '#3B82F6']);
     onMercy();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl animate-in fade-in duration-200 p-4">
-      <div className="relative glass-panel rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-[#F5C453]/30 text-center overflow-hidden">
-        {/* Ambient Kurdish Sun Halo */}
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#F5C453]/15 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+        className="relative obsidian-panel rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-[#1F293D] text-center overflow-hidden"
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-white/50 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors z-10"
+          className="absolute top-4 right-4 text-[#94A3B8] hover:text-white p-1.5 rounded-xl hover:bg-[#1F293D] transition-colors z-10 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* 21-Ray Kurdish Sun Emblem */}
-        <div className="relative w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#8C2425] via-[#52673A] to-[#F5C453] animate-spin opacity-40 blur-sm duration-[10000ms]" />
-          <div className="relative w-16 h-16 rounded-2xl bg-[#1a2315] border-2 border-[#F5C453] flex items-center justify-center shadow-[0_0_25px_rgba(245,196,83,0.4)]">
-            <span className="text-3xl select-none">☀️</span>
+        {/* Tactical Emblem */}
+        <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full bg-[#F59E0B]/10 animate-pulse blur-xl" />
+          <div className="relative w-16 h-16 rounded-2xl bg-[#0B0F19] border border-[#F59E0B] flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.2)]">
+            <Shield className="w-8 h-8 text-[#F59E0B]" />
           </div>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#8C2425]/20 border border-[#8C2425]/40 text-[#DFD0B0] text-xs font-semibold uppercase tracking-wider mb-2">
-          <span>⚔️ Tactical Checkmate Landed</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EF4444]/10 border border-[#EF4444]/30 text-[#EF4444] text-[10px] font-black uppercase tracking-widest mb-4">
+          <span>⚔️ Tactical Superiority Verified</span>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-black text-[#FDFCF7] tracking-tight mb-2">
-          The Peshmerga Honor Judgment
+        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2 uppercase">
+          Final Judgment
         </h2>
-        <p className="text-sm text-[#DFD0B0]/80 mb-6 leading-relaxed max-w-md mx-auto">
-          You have trapped <strong className="text-[#F5C453]">{opponentName}</strong> in an inescapable checkmate. In ancient Kurdish tradition, choose your destiny: deliver the final execution blow or grant honorable chivalrous mercy!
+        <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-[0.2em] mb-8 opacity-70 max-w-sm mx-auto leading-relaxed">
+          Opponent <strong className="text-white">{opponentName}</strong> has been cornered. Deliver the strike or show supreme restraint.
         </p>
 
         {/* Dual Choice Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
           {/* Choice 1: EXECUTE */}
           <button
             onClick={handleExecuteClick}
-            className="group relative p-4 rounded-2xl bg-gradient-to-b from-[#8C2425]/30 to-[#8C2425]/10 border-2 border-[#8C2425]/60 hover:border-[#8C2425] text-left transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-[#8C2425]/30 flex flex-col justify-between"
+            className="group relative p-5 rounded-2xl bg-[#0B0F19] border border-[#EF4444]/30 hover:border-[#EF4444] text-left transition-all active:scale-95 shadow-lg flex flex-col justify-between cursor-pointer"
           >
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="p-2 rounded-xl bg-[#8C2425] text-white shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <span className="p-2 rounded-xl bg-[#EF4444] text-white shadow-lg">
                   <Sword className="w-5 h-5" />
                 </span>
-                <span className="text-xs font-bold text-[#F5C453] bg-black/40 px-2 py-0.5 rounded-md border border-[#F5C453]/20">
-                  +8 ELO
+                <span className="text-[10px] font-black text-[#EF4444] bg-[#EF4444]/10 px-2 py-0.5 rounded-lg border border-[#EF4444]/20">
+                  DECISIVE
                 </span>
               </div>
-              <h3 className="font-extrabold text-base text-white group-hover:text-red-200 transition-colors">
-                ⚔️ EXECUTE OPPONENT
+              <h3 className="font-black text-xs text-white group-hover:text-[#EF4444] transition-colors uppercase tracking-wider">
+                Execute
               </h3>
-              <p className="text-xs text-[#DFD0B0]/70 mt-1 leading-normal">
-                Deliver the lethal checkmate blow, claim moderate rating points, and log decisive victory.
+              <p className="text-[10px] font-black text-[#94A3B8] mt-1 leading-normal uppercase opacity-60">
+                Lethal blow. Claim rating points immediately.
               </p>
             </div>
-            <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-xs font-bold text-red-300">
-              <span>Reward</span>
-              <span className="text-[#F5C453] bg-[#8C2425]/40 px-2 py-0.5 rounded-full">+5 ✊ Respect</span>
+            <div className="mt-4 pt-3 border-t border-[#1F293D] flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
+              <span className="text-[#94A3B8]">Reward</span>
+              <span className="text-[#EF4444]">+8 ELO</span>
             </div>
           </button>
 
-          {/* Choice 2: SPARE MERCY */}
+          {/* Choice 2: MERCY */}
           <button
             onClick={handleMercyClick}
-            className="group relative p-4 rounded-2xl bg-gradient-to-b from-[#52673A]/40 to-[#435433]/20 border-2 border-[#F5C453]/60 hover:border-[#F5C453] text-left transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-[#F5C453]/30 flex flex-col justify-between"
+            className="group relative p-5 rounded-2xl bg-[#0B0F19] border border-[#10B981]/30 hover:border-[#10B981] text-left transition-all active:scale-95 shadow-lg flex flex-col justify-between cursor-pointer"
           >
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="p-2 rounded-xl bg-[#52673A] text-[#F5C453] border border-[#F5C453]/40 shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <span className="p-2 rounded-xl bg-[#10B981] text-white shadow-lg">
                   <HeartHandshake className="w-5 h-5" />
                 </span>
-                <span className="text-xs font-bold text-emerald-300 bg-black/40 px-2 py-0.5 rounded-md border border-emerald-400/20">
-                  DOUBLE RESPECT
+                <span className="text-[10px] font-black text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded-lg border border-[#10B981]/20">
+                  LEGENDARY
                 </span>
               </div>
-              <h3 className="font-extrabold text-base text-[#F5C453] group-hover:text-yellow-200 transition-colors">
-                🕊️ SPARE MERCY
+              <h3 className="font-black text-xs text-white group-hover:text-[#10B981] transition-colors uppercase tracking-wider">
+                Show Mercy
               </h3>
-              <p className="text-xs text-[#DFD0B0]/70 mt-1 leading-normal">
-                Show royal chivalry, undo the checkmate move, and grant your rival another chance!
+              <p className="text-[10px] font-black text-[#94A3B8] mt-1 leading-normal uppercase opacity-60">
+                Spare opponent. Earn maximum respect.
               </p>
             </div>
-            <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-xs font-bold text-yellow-300">
-              <span>Chivalry Honor</span>
-              <span className="text-[#F5C453] bg-[#F5C453]/20 border border-[#F5C453]/40 px-2 py-0.5 rounded-full font-black">
-                +10 ✊ (+12 ELO)
-              </span>
+            <div className="mt-4 pt-3 border-t border-[#1F293D] flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
+              <span className="text-[#94A3B8]">Bonus</span>
+              <span className="text-[#F59E0B]">+50 Respect</span>
             </div>
           </button>
         </div>
-
-        <p className="text-xs text-[#DFD0B0]/50 italic">
-          Respect Points (✊) determine your position on the global and Kurdish Grandmaster rankings.
-        </p>
-      </div>
+      </motion.div>
     </div>
   );
 };

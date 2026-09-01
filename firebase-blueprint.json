@@ -107,6 +107,51 @@
       },
       "required": ["id", "category", "title", "message", "rating"]
     },
+    "AuthoredPuzzle": {
+      "title": "AuthoredPuzzle",
+      "description": "User created chess puzzles and tactical scenarios",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "theme": { "type": "string", "maxLength": 100 },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard", "Master"] },
+        "rating": { "type": "number" },
+        "fen": { "type": "string", "maxLength": 200 },
+        "playerColor": { "type": "string", "enum": ["w", "b"] },
+        "authorUid": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "authorBadge": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "solvesCount": { "type": "number" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["id", "title", "fen", "playerColor", "difficulty"]
+    },
+    "GameLog": {
+      "title": "GameLog",
+      "description": "Historical record of finished chess matches and audits",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string" },
+        "mode": { "type": "string", "maxLength": 50 },
+        "opponentName": { "type": "string", "maxLength": 100 },
+        "playerColor": { "type": "string", "enum": ["w", "b"] },
+        "result": { "type": "string", "enum": ["win", "loss", "draw", "executed", "mercied"] },
+        "reason": { "type": "string", "maxLength": 200 },
+        "movesCount": { "type": "number" },
+        "timeControlName": { "type": "string", "maxLength": 50 },
+        "pgn": { "type": "string", "maxLength": 10000 },
+        "finalFen": { "type": "string", "maxLength": 200 },
+        "respectChange": { "type": "number" },
+        "eloChange": { "type": "number" }
+      },
+      "required": ["id", "date", "mode", "result"]
+    },
     "SystemAnnouncement": {
       "title": "SystemAnnouncement",
       "description": "Global developer announcements displayed across the app",
@@ -120,12 +165,57 @@
         "active": { "type": "boolean" }
       },
       "required": ["id", "title", "content", "active"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User specific notifications for challenges, friends, and system alerts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["challenge", "friend_request", "achievement", "system"] },
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 500 },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "link": { "type": "string", "maxLength": 256 },
+        "actionData": { "type": "object" }
+      },
+      "required": ["id", "userId", "type", "title", "message", "isRead", "createdAt"]
+    },
+    "InGameMessage": {
+      "title": "InGameMessage",
+      "description": "Real-time message within a specific match arena",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "senderUid": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "text": { "type": "string", "maxLength": 2000 },
+        "type": { "type": "string", "enum": ["text", "canned", "emote", "system"] },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "senderUid", "text", "type"]
+    },
+    "TypingStatus": {
+      "title": "TypingStatus",
+      "description": "Real-time typing indicator for match chat",
+      "type": "object",
+      "properties": {
+        "isTyping": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["isTyping"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "User profile with battlefield stats, role, and badge number"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User specific notifications and actionable alerts"
     },
     "/friend_requests/{requestId}": {
       "schema": "FriendRequest",
@@ -139,6 +229,14 @@
       "schema": "OnlineMatch",
       "description": "Real-time multiplayer match state"
     },
+    "/online_matches/{matchId}/chat/{messageId}": {
+      "schema": "InGameMessage",
+      "description": "Real-time messages sent within the match"
+    },
+    "/online_matches/{matchId}/typing/{userId}": {
+      "schema": "TypingStatus",
+      "description": "Real-time typing indicators for players"
+    },
     "/feedbacks/{feedbackId}": {
       "schema": "UserFeedback",
       "description": "User feedback messages accessible to developer and author"
@@ -146,6 +244,14 @@
     "/announcements/{announcementId}": {
       "schema": "SystemAnnouncement",
       "description": "Broadcast announcements posted by the developer"
+    },
+    "/authored_puzzles/{puzzleId}": {
+      "schema": "AuthoredPuzzle",
+      "description": "Community and user created chess puzzles and tactical scenarios"
+    },
+    "/game_logs/{logId}": {
+      "schema": "GameLog",
+      "description": "User match logs and historical battle audit records"
     }
   }
 }

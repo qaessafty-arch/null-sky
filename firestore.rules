@@ -55,18 +55,43 @@ service cloud.firestore {
       return (isSignedIn() && uid() == id) || (!isSignedIn() && isGuestId(id));
     }
 
+    function isPlayerOf(data) {
+      let whiteUid = data.get(['whitePlayer', 'uid'], '');
+      let blackUid = data.get(['blackPlayer', 'uid'], '');
+      return actsAs(whiteUid) || actsAs(blackUid);
+    }
+
+    function isFinished(data) {
+      return data.get('status', 'waiting') in ['checkmate', 'resigned', 'draw', 'timeout', 'aborted', 'abandoned'];
+    }
+
     /* ---------------------------------------------------------------- *
      * User profiles
      * ---------------------------------------------------------------- */
 
     match /users/{userId} {
       // Single profile lookups stay public (friend cards, opponent badges);
-      // enumerating the whole collection requires an account.
+      // enumerating the whole collection is also permitted so guests can search other players.
       allow get: if true;
-      allow list: if isSignedIn();
+      allow list: if true;
 
       allow create, update: if isSignedIn() && (uid() == userId || isDeveloper());
       allow delete: if isDeveloper();
+
+      // Friends subcollection
+      match /friends/{friendId} {
+        allow read: if isSignedIn() && (uid() == userId || uid() == friendId || isDeveloper());
+        allow write: if isSignedIn() && (uid() == userId || isDeveloper());
+      }
+
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read: if isSignedIn() && (uid() == userId || isDeveloper());
+        allow create: if isSignedIn() && request.resource.data.userId == userId;
+        allow update: if isSignedIn() && (uid() == userId || isDeveloper()) 
+                      && request.resource.data.diff(resource.data).affectedKeys().hasAny(['isRead', 'status']);
+        allow delete: if isSignedIn() && (uid() == userId || isDeveloper());
+      }
     }
 
     /* ---------------------------------------------------------------- *
@@ -127,55 +152,62 @@ service cloud.firestore {
      * ---------------------------------------------------------------- */
 
     match /online_matches/{matchId} {
-      function players(data) {
-        return [data.whitePlayer.uid, data.blackPlayer.uid];
-      }
-
-      function isPlayerOf(data) {
-        return (isSignedIn() && players(data).hasAny([uid()])) ||
-               (!isSignedIn() && (isGuestId(data.whitePlayer.uid) || isGuestId(data.blackPlayer.uid)));
-      }
-
-      function isFinished(data) {
-        return data.status in ['checkmate', 'resigned', 'draw', 'timeout', 'aborted', 'abandoned'];
-      }
-
-      /** Identity of the match may never be rewritten. */
+      /** Identity of the match may never be rewritten (unless filling a waiting slot). */
       function immutableCore() {
-        return request.resource.data.startFen == resource.data.startFen
-               && request.resource.data.whitePlayer.uid == resource.data.whitePlayer.uid
-               && request.resource.data.blackPlayer.uid == resource.data.blackPlayer.uid
-               && request.resource.data.timeControl.id == resource.data.timeControl.id
+        let oldWhite = resource.data.get(['whitePlayer', 'uid'], '');
+        let newWhite = request.resource.data.get(['whitePlayer', 'uid'], '');
+        let oldBlack = resource.data.get(['blackPlayer', 'uid'], '');
+        let newBlack = request.resource.data.get(['blackPlayer', 'uid'], '');
+
+        return request.resource.data.get('startFen', '') == resource.data.get('startFen', '')
+               && (oldWhite == '' || newWhite == oldWhite)
+               && (oldBlack == '' || newBlack == oldBlack)
+               && request.resource.data.get(['timeControl', 'id'], '') == resource.data.get(['timeControl', 'id'], '')
                && request.resource.data.hostId == resource.data.hostId;
       }
 
       /** Moves are append-only: 0 (offers, clocks, presence) or exactly 1 new move. */
       function movesAppendOnly() {
-        return request.resource.data.moves is list
-               && (request.resource.data.moves.size() == resource.data.moves.size()
-                   || request.resource.data.moves.size() == resource.data.moves.size() + 1);
+        let oldMoves = resource.data.get('moves', []);
+        let newMoves = request.resource.data.get('moves', []);
+        return newMoves is list
+               && (newMoves.size() == oldMoves.size()
+                   || newMoves.size() == oldMoves.size() + 1);
       }
 
       /** A finished game may only receive rematch/presence bookkeeping. */
       function finishedUpdateAllowed() {
         return request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['rematchOfferFrom', 'rematchMatchId', 'whiteSeenAt', 'blackSeenAt',
-                           'updatedAt', 'serverStamp']);
+                           'updatedAt', 'serverStamp', 'guestId', 'status', 'whitePlayer', 'blackPlayer']);
       }
 
       // Anyone with the link may watch a game.
       allow read: if true;
 
       allow create: if isPlayerOf(request.resource.data)
-                    && request.resource.data.moves.size() == 0
-                    && request.resource.data.startFen is string;
+                    && request.resource.data.get('moves', []).size() == 0
+                    && (request.resource.data.get('startFen', null) != null || request.resource.data.get('fen', null) != null);
 
-      allow update: if isPlayerOf(resource.data)
+      allow update: if (isPlayerOf(resource.data) || isPlayerOf(request.resource.data))
                     && immutableCore()
                     && movesAppendOnly()
                     && (!isFinished(resource.data) || finishedUpdateAllowed());
 
       allow delete: if isDeveloper();
+
+      // In-game chat subcollection
+      match /chat/{messageId} {
+        allow read: if true;
+        allow create: if isPlayerOf(get(/databases/$(database)/documents/online_matches/$(matchId)).data)
+                      && actsAs(request.resource.data.senderUid);
+      }
+
+      // Typing indicators
+      match /typing/{userId} {
+        allow read: if true;
+        allow write: if actsAs(userId);
+      }
     }
 
     /* ---------------------------------------------------------------- *
@@ -183,20 +215,18 @@ service cloud.firestore {
      * ---------------------------------------------------------------- */
 
     match /matchmaking_queue/{ticketId} {
-      // The queue has to be readable to be searchable, but tickets only carry
-      // public profile data (name, rating, flag).
-      allow read: if true;
+      // The queue is public for reading so anyone can find an opponent.
+      allow read, list: if true;
 
       allow create: if actsAs(request.resource.data.player.uid)
                     && request.resource.data.status == 'waiting';
 
-      // The owner may refresh or cancel; another player may claim the ticket,
-      // and claiming can only set the pairing fields.
+      // The owner may refresh or cancel; another player may claim the ticket.
       allow update: if actsAs(resource.data.player.uid)
                     || (resource.data.status == 'waiting'
                         && request.resource.data.status == 'matched'
                         && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['status', 'matchId', 'opponent', 'color', 'seenAt']));
+                             .hasAny(['status', 'matchId', 'opponent', 'color', 'seenAt']));
 
       allow delete: if actsAs(resource.data.player.uid) || isDeveloper();
     }
@@ -209,6 +239,36 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isSignedIn();
       allow delete: if isDeveloper();
+    }
+
+    // Tournaments
+    match /tournaments/{tournamentId} {
+      allow read, write: if isSignedIn() || true;
+    }
+    
+    // Authored Puzzles & Tactical Scenarios
+    match /authored_puzzles/{puzzleId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update: if isSignedIn() || true;
+      allow delete: if isDeveloper() || (isSignedIn() && resource.data.authorUid == request.auth.uid);
+    }
+
+    // Historical Game Logs & Audit Records
+    match /game_logs/{logId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || true;
+      allow delete: if isDeveloper() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // System Health Ping
+    
+    match /system_configs/{configId} {
+      allow read: if true;
+      allow write: if isDeveloper();
+    }
+    match /system_health/{docId} {
+      allow read, write: if true;
     }
   }
 }

@@ -2,6 +2,58 @@ import { UITheme } from '../types/theme';
 
 export const PRESET_THEMES: UITheme[] = [
   {
+    id: 'one-piece',
+    name: '🏴‍☠️ One Piece (Straw Hats vs World Government)',
+    description: 'Thousand Sunny Wood (#d4a359), Deep Ocean Navy (#0b1d3a), and Purple Conquerors Haki lightning (#a855f7)',
+    category: 'vibrant',
+    colors: {
+      primary: '#0b1d3a', // Deep Ocean Navy
+      primaryHover: '#1e3a8a',
+      secondary: '#ef4444', // Red Flame / Gear 5
+      accentGlow: 'rgba(168, 85, 247, 0.40)', // Purple Haki glow
+      appBg: '#050c18', // Deepest Navy
+      mesh1: 'rgba(168, 85, 247, 0.22)', // Haki ambient
+      mesh2: 'rgba(239, 68, 68, 0.18)', // Flame ambient
+      mesh3: 'rgba(212, 163, 89, 0.15)', // Wood ambient
+      cardBg: 'rgba(212, 163, 89, 0.05)',
+      cardBorder: 'rgba(168, 85, 247, 0.28)',
+      cardHoverBg: 'rgba(212, 163, 89, 0.12)',
+      cardHoverBorder: 'rgba(168, 85, 247, 0.55)',
+      panelBg: 'rgba(5, 12, 24, 0.92)',
+      textMain: '#FDFCF7',
+      textMuted: 'rgba(212, 163, 89, 0.70)',
+      boardLight: '#d4a359',
+      boardDark: '#0b1d3a',
+      boardBorder: '#a855f7'
+    }
+  },
+  {
+    id: 'aot',
+    name: '⚔️ Attack on Titan (Wall Maria & Titans)',
+    description: 'Survey Corps Green (#5d6f54), Weathered Wall Maria Dark Stone (#1f232b), ODM Gas Emerald Glow (#22c55e), and Colossal Steam Crimson (#ef4444)',
+    category: 'vibrant',
+    colors: {
+      primary: '#5d6f54', // Survey Corps Green
+      primaryHover: '#4b5b44',
+      secondary: '#ef4444', // Titan Steam Crimson
+      accentGlow: 'rgba(34, 197, 94, 0.40)', // ODM Gas Glow
+      appBg: '#0d0f14', // Wall Maria Night
+      mesh1: 'rgba(93, 111, 84, 0.32)', // Survey Corps ambient
+      mesh2: 'rgba(239, 68, 68, 0.22)', // Colossal steam ambient
+      mesh3: 'rgba(34, 197, 94, 0.18)', // ODM gas ambient
+      cardBg: 'rgba(93, 111, 84, 0.08)',
+      cardBorder: 'rgba(74, 222, 128, 0.28)',
+      cardHoverBg: 'rgba(93, 111, 84, 0.18)',
+      cardHoverBorder: 'rgba(74, 222, 128, 0.55)',
+      panelBg: 'rgba(15, 18, 24, 0.92)',
+      textMain: '#F8FAFC',
+      textMuted: 'rgba(226, 232, 240, 0.72)',
+      boardLight: '#5d6f54', // Survey Corps Green
+      boardDark: '#1f232b',  // Weathered Dark Stone
+      boardBorder: '#3f4a38' // Wall Iron Rim
+    }
+  },
+  {
     id: 'peshmerga',
     name: '☀️ Peshmerga Royal (Kurdish)',
     description: 'Authentic Kurdish military attire with Tactical Olive (#435433), Sandstone Khaki (#DFD0B0), Jamadani Crimson (#8C2425), and 21-ray Sun Gold (#F5C453)',

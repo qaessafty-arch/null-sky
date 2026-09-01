@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { useAuth, PRESET_BADGES, PRESET_STATUSES } from '../context/AuthContext';
 import { 
   User, 
@@ -27,12 +29,20 @@ import {
   RefreshCw,
   Star,
   Wand2,
-  Camera
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  CheckCircle2
 } from 'lucide-react';
 import { HONOR_RANKS, getHonorRank } from '../utils/respectSystem';
 import { FeedbackModal } from './FeedbackModal';
 import { DeveloperSettingsModal } from './DeveloperSettingsModal';
 import { ChessAvatarModal } from './ChessAvatarModal';
+import { AVATAR_PRESETS, compressAndResizeImage } from '../utils/imageUtils';
+import { collection, doc, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { db, storage } from '../utils/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { sanitizeChatText } from '../utils/security';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -40,6 +50,7 @@ interface ProfileModalProps {
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const { 
     user, 
     profile, 
@@ -59,7 +70,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     signInWithDeveloperPasskey,
     setOwnerBadgeAndStatus,
     signOut, 
-    updateProfileDetails 
+    updateProfileDetails,
+    updateProfilePhoto 
   } = useAuth();
 
   // Navigation & Form Tabs
@@ -95,9 +107,76 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [badgeNumberInput, setBadgeNumberInput] = useState<number>(10);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Profile Picture Selector & Persistence States
+  const [isPhotoSelectorOpen, setIsPhotoSelectorOpen] = useState(false);
+  const [photoSuccessMessage, setPhotoSuccessMessage] = useState('');
+  const [customPhotoUrlInput, setCustomPhotoUrlInput] = useState('');
+  const [profilePhotoInput, setProfilePhotoInput] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Owner Badge/Status Suite Accordion
   const [showOwnerCustomizer, setShowOwnerCustomizer] = useState(false);
   const [ownerBadgeSuccess, setOwnerBadgeSuccess] = useState('');
+  
+  // Account Management States
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  useEffect(() => {
+    if (user?.uid && isOpen) {
+      const unsub = onSnapshot(collection(db, `users/${user.uid}/blocked`), snap => {
+        setBlockedUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+      return () => unsub();
+    }
+  }, [user?.uid, isOpen]);
+  const handleUnblock = async (uid: string) => { if(user) { await deleteDoc(doc(db, `users/${user.uid}/blocked/${uid}`)); } };
+  const [linkError, setLinkError] = useState('');
+  
+  const handleTogglePrivacy = async () => {
+    try {
+      await useAuth().updatePrivacy(!profile?.isPublic);
+    } catch (e) {
+      console.error('Failed to update privacy', e);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    try {
+      await useAuth().deleteAccount(deleteInput);
+      onClose();
+    } catch (e: any) {
+      if (e.code === 'auth/requires-recent-login') {
+        setDeleteError('Requires recent login. Please sign out and sign in again before deleting your account.');
+      } else {
+        setDeleteError(e.message || 'Failed to delete account');
+      }
+    }
+  };
+
+  const handleLinkProvider = async (providerId: string) => {
+    setLinkError('');
+    try {
+      await useAuth().linkProvider(providerId);
+    } catch (e: any) {
+      setLinkError(e.message || 'Failed to link account');
+    }
+  };
+
+  const handleUnlinkProvider = async (providerId: string) => {
+    setLinkError('');
+    try {
+      await useAuth().unlinkProvider(providerId);
+    } catch (e: any) {
+      setLinkError(e.message || 'Failed to unlink account');
+    }
+  };
+
+  const userProviders = user?.providerData?.map(p => p.providerId) || [];
+
 
   // Modals
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -120,19 +199,79 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     setStatusMessage(profile?.customStatus || 'Defending the mountain passes with honor');
     setCustomBadgeInput(profile?.customBadge || '');
     setBadgeNumberInput(profile?.badgeNumber !== undefined ? profile.badgeNumber : (isOwner ? 0 : 10));
+    setProfilePhotoInput(profile?.photoURL || '');
+    setCustomPhotoUrlInput(profile?.photoURL || '');
     setIsEditing(true);
   };
 
   const handleSaveEdit = async () => {
+    let sanitizedDisplayName = sanitizeChatText(displayName.trim());
+    if (sanitizedDisplayName.length > 20) sanitizedDisplayName = sanitizedDisplayName.substring(0, 20);
+    const sanitizedStatus = sanitizeChatText(statusMessage.trim());
+
     await updateProfileDetails({
-      displayName: displayName.trim(),
+      displayName: sanitizedDisplayName,
       country: country.trim(),
       flag: flag.trim(),
-      customStatus: statusMessage.trim(),
+      customStatus: sanitizedStatus,
       customBadge: customBadgeInput.trim() || undefined,
-      badgeNumber: Number(badgeNumberInput)
+      badgeNumber: Number(badgeNumberInput),
+      photoURL: profilePhotoInput.trim() || undefined
     });
     setIsEditing(false);
+    setPhotoSuccessMessage('Profile and picture updated and saved to cloud!');
+    setTimeout(() => setPhotoSuccessMessage(''), 3500);
+  };
+
+  const handlePhotoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File must be smaller than 2MB');
+      return;
+    }
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Only .jpg, .png, and .webp images are allowed');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const storageRef = ref(storage, `avatars/${user?.uid}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      setProfilePhotoInput(downloadUrl);
+      setCustomPhotoUrlInput(downloadUrl);
+      await updateProfilePhoto(downloadUrl);
+
+      setPhotoSuccessMessage('Profile picture uploaded to storage and saved successfully!');
+      setTimeout(() => setPhotoSuccessMessage(''), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to process image file');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleSaveCustomPhotoUrl = async () => {
+    if (!customPhotoUrlInput.trim()) return;
+    const trimmed = customPhotoUrlInput.trim();
+    setProfilePhotoInput(trimmed);
+    await updateProfilePhoto(trimmed);
+    setPhotoSuccessMessage('Profile picture URL saved and synchronized!');
+    setTimeout(() => setPhotoSuccessMessage(''), 3500);
+  };
+
+  const handleSelectPresetAvatar = async (presetUrl: string) => {
+    setProfilePhotoInput(presetUrl);
+    setCustomPhotoUrlInput(presetUrl);
+    await updateProfilePhoto(presetUrl);
+    setPhotoSuccessMessage('Preset avatar equipped and saved to cloud!');
+    setTimeout(() => setPhotoSuccessMessage(''), 3500);
   };
 
   const handleGuestSubmit = async (e: React.FormEvent) => {
@@ -248,41 +387,47 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl animate-in fade-in duration-200 p-3 sm:p-4">
-      <div className="relative glass-panel rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl border border-[#F5C453]/30 overflow-hidden max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+        className="relative obsidian-panel rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl border border-[#1F293D] overflow-hidden max-h-[92vh] flex flex-col"
+      >
         {/* Ambient Glow */}
-        <div className="absolute top-0 right-0 w-72 h-72 bg-[#F5C453]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#52673A]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-[#F59E0B]/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-white/50 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors z-20"
+          className="absolute top-5 right-5 text-[#94A3B8] hover:text-white p-1.5 rounded-xl hover:bg-[#1F293D] transition-colors z-20 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Title */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-[#8C2425] via-[#52673A] to-[#F5C453] border border-[#F5C453]/40 text-[#F5C453] shadow-md">
-            <Shield className="w-5 h-5" />
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#1F293D] shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-[#0B0F19] border border-[#F59E0B] flex items-center justify-center text-[#F59E0B] shadow-2xl">
+            <User className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-black text-[#FDFCF7] tracking-tight">
-                Peshmerga Cloud Command & Profile
+              <h2 className="text-xl font-black text-white tracking-tight uppercase">
+                {t('profile.accountProfile')}
               </h2>
               {isOwner && (
-                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-400/40 uppercase">
-                  👑 Founder
+                <span className="px-2 py-0.5 rounded-lg bg-[#F59E0B] text-[#0B0F19] text-[9px] font-black uppercase tracking-tighter shadow-lg shadow-[#F59E0B]/20">
+                  Founder
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#DFD0B0]/70">
-              Multi-Account Authoring, Badge Engine, and Cloud Honor Synchronization
+            <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em] opacity-60">
+              Identity & Cloud Command
             </p>
           </div>
         </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-1">
 
         {/* Dedicated Account [sky] Card (Developer-Locked Access) */}
         <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-sky-950/70 via-[#0B1726]/90 to-sky-900/50 border border-sky-400/40 shadow-lg relative overflow-hidden">
@@ -618,14 +763,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 ? 'bg-gradient-to-r from-sky-950/70 via-blue-900/40 to-sky-900/50 border-sky-400/50 shadow-[0_0_20px_rgba(56,189,248,0.2)]'
                 : 'bg-gradient-to-r from-[#52673A]/30 to-[#8C2425]/20 border-[#F5C453]/40'
             }`}>
+              {/* Hidden File Input for Avatar Upload */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoFileSelect}
+                accept="image/*"
+                className="hidden"
+              />
+
               <div className="flex items-center gap-3.5">
-                {/* Interactive Avatar with Imagen Studio Click */}
-                <button
-                  type="button"
-                  onClick={() => setIsAvatarStudioOpen(true)}
-                  className="relative group cursor-pointer text-left shrink-0"
-                  title="Click to open Imagen Chess Avatar Studio"
-                >
+                {/* Interactive Avatar with Photo Switcher and Camera Action */}
+                <div className="relative group shrink-0">
                   <img
                     src={profile?.photoURL || (isSkyAccount ? 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=200&auto=format&fit=crop&q=80' : user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60')}
                     alt={profile?.displayName || 'User'}
@@ -637,11 +786,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   {isSkyAccount && (
                     <span className="absolute -bottom-1.5 -right-1.5 text-sm">🦋</span>
                   )}
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-amber-300">
-                    <Wand2 className="w-5 h-5 animate-pulse" />
-                  </div>
-                </button>
+                  {/* Photo Edit / Avatar Studio Overlay Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsPhotoSelectorOpen(!isPhotoSelectorOpen)}
+                    className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-amber-300 cursor-pointer"
+                    title="Change or upload profile picture"
+                  >
+                    <Camera className="w-5 h-5 animate-pulse" />
+                    <span className="text-[9px] font-bold text-white mt-0.5">Change</span>
+                  </button>
+                </div>
 
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -691,6 +846,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Change Picture Quick Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsPhotoSelectorOpen(!isPhotoSelectorOpen)}
+                  className={`p-2 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+                    isPhotoSelectorOpen
+                      ? 'bg-[#F5C453] text-black border-[#F5C453]'
+                      : 'bg-white/[0.08] hover:bg-white/[0.14] text-white/90 border-white/20'
+                  }`}
+                  title="Change, upload, or choose profile picture"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{isPhotoSelectorOpen ? 'Close Photo Menu' : 'Change Photo'}</span>
+                </button>
+
                 {/* Imagen AI Avatar Studio Trigger */}
                 <button
                   type="button"
@@ -699,7 +869,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   title="Generate custom AI Chess Avatar based on Honor Rank"
                 >
                   <Wand2 className="w-3.5 h-3.5 text-[#F5C453]" />
-                  <span>AI Avatar Studio</span>
+                  <span>AI Studio</span>
                 </button>
 
                 {!isEditing ? (
@@ -721,6 +891,159 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 </button>
               </div>
             </div>
+
+            {/* Notification Banner for Saved Profile Picture */}
+            {photoSuccessMessage && (
+              <div className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-2 shadow-lg">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{photoSuccessMessage}</span>
+              </div>
+            )}
+
+            {/* ========================================================
+                PROFILE PICTURE STUDIO & SELECTION DRAWER
+                ======================================================== */}
+            {isPhotoSelectorOpen && (
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#F5C453]/40 space-y-4 animate-in fade-in duration-150 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-[#52673A]/40 text-[#F5C453] border border-[#F5C453]/30">
+                      <Camera className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                        Update & Save Profile Picture
+                      </h4>
+                      <p className="text-[10px] text-[#DFD0B0]/70">
+                        Upload custom image, paste a web link, choose a Kurdish emblem, or forge with AI
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPhotoSelectorOpen(false)}
+                    className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 text-xs"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Upload or URL Action Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 1: File Upload */}
+                  <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 space-y-2 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-[#F5C453] flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload From Device</span>
+                      </span>
+                      <p className="text-[10px] text-[#DFD0B0]/70 mt-1">
+                        Select any PNG, JPG or WEBP image. It will be compressed & saved immediately to your cloud account.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isUploadingPhoto}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-2 px-3 rounded-xl bg-[#52673A] hover:bg-[#435433] text-white text-xs font-bold border border-[#F5C453]/40 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isUploadingPhoto ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving Picture...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Choose Image File</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Option 2: Image URL Input */}
+                  <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 space-y-2 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-[#F5C453] flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>Image Web Link (URL)</span>
+                      </span>
+                      <p className="text-[10px] text-[#DFD0B0]/70 mt-1">
+                        Paste any online image URL (e.g. from Unsplash, Imgur, Discord, etc.)
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="url"
+                        placeholder="https://images.example.com/avatar.jpg"
+                        value={customPhotoUrlInput}
+                        onChange={e => setCustomPhotoUrlInput(e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/15 text-white text-xs focus:border-[#F5C453] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomPhotoUrl}
+                        disabled={!customPhotoUrlInput.trim()}
+                        className="px-3 py-1.5 rounded-xl bg-[#F5C453] hover:bg-[#e0b042] text-black text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 3: Curated Peshmerga & Kurdish Emblem Presets */}
+                <div className="space-y-2 pt-1 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#F5C453] uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#F5C453]" />
+                      <span>Curated Emblem & Commander Avatars (1-Click Equip & Save)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAvatarStudioOpen(true)}
+                      className="text-[11px] text-[#F5C453] hover:underline flex items-center gap-1 cursor-pointer font-bold"
+                    >
+                      <Wand2 className="w-3 h-3" />
+                      <span>Open AI Studio</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+                    {AVATAR_PRESETS.map(preset => {
+                      const isCurrent = profile?.photoURL === preset.url || profilePhotoInput === preset.url;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPresetAvatar(preset.url)}
+                          className={`relative group rounded-xl overflow-hidden aspect-square border-2 transition-all p-0.5 cursor-pointer ${
+                            isCurrent
+                              ? 'border-[#F5C453] ring-2 ring-[#F5C453]/50 scale-105'
+                              : 'border-white/10 hover:border-[#F5C453]/60 hover:scale-105'
+                          }`}
+                          title={preset.name}
+                        >
+                          <img
+                            src={preset.url}
+                            alt={preset.name}
+                            className="w-full h-full object-cover rounded-lg"
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="absolute bottom-1 right-1 text-xs drop-shadow">
+                            {preset.badge}
+                          </span>
+                          {isCurrent && (
+                            <div className="absolute inset-0 bg-[#52673A]/60 flex items-center justify-center rounded-lg">
+                              <Check className="w-4 h-4 text-white drop-shadow font-black" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ========================================================
                 OWNER & DEVELOPER BADGES & STATUSES WORKSHOP
@@ -812,9 +1135,51 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             {/* Editable Profile Inputs */}
             {isEditing && (
               <div className="p-4 rounded-2xl bg-black/50 border border-[#F5C453]/40 space-y-3 animate-in fade-in duration-150">
-                <div className="text-xs font-bold text-[#F5C453] uppercase tracking-wider">
-                  Edit Battlefield Identity
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-[#F5C453] uppercase tracking-wider">
+                    Edit Battlefield Identity
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPhotoSelectorOpen(true)}
+                    className="text-[11px] text-[#F5C453] hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Change Profile Photo</span>
+                  </button>
                 </div>
+
+                {/* Profile Photo Quick Preview & Upload Row */}
+                <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-3">
+                  <img
+                    src={profilePhotoInput || profile?.photoURL || (isSkyAccount ? 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=200&auto=format&fit=crop&q=80' : user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60')}
+                    alt="Preview"
+                    className="w-12 h-12 rounded-xl object-cover border border-[#F5C453]/50 shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[11px] text-[#DFD0B0]/70 block mb-1">Avatar Image Source</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold border border-white/20 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Upload className="w-3 h-3 text-[#F5C453]" />
+                        <span>Upload File</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsPhotoSelectorOpen(true)}
+                        className="px-2.5 py-1 rounded-lg bg-[#52673A]/60 hover:bg-[#52673A] text-[#F5C453] text-[11px] font-bold border border-[#F5C453]/30 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Choose Preset / AI</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="text-[11px] text-[#DFD0B0]/70 block mb-1">Warrior Nickname</label>
@@ -990,19 +1355,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             </div>
           </div>
         )}
+        </div>
 
         {/* Done Button */}
-        <div className="mt-4">
+        <div className="mt-4 shrink-0 pt-4 border-t border-[#1F293D]">
           <button
             onClick={onClose}
-            className="w-full py-2.5 rounded-2xl bg-[#52673A] hover:bg-[#435433] text-white font-bold text-xs transition-all shadow-md border border-[#F5C453]/40 cursor-pointer"
+            className="w-full py-3 rounded-2xl bg-[#111827] hover:bg-[#1F293D] text-white font-black text-[10px] uppercase tracking-widest transition-all border border-[#1F293D] active:scale-95 cursor-pointer"
           >
-            Close
+            Close Profile
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* User Feedback Submission Modal */}
+      {/* Global Utility Modals */}
       <FeedbackModal
         isOpen={isFeedbackOpen}
         onClose={() => setIsFeedbackOpen(false)}

@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useAuth } from '../context/AuthContext';
+import { db } from '../utils/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'motion/react';
 import { FriendUser, DirectMessageItem, TimeControl } from '../types/chess';
 import { TIME_CONTROLS } from '../utils/chessEngine';
 import { getChatId, sendDirectMessage, listenToDirectMessages } from '../services/chatService';
 import { acceptOnlineMatchChallenge, createOnlineMatchChallenge } from '../services/onlineMatchService';
+import { StickerPicker } from './StickerPicker';
 import { 
   MessageSquare, 
   Send, 
@@ -14,7 +19,8 @@ import {
   Clock, 
   Sparkles, 
   Check,
-  ChevronDown
+  ChevronDown,
+  Plus
 } from 'lucide-react';
 
 interface FriendChatModalProps {
@@ -25,10 +31,13 @@ interface FriendChatModalProps {
 }
 
 const QUICK_EMOTES = [
+  'shakh shakh',
+  'sacraficeeeeeeeeeee the.............',
+  "nah i'd win",
+  'kodiiiiiiii',
+  'Want a rematch? ⚔️',
   '☀️ Honor to you, Grandmaster!',
-  '⚔️ Ready for a 5-minute Blitz battle?',
-  '♟️ Checkmate incoming on the f7 square!',
-  '🏔️ The Zagros mountains will defend my King!',
+  '♟️ Checkmate incoming!',
   '💎 Brilliant move, well played!'
 ];
 
@@ -41,6 +50,7 @@ export const FriendChatModal: React.FC<FriendChatModalProps> = ({
   const { profile } = useAuth();
   const [messages, setMessages] = useState<DirectMessageItem[]>([]);
   const [inputText, setInputText] = useState('');
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showChallengeMenu, setShowChallengeMenu] = useState(false);
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl>(TIME_CONTROLS[2]); // Blitz 5 min
@@ -144,55 +154,61 @@ export const FriendChatModal: React.FC<FriendChatModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-3 sm:p-4 animate-in fade-in">
-      <div className="relative glass-panel rounded-3xl p-4 sm:p-6 max-w-lg w-full border border-[#F5C453]/40 shadow-2xl overflow-hidden flex flex-col h-[600px] max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+        className="relative obsidian-panel rounded-3xl p-4 sm:p-6 max-w-lg w-full border border-[#1F293D] shadow-2xl overflow-hidden flex flex-col h-[600px] max-h-[90vh]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-[#1F293D] shrink-0">
           <div className="flex items-center gap-3">
             <div className="relative">
               {friend.photoURL ? (
                 <img
                   src={friend.photoURL}
                   alt={friend.displayName}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-[#F5C453]"
+                  className="w-12 h-12 rounded-2xl object-cover border border-[#F59E0B] shadow-2xl"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-[#161c12] border-2 border-[#F5C453] flex items-center justify-center font-black text-sm text-[#F5C453]">
+                <div className="w-12 h-12 rounded-2xl bg-[#0B0F19] border border-[#F59E0B] flex items-center justify-center font-black text-lg text-[#F59E0B]">
                   {friend.displayName.charAt(0)}
                 </div>
               )}
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#161c12]" />
+              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#10B981] border-2 border-[#111827] shadow-xl" />
             </div>
 
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black text-white">{friend.displayName}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-black text-white uppercase tracking-tight">{friend.displayName}</span>
                 {friend.username && (
-                  <span className="text-[11px] font-mono text-[#F5C453]">@{friend.username}</span>
+                  <span className="text-[10px] font-black text-[#F59E0B] uppercase tracking-tighter opacity-70">@{friend.username}</span>
                 )}
               </div>
-              <div className="text-[10px] text-[#DFD0B0]/70">
-                {friend.rankBadge} {friend.honorRank} • <span className="text-emerald-400 font-mono font-bold">{friend.elo} Elo</span>
+              <div className="text-[9px] font-black uppercase text-[#94A3B8] tracking-widest flex items-center gap-2">
+                <span>{friend.honorRank}</span>
+                <span className="w-1 h-1 bg-[#1F293D] rounded-full" />
+                <span className="text-[#10B981]">{friend.elo} RATING</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowChallengeMenu(!showChallengeMenu)}
-              className="px-3 py-1.5 rounded-xl bg-[#8C2425] hover:bg-[#8C2425]/80 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-[#F5C453]/40 shadow-sm"
+              className="w-10 h-10 rounded-xl bg-[#111827] hover:bg-[#1F293D] text-[#F59E0B] transition-all border border-[#1F293D] active:scale-95 flex items-center justify-center cursor-pointer shadow-lg"
               title="Issue Chess Challenge"
             >
-              <Swords className="w-3.5 h-3.5 text-[#F5C453]" />
-              <span>Challenge</span>
+              <Swords className="w-5 h-5" />
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="text-white/50 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-[#111827] hover:bg-[#1F293D] text-[#94A3B8] transition-all border border-[#1F293D] active:scale-95 flex items-center justify-center cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -262,7 +278,16 @@ export const FriendChatModal: React.FC<FriendChatModalProps> = ({
                         : 'bg-[#1e2719] text-[#FDFCF7] rounded-tl-sm border border-white/10'
                     }`}
                   >
-                    <div>{msg.text}</div>
+                    {(() => {
+                      const stickerRegex = /\[STICKER:(https?:\/\/[^\]]+)\]/g;
+                      const hasSticker = stickerRegex.test(msg.text);
+                      
+                      if (hasSticker) {
+                        const sanitized = DOMPurify.sanitize(msg.text.replace(stickerRegex, '<img src="$1" alt="sticker" class="w-16 h-16 object-contain inline-block my-1" />'));
+                        return <div dangerouslySetInnerHTML={{ __html: sanitized }} />;
+                      }
+                      return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.text) }} />;
+                    })()}
 
                     {/* Challenge Card in Chat */}
                     {msg.challengeData && (
@@ -290,44 +315,68 @@ export const FriendChatModal: React.FC<FriendChatModalProps> = ({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Taunt / Emote Bar */}
-        <div className="py-2 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-          {QUICK_EMOTES.map((emote, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleSendMessage(emote)}
-              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-[10px] font-semibold whitespace-nowrap transition-colors cursor-pointer border border-white/5 shrink-0"
-            >
-              {emote}
-            </button>
-          ))}
+        {/* Quick Taunt / Emote / Sticker Bar */}
+        <div className="py-2 border-t border-white/10 shrink-0">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5C453]">Text Reactions</span>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar min-h-[44px]">
+            {QUICK_EMOTES.map((emote, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSendMessage(emote)}
+                className="px-2.5 py-1.5 min-h-[36px] rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-[10px] font-semibold whitespace-nowrap transition-colors cursor-pointer border border-white/5 shrink-0"
+              >
+                {emote}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Chat Input Bar */}
-        <form
-          onSubmit={e => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="pt-2 flex items-center gap-2 shrink-0"
-        >
-          <input
-            type="text"
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            placeholder={`Message ${friend.displayName}...`}
-            className="flex-1 px-3.5 py-2.5 bg-black/60 border border-white/15 rounded-2xl text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-[#F5C453]"
-          />
-          <button
-            type="submit"
-            disabled={!inputText.trim() || isSending}
-            className="p-2.5 rounded-2xl bg-[#52673A] hover:bg-[#52673A]/80 disabled:opacity-40 text-white transition-all cursor-pointer shrink-0 border border-[#F5C453]/30 shadow-md"
+        <div className="relative pt-2 shrink-0">
+          <AnimatePresence>
+            {showStickerPicker && (
+              <StickerPicker 
+                onSelect={(url) => {
+                  handleSendMessage(`[STICKER:${url}]`);
+                }}
+                onClose={() => setShowStickerPicker(false)}
+              />
+            )}
+          </AnimatePresence>
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center gap-2"
           >
-            <Send className="w-4 h-4 text-[#F5C453]" />
-          </button>
-        </form>
-      </div>
+            <button
+              type="button"
+              onClick={() => setShowStickerPicker(!showStickerPicker)}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border active:scale-95 ${showStickerPicker ? 'bg-[#1F293D] border-[#F59E0B] text-[#F59E0B]' : 'bg-[#0B0F19] border-[#1F293D] text-[#94A3B8] hover:text-white'}`}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+            <input
+              type="text"
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              placeholder={`Message ${friend.displayName}...`}
+              className="flex-1 obsidian-input"
+            />
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isSending}
+              className="w-10 h-10 rounded-xl bg-[#F59E0B] hover:brightness-110 disabled:opacity-40 text-[#0B0F19] transition-all cursor-pointer shrink-0 active:scale-95 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      </motion.div>
     </div>
   );
 };

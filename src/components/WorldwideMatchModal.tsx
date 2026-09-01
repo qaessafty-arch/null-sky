@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
 import { TimeControl, OnlineMatchPlayer } from '../types/chess';
 import { TIME_CONTROLS } from '../utils/chessEngine';
 import { joinWorldwideMatchmaking, MatchmakingMode } from '../services/onlineMatchService';
@@ -182,37 +183,40 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200 p-4">
-      <div className="relative glass-panel rounded-3xl p-5 sm:p-7 max-w-xl w-full border border-[#F5C453]/40 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+        className="relative obsidian-panel rounded-3xl p-5 sm:p-7 max-w-xl w-full border border-[#1F293D] shadow-2xl overflow-hidden"
+      >
         {/* Close Button */}
         <button
           onClick={() => {
             if (isSearching) handleCancelSearch();
             onClose();
           }}
-          className="absolute top-4 right-4 text-[#DFD0B0]/60 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors z-20 cursor-pointer"
+          className="absolute top-4 right-4 text-[#94A3B8] hover:text-white p-2 rounded-xl hover:bg-[#1F293D] transition-colors z-20 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header Title */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#52673A] via-[#8C2425] to-[#F5C453] p-0.5 shadow-lg shadow-[#F5C453]/20 flex items-center justify-center">
-            <div className="w-full h-full bg-[#161c12] rounded-[14px] flex items-center justify-center text-emerald-400">
-              <Globe className="w-5 h-5 text-[#F5C453] animate-pulse" />
-            </div>
+        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#1F293D]">
+          <div className="w-12 h-12 rounded-2xl bg-[#0B0F19] border border-[#F59E0B] flex items-center justify-center text-[#F59E0B] shadow-2xl">
+            <Globe className={`w-6 h-6 ${isSearching ? 'animate-spin [animation-duration:3s]' : ''}`} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-heading font-black text-[#FDFCF7] tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">
                 Worldwide Matchmaking
               </h2>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse">
-                ● Live Grid
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 animate-pulse">
+                ● LIVE GRID
               </span>
             </div>
-            <p className="text-xs text-[#DFD0B0]/70">
-              Play live opponents worldwide — or take on a rated engine challenger while you wait
+            <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em] opacity-60">
+              Global Battlefield Entry
             </p>
           </div>
         </div>
@@ -446,7 +450,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 };

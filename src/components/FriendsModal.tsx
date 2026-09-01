@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { FriendUser, FriendRequestItem, UserRole } from '../types/chess';
 import { 
   searchUsersInDirectory, 
@@ -45,6 +47,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onChallengeFriend
 }) => {
   const { user, profile, updateProfileDetails } = useAuth();
+  const { sendNotification } = useNotification();
 
   const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [friendsList, setFriendsList] = useState<FriendUser[]>([]);
@@ -170,9 +173,24 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   const handleRemoveFriend = async (friend: FriendUser) => {
     if (!profile) return;
-    if (window.confirm(`Are you sure you want to remove ${friend.displayName} from your friends list?`)) {
+    if (window.confirm(`Are you sure you want to remove ${friend?.displayName || 'Unknown Player'} from your friends list?`)) {
       await removeFriendRelationship(profile.uid, friend.uid);
       setFriendsList(prev => prev.filter(f => f.uid !== friend.uid));
+    }
+  };
+
+  const handleBlockUser = async (friend: FriendUser) => {
+    if (!profile) return;
+    if (window.confirm(`Are you sure you want to block ${friend?.displayName || 'Unknown Player'}? They will be removed from your friends list and blocked.`)) {
+      await removeFriendRelationship(profile.uid, friend.uid);
+      setFriendsList(prev => prev.filter(f => f.uid !== friend.uid));
+      // Store locally to prevent requests (mock implementation for frontend check)
+      const blocked = JSON.parse(localStorage.getItem('chess_blocked_users') || '[]');
+      if (!blocked.includes(friend.uid)) {
+        blocked.push(friend.uid);
+        localStorage.setItem('chess_blocked_users', JSON.stringify(blocked));
+      }
+      alert(`User ${friend.displayName} has been blocked.`);
     }
   };
 
@@ -194,21 +212,47 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     }
   };
 
+  const handleChallenge = (friend: FriendUser) => {
+    if (!profile) return;
+    
+    // Send Firestore notification
+    sendNotification(friend.uid, {
+      userId: friend.uid,
+      type: 'challenge',
+      title: 'New Game Challenge!',
+      message: `${profile.displayName || 'A player'} has challenged you to a 10 min Rapid match!`,
+      actionData: {
+        challengerId: profile.uid,
+        challengerName: profile.displayName || 'Tactician',
+        challengerAvatar: profile.photoURL,
+        status: 'pending',
+        expiresAt: Date.now() + 30000
+      }
+    });
+
+    onChallengeFriend(friend);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-3 sm:p-4 animate-in fade-in">
-      <div className="relative glass-panel rounded-3xl p-5 sm:p-7 max-w-xl w-full border border-[#F5C453]/40 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+        className="relative obsidian-panel rounded-3xl p-5 sm:p-7 max-w-xl w-full border border-[#1F293D] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-[#8C2425] via-[#52673A] to-[#F5C453] text-[#F5C453] border border-[#F5C453]/40">
-              <Users className="w-5 h-5" />
+        <div className="flex items-center justify-between pb-6 border-b border-[#1F293D] shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#0B0F19] border border-[#F59E0B] flex items-center justify-center text-[#F59E0B] shadow-2xl">
+              <Users className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
-                <span>Peshmerga Friends Realm</span>
+              <h2 className="text-xl font-black text-white tracking-tight uppercase">
+                Social Hub
               </h2>
-              <p className="text-xs text-[#DFD0B0]/70">
-                Connect, chat, and challenge friends to real-time online matches
+              <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em] opacity-60">
+                Friends & Alliances
               </p>
             </div>
           </div>
@@ -216,7 +260,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-white/50 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-xl bg-[#111827] hover:bg-[#1F293D] text-[#94A3B8] transition-all border border-[#1F293D] active:scale-95 flex items-center justify-center cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -394,13 +438,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           {friend.photoURL ? (
                             <img
                               src={friend.photoURL}
-                              alt={friend.displayName}
+                              alt={friend?.displayName || 'Unknown Player'}
                               className="w-10 h-10 rounded-full object-cover border-2 border-[#F5C453]"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-[#161c12] border-2 border-[#F5C453] flex items-center justify-center text-sm font-black text-[#F5C453]">
-                              {friend.displayName.charAt(0)}
+                              {friend?.displayName || 'Unknown Player'.charAt(0)}
                             </div>
                           )}
                           <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#161c12]" />
@@ -409,7 +453,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-black text-white truncate max-w-[140px]">
-                              {friend.displayName}
+                              {friend?.displayName || 'Unknown Player'}
                             </span>
                             {friend.username && (
                               <span className="text-[10px] font-mono text-[#F5C453]/80">
@@ -439,7 +483,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => onChallengeFriend(friend)}
+                          onClick={() => handleChallenge(friend)}
                           className="p-2 rounded-xl bg-[#8C2425]/80 hover:bg-[#8C2425] text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer border border-[#F5C453]/30"
                           title="Challenge to Online Match"
                         >
@@ -454,6 +498,15 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           title="Remove Friend"
                         >
                           <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleBlockUser(friend)}
+                          className="p-2 rounded-xl hover:bg-red-900/40 text-white/40 hover:text-red-400 transition-colors cursor-pointer"
+                          title="Block User"
+                        >
+                          <AlertCircle className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -628,7 +681,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

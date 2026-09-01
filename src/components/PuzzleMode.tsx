@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PanelContainer } from './PanelContainer';
 import { Chess, Square, Move } from 'chess.js';
 import { Puzzle, AppSettings } from '../types/chess';
 import { PUZZLES_COLLECTION } from '../utils/puzzles';
@@ -183,7 +184,7 @@ export const PuzzleMode: React.FC<PuzzleModeProps> = ({ settings }) => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-2 sm:p-4 space-y-4">
+    <PanelContainer>
       {/* Top Header Mode Tabs: Daily Puzzle vs Tactics Trainer */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 glass-panel p-3 sm:p-4 rounded-3xl border border-[#F5C453]/30 shadow-xl">
         <div className="flex items-center gap-3">
@@ -532,6 +533,6 @@ export const PuzzleMode: React.FC<PuzzleModeProps> = ({ settings }) => {
           </div>
         </div>
       </div>
-    </div>
+    </PanelContainer>
   );
 };

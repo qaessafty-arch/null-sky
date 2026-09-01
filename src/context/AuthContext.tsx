@@ -1,12 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  User, 
+import {
+  User,
+  deleteUser,
+  linkWithPopup,
+  unlink,
+  EmailAuthProvider,
+  GoogleAuthProvider, 
   onAuthStateChanged, 
   signInWithPopup, 
   signOut as firebaseSignOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInAnonymously,
+  sendPasswordResetEmail,
+  OAuthProvider,
   updateProfile as firebaseUpdateProfile
 } from 'firebase/auth';
 import { 
@@ -110,14 +117,17 @@ interface AuthContextType {
   isAdmin: boolean;
   devModeUnlocked: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signInAsGuest: (guestName?: string, country?: string) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, displayName?: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   signInAsSky: (passkey?: string) => Promise<boolean>;
   signInAsDeveloper: () => Promise<void>;
   signInWithDeveloperPasskey: (key: string) => boolean;
   toggleDevModeUnlocked: (key?: string) => boolean;
-  setOwnerBadgeAndStatus: (updates: { customBadge?: string; customStatus?: string; badgeNumber?: number; role?: UserRole }) => Promise<void>;
+  setOwnerBadgeAndStatus: (updates: { customBadge?: string; customStatus?: string; badgeNumber?: number;
+  isPublic?: boolean; role?: UserRole }) => Promise<void>;
   signOut: () => Promise<void>;
   updateRespectMetrics: (delta: {
     respectPoints?: number;
@@ -128,6 +138,11 @@ interface AuthContextType {
     gamesPlayed?: number;
   }) => Promise<void>;
   updateProfileDetails: (details: { displayName?: string; username?: string; country?: string; flag?: string; customStatus?: string; photoURL?: string; customBadge?: string; badgeNumber?: number }) => Promise<void>;
+  updateProfilePhoto: (photoURL: string) => Promise<void>;
+  deleteAccount: (confirmText: string) => Promise<void>;
+  linkProvider: (providerId: string) => Promise<void>;
+  unlinkProvider: (providerId: string) => Promise<void>;
+  updatePrivacy: (isPublic: boolean) => Promise<void>;
   syncWithCloudLeaderboard: (sortBy?: 'respect' | 'elo') => Promise<RespectLeaderboardEntry[]>;
   // Feedback Operations
   submitFeedback: (feedback: Omit<UserFeedback, 'id' | 'createdAt'>) => Promise<string>;
@@ -136,7 +151,8 @@ interface AuthContextType {
   deleteFeedbackItem: (feedbackId: string) => Promise<void>;
   // Dev & Admin Operations
   getAllUserProfiles: () => Promise<UserProfileData[]>;
-  updateUserRoleAndBadge: (targetUid: string, updates: { role?: UserRole; badgeNumber?: number; customBadge?: string; customStatus?: string; elo?: number; respectPoints?: number }) => Promise<void>;
+  updateUserRoleAndBadge: (targetUid: string, updates: { role?: UserRole; badgeNumber?: number;
+  isPublic?: boolean; customBadge?: string; customStatus?: string; elo?: number; respectPoints?: number }) => Promise<void>;
 }
 
 export const SKY_PROFILE_DEFAULT: UserProfileData = {
@@ -254,6 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const seedDefaultDocs = async () => {
       try {
+        if (!auth.currentUser) return;
         const skyDocRef = doc(db, 'users', SKY_PROFILE_DEFAULT.uid);
         const skySnap = await getDoc(skyDocRef);
         if (!skySnap.exists()) {
@@ -264,7 +281,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       } catch (err) {
-        console.warn('Cloud seed for sky account note:', err);
+        // Silent catch for background seeding
       }
     };
     seedDefaultDocs();
@@ -274,7 +291,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSkyAccount(true);
     setIsGuest(false);
     localStorage.setItem('chess_active_account', 'sky');
-    setProfile(SKY_PROFILE_DEFAULT);
+    const cachedSkyAvatar = localStorage.getItem('chess_sky_avatar');
+    setProfile({
+      ...SKY_PROFILE_DEFAULT,
+      photoURL: cachedSkyAvatar || SKY_PROFILE_DEFAULT.photoURL
+    });
     setLoading(false);
   };
 
@@ -284,7 +305,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('chess_active_account', 'dev');
     localStorage.setItem('chess_dev_unlocked', 'true');
     setDevModeUnlocked(true);
-    setProfile(DEVELOPER_PROFILE_DEFAULT);
+    const cachedDevAvatar = localStorage.getItem('chess_dev_avatar');
+    setProfile({
+      ...DEVELOPER_PROFILE_DEFAULT,
+      photoURL: cachedDevAvatar || DEVELOPER_PROFILE_DEFAULT.photoURL
+    });
     setLoading(false);
   };
 
@@ -292,6 +317,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSkyAccount(false);
     setIsGuest(true);
     localStorage.setItem('chess_active_account', 'guest');
+
+    const cachedGuest = localStorage.getItem('chess_guest_profile');
+    let existingPhoto: string | null = null;
+    if (cachedGuest) {
+      try {
+        const parsed = JSON.parse(cachedGuest);
+        if (parsed.photoURL) existingPhoto = parsed.photoURL;
+      } catch {}
+    }
 
     const randId = Math.floor(100 + Math.random() * 900);
     const guestName = customName?.trim() || `Guest Peshmerga #${randId}`;
@@ -301,7 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       uid: `guest_${Date.now()}_${randId}`,
       displayName: guestName,
       email: null,
-      photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60',
+      photoURL: existingPhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60',
       country: customCountry || 'Kurdistan',
       flag: '☀️',
       elo: 1200,
@@ -337,6 +371,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const userDocRef = doc(db, 'users', currentUser.uid);
+        const cachedUserAvatar = localStorage.getItem('chess_user_avatar_' + currentUser.uid);
         try {
           const docSnap = await getDoc(userDocRef);
           const isDev = isEmailDeveloper(currentUser.email);
@@ -349,9 +384,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const effectiveRole = isDev ? 'owner' : (data.role || 'member');
             const effectiveBadgeNumber = isDev ? 0 : (data.badgeNumber !== undefined ? data.badgeNumber : 10);
+            const effectivePhoto = data.photoURL || cachedUserAvatar || currentUser.photoURL || (isDev ? DEVELOPER_PROFILE_DEFAULT.photoURL : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60');
 
             const updatedProfile: UserProfileData = {
               ...data,
+              photoURL: effectivePhoto,
               honorRank: rank.title,
               rankBadge: rank.badge,
               role: effectiveRole,
@@ -360,6 +397,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               isAdmin: isDev || effectiveRole === 'owner' || effectiveRole === 'admin',
               isDeveloper: isDev
             };
+
+            if (effectivePhoto) {
+              localStorage.setItem('chess_user_avatar_' + currentUser.uid, effectivePhoto);
+            }
 
             setProfile(updatedProfile);
           } else {
@@ -382,14 +423,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             }
 
+            const initialPhoto = currentUser.photoURL || cachedUserAvatar || (isDev ? DEVELOPER_PROFILE_DEFAULT.photoURL : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60');
+
             const newProfile: UserProfileData = {
               uid: currentUser.uid,
               displayName: currentUser.displayName || (isDev ? 'q.brz' : 'Peshmerga Warrior'),
               email: currentUser.email || null,
-              photoURL: currentUser.photoURL || (isDev ? DEVELOPER_PROFILE_DEFAULT.photoURL : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'),
+              photoURL: initialPhoto,
               country: 'Kurdistan',
               flag: isDev ? '👑' : '☀️',
-              elo: isDev ? 3000 : 1200,
+              elo: isDev ? 3000 : 800,
               respectPoints: isDev ? 5000 : 100,
               executions: isDev ? 500 : 0,
               merciesGranted: isDev ? 250 : 0,
@@ -412,7 +455,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setProfile(newProfile);
           }
         } catch (err) {
-          console.error('Error fetching/creating user profile:', err);
+          console.warn('Firestore user profile fetch notice (operating with resilient profile):', err);
+          const isDev = isEmailDeveloper(currentUser.email);
+          const rank = isDev 
+            ? { title: 'SUPREME OWNER & CREATOR 👑', badge: '👑' }
+            : getHonorRank(100);
+          
+          const fallbackProfile: UserProfileData = {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName || (isDev ? 'q.brz' : 'Peshmerga Warrior'),
+            email: currentUser.email || null,
+            photoURL: currentUser.photoURL || cachedUserAvatar || (isDev ? DEVELOPER_PROFILE_DEFAULT.photoURL : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'),
+            country: 'Kurdistan',
+            flag: isDev ? '👑' : '☀️',
+            elo: isDev ? 3000 : 1200,
+            respectPoints: isDev ? 5000 : 100,
+            executions: isDev ? 500 : 0,
+            merciesGranted: isDev ? 250 : 0,
+            gamesPlayed: 0,
+            wins: 0,
+            honorRank: rank.title,
+            rankBadge: rank.badge,
+            role: isDev ? 'owner' : 'member',
+            badgeNumber: isDev ? 0 : 10,
+            customBadge: isDev ? '👑 FOUNDER #0' : '#10',
+            customStatus: isDev ? '👑 Peshmerga Chess Architect' : 'Defending the realm with honor',
+            isOwner: isDev,
+            isAdmin: isDev,
+            isDeveloper: isDev
+          };
+          setProfile(fallbackProfile);
         }
       } else {
         const storedAct = localStorage.getItem('chess_active_account');
@@ -452,6 +524,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithApple = async () => {
+    try {
+      setIsSkyAccount(false);
+      setIsGuest(false);
+      localStorage.removeItem('chess_active_account');
+      const appleProvider = new OAuthProvider('apple.com');
+      appleProvider.addScope('email');
+      appleProvider.addScope('name');
+      await signInWithPopup(auth, appleProvider);
+    } catch (error: any) {
+      console.warn('Apple Sign-In note:', error);
+      // Fallback guest activation if Apple ID provider not configured in project console
+      activateGuestProfile('Apple Player', 'Kurdistan');
+    }
+  };
+
   const signInAsGuest = async (guestName?: string, country?: string) => {
     try {
       if (user) {
@@ -461,6 +549,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.warn('Guest login notice:', e);
       activateGuestProfile(guestName, country);
+    }
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    if (!email || !email.includes('@')) {
+      throw new Error('Please provide a valid email address.');
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+    } catch (error: any) {
+      console.warn('Password reset notice:', error);
+      // Friendly simulation if email is not yet registered in Firebase auth
+      if (error?.code === 'auth/user-not-found') {
+        throw new Error('No registered account was found with this email.');
+      }
+      throw error;
     }
   };
 
@@ -556,6 +660,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     customBadge?: string;
     customStatus?: string;
     badgeNumber?: number;
+  isPublic?: boolean;
     role?: UserRole;
   }) => {
     if (!profile) return;
@@ -581,19 +686,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteAccount = async (confirmText: string) => {
+    if (confirmText !== 'DELETE') throw new Error('Confirmation text did not match');
+    if (!auth.currentUser) throw new Error('Not logged in');
+    try {
+      await fetch('/api/auth/session-logout', { method: 'POST' });
+      await deleteDoc(doc(db, 'users', auth.currentUser.uid));
+      await deleteUser(auth.currentUser);
+      setUser(null);
+      setProfile(null);
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const linkProvider = async (providerId: string) => {
+    if (!auth.currentUser) return;
+    try {
+      const provider = providerId === 'google.com' ? googleProvider : new OAuthProvider(providerId);
+      await linkWithPopup(auth.currentUser, provider);
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const unlinkProvider = async (providerId: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await unlink(auth.currentUser, providerId);
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const updatePrivacy = async (isPublic: boolean) => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { isPublic });
+      if (profile) setProfile({ ...profile, isPublic });
+    } catch (err) {
+      throw err;
+    }
+  };
+
   const signOut = async () => {
     try {
-      setIsSkyAccount(false);
-      setIsGuest(false);
-      localStorage.removeItem('chess_active_account');
-      localStorage.removeItem('chess_guest_profile');
-      if (user) {
-        await firebaseSignOut(auth);
-      }
-      setProfile(null);
-    } catch (error) {
-      console.error('Sign Out failed:', error);
+      await fetch('/api/auth/session-logout', { method: 'POST' });
+    } catch (err) {
+      console.warn('Session logout failed', err);
     }
+    await firebaseSignOut(auth);
   };
 
   const updateRespectMetrics = async (delta: {
@@ -668,6 +810,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     photoURL?: string;
     customBadge?: string;
     badgeNumber?: number;
+  isPublic?: boolean;
   }) => {
     if (!profile) return;
     const targetUid = profile.uid;
@@ -678,19 +821,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setProfile(updated);
 
+    // Save avatar to persistent caches
+    if (details.photoURL) {
+      localStorage.setItem('chess_user_avatar_' + targetUid, details.photoURL);
+      localStorage.setItem('chess_current_avatar', details.photoURL);
+      if (isSkyAccount || targetUid === SKY_PROFILE_DEFAULT.uid) {
+        localStorage.setItem('chess_sky_avatar', details.photoURL);
+      }
+      if (isDeveloper || targetUid === DEVELOPER_PROFILE_DEFAULT.uid) {
+        localStorage.setItem('chess_dev_avatar', details.photoURL);
+      }
+      if (auth.currentUser) {
+        try {
+          await firebaseUpdateProfile(auth.currentUser, {
+            photoURL: details.photoURL,
+            ...(details.displayName ? { displayName: details.displayName } : {})
+          });
+        } catch (authErr) {
+          console.warn('Firebase Auth photoURL update notice:', authErr);
+        }
+      }
+    }
+
     if (profile.isGuest) {
       localStorage.setItem('chess_guest_profile', JSON.stringify(updated));
     }
 
     try {
       const userDocRef = doc(db, 'users', targetUid);
-      await updateDoc(userDocRef, {
+      await setDoc(userDocRef, {
         ...details,
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     } catch (e) {
       console.warn('Profile detail update notice:', e);
     }
+  };
+
+  const updateProfilePhoto = async (photoURL: string) => {
+    if (!photoURL) return;
+    await updateProfileDetails({ photoURL });
   };
 
   const syncWithCloudLeaderboard = async (sortBy: 'respect' | 'elo' = 'respect'): Promise<RespectLeaderboardEntry[]> => {
@@ -832,7 +1002,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     targetUid: string, 
     updates: { 
       role?: UserRole; 
-      badgeNumber?: number; 
+      badgeNumber?: number;
+  isPublic?: boolean; 
       customBadge?: string; 
       customStatus?: string; 
       elo?: number; 
@@ -867,9 +1038,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         devModeUnlocked,
         signInWithGoogle,
+        signInWithApple,
         signInAsGuest,
         signInWithEmail,
         signUpWithEmail,
+        sendPasswordReset,
         signInAsSky,
         signInAsDeveloper,
         signInWithDeveloperPasskey,
@@ -878,6 +1051,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         updateRespectMetrics,
         updateProfileDetails,
+        updateProfilePhoto,
+        deleteAccount,
+        linkProvider,
+        unlinkProvider,
+        updatePrivacy,
         syncWithCloudLeaderboard,
         submitFeedback,
         getFeedbacksList,

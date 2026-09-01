@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PanelContainer } from './PanelContainer';
 import { Chess, Square } from 'chess.js';
 import { AppSettings, OpeningInfo } from '../types/chess';
 import { ChessBoard } from './ChessBoard';
@@ -128,6 +129,27 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     setCurrentStep(step);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          jumpToStep(currentStep + 1);
+        } else {
+          e.preventDefault();
+          jumpToStep(currentStep - 1);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+        e.preventDefault();
+        jumpToStep(currentStep + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep, historyFens]);
+
   const handleLoadFen = () => {
     try {
       const g = new Chess(fenInput.trim());
@@ -145,7 +167,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const openingInfo: OpeningInfo | null = detectOpening(historySans);
 
   return (
-    <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-5 max-w-6xl mx-auto p-3">
+    <PanelContainer className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-5">
       {/* Board & Eval Bar */}
       <div className="flex items-center gap-3">
         {settings.showEvalBar && (
@@ -325,6 +347,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </PanelContainer>
   );
 };

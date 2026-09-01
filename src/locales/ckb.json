@@ -1,0 +1,59 @@
+{
+  "sidebar": {
+    "playAI": "یاری لەگەڵ AI",
+    "multiplayer": "یاری فرەکەسی",
+    "puzzles": "مەرجەکان و ڕۆژانە",
+    "analysis": "شیکاری",
+    "profile": "پرۆفایل",
+    "worldwide": "جیهانی",
+    "friends": "هاوڕێکان",
+    "settings": "ڕێکخستنەکان",
+    "language": "زمان"
+  },
+  "login": {
+    "login": "چوونەژوورەوە",
+    "register": "تۆمارکردن",
+    "password": "وشەی نهێنی",
+    "playAsGuest": "یاری وەک میوان",
+    "email": "ئیمەیل"
+  },
+  "game": {
+    "start": "دەستپێکردن",
+    "checkmate": "مات",
+    "draw": "یەکسان",
+    "offerDraw": "داوای یەکسان",
+    "resign": "دەستبەرداربوون",
+    "rating": "ڕێز",
+    "time": "کات"
+  },
+  "leaderboard": {
+    "worldwideLeaderboard": "پلەبەندی جیهانی",
+    "rank": "پلە",
+    "wins": "بردنەوە",
+    "losses": "دۆڕاندن"
+  },
+  "friends": {
+    "addFriend": "زیادکردنی هاوڕێ",
+    "accept": "پەسەندکردن",
+    "decline": "ڕەتکردنەوە",
+    "block": "بلۆککردن"
+  },
+  "chat": {
+    "sendMessage": "نامە بنێرە...",
+    "goodGame": "یاری باش!",
+    "niceMove": "جوانە!"
+  },
+  "profile": {
+    "gameStats": "ئاماری یاریەکان",
+    "matchHistory": "مێژووی یاریەکان",
+    "peakRating": "باشترین ڕێز"
+  },
+  "settings": {
+    "language": "زمان",
+    "selectLanguage": "زمان هەڵبژێرە",
+    "english": "English",
+    "ckb": "کوردی سۆرانی",
+    "kmr": "Kurdî Kurmancî",
+    "ar": "العربية"
+  }
+}
