@@ -13,6 +13,7 @@ import {
   createOnlineMatch, 
   joinOnlineMatch,
   joinWorldwideMatchmaking,
+  listenToOnlineMatchSession,
   listenToPublicOpenMatches 
 } from '../services/onlineMatchService';
 import { 
@@ -131,6 +132,18 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     if (photoURL) player.photoURL = photoURL;
     return player;
   }, [profile, user]);
+
+  // Take the host into the arena as soon as a challenger joins the room
+  useEffect(() => {
+    if (!createdMatchId) return;
+    const unsub = listenToOnlineMatchSession(createdMatchId, session => {
+      if (session?.status === 'in_progress') {
+        soundManager.playVictory();
+        onStartMatch(createdMatchId);
+      }
+    });
+    return () => unsub();
+  }, [createdMatchId, onStartMatch]);
 
   // Listen to open public challenges
   useEffect(() => {
@@ -592,7 +605,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
               </div>
               <h4 className="text-base font-black text-white">Room Created Successfully!</h4>
               <p className="text-xs text-[#DFD0B0]/70">
-                Share this Room Code with your opponent to let them join:
+                Share this Room Code with your opponent — you'll enter the arena automatically when they join:
               </p>
 
               <div className="p-3 rounded-xl bg-white/5 border border-white/20 flex items-center justify-between gap-3 max-w-sm mx-auto">
