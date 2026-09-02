@@ -856,6 +856,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       <div
         ref={boardRef}
         id="chess-board-container"
+        data-board-theme={boardTheme}
         role="grid"
         aria-label="Chess board"
         className={`relative aspect-square w-full rounded-xl overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] border border-white/5 ${theme.glow} bg-[#111827] grid grid-cols-8 grid-rows-8 touch-none will-change-transform`}
@@ -1083,7 +1084,10 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                     willChange: 'transform'
                   }}
                 >
-                  <div className="w-[85%] h-[85%] flex items-center justify-center pointer-events-none drop-shadow-sm select-none">
+                  <div
+                    className="chess-board-piece w-[85%] h-[85%] flex items-center justify-center pointer-events-none select-none"
+                    data-piece-color={p.color}
+                  >
                     <ChessPiece
                       type={p.type}
                       color={p.color}
@@ -1138,7 +1142,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       {draggingSquare && (
         <div
           ref={dragPieceRef}
-          className="fixed pointer-events-none z-50 w-16 h-16 drop-shadow-2xl scale-110 top-0 left-0 chess-drag-piece"
+          className="fixed pointer-events-none z-50 w-16 h-16 scale-110 top-0 left-0 chess-drag-piece chess-board-piece"
+          data-piece-color={game.get(draggingSquare)?.color}
           style={{
             transform: `translate3d(${dragPosRef.current.x - 32}px, ${dragPosRef.current.y - 32}px, 0px)`
           }}

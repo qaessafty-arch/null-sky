@@ -969,7 +969,11 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
 };
 
   return (
-    <div className={`relative w-full h-full flex items-center justify-center select-none ${className}`}>
+    <div
+      className={`chess-board-piece relative w-full h-full flex items-center justify-center select-none ${className}`}
+      data-piece-color={color}
+      data-piece-theme={theme}
+    >
       {/* 3D Floating Shadow */}
       <div className="absolute bottom-1 w-2/3 h-2 bg-black/40 blur-md rounded-full transform scale-x-125 opacity-60 z-0" />
       
