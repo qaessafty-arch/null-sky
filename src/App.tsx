@@ -101,7 +101,10 @@ export default function App() {
   const [respectProfile, setRespectProfile] = useState<RespectProfile>(() => getRespectProfile());
 
   useEffect(() => {
-    AntiCheatEngine.initializeTelemetry();
+    const cleanup = AntiCheatEngine.initializeTelemetry();
+    return () => {
+      cleanup();
+    };
   }, []);
 
   // Warm the chunks a player reaches for first, once the board is interactive.

@@ -118,21 +118,39 @@ export async function checkFriendRequestRateLimit(): Promise<boolean> {
 
 // 6. Enterprise Anti-Cheat & Telemetry Module
 export class AntiCheatEngine {
+  private static instance: AntiCheatEngine | null = null;
+  private static isInitialized = false;
   private static tabBlurCount = 0;
   private static lastMoveTime = 0;
   private static moveTimeVariances: number[] = [];
+  private static blurListener: (() => void) | null = null;
 
-  public static initializeTelemetry() {
+  public static initializeTelemetry(): () => void {
+    if (this.isInitialized) {
+      return () => {};
+    }
+
     if (typeof window !== 'undefined') {
-      window.addEventListener('blur', () => {
+      this.isInitialized = true;
+      this.blurListener = () => {
         this.tabBlurCount++;
         if (this.tabBlurCount > 3) {
           console.warn('[Anti-Cheat] Suspicious Activity: Frequent tab switching detected.');
           this.reportSuspiciousActivity('FREQUENT_BLUR');
         }
-      });
+      };
+
+      window.addEventListener('blur', this.blurListener);
       console.log('[Anti-Cheat] Telemetry initialized.');
     }
+
+    return () => {
+      if (this.blurListener && typeof window !== 'undefined') {
+        window.removeEventListener('blur', this.blurListener);
+        this.blurListener = null;
+        this.isInitialized = false;
+      }
+    };
   }
 
   public static recordMoveTiming() {
