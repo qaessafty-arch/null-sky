@@ -11,7 +11,12 @@ import {
   Play, 
   Send,
   ExternalLink,
-  Users
+  Users,
+  Github,
+  Youtube,
+  Twitter,
+  MessageSquare,
+  Instagram
 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../utils/firebase';
@@ -161,33 +166,31 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({ isOpen, onClose }) =
               <div className="flex flex-wrap gap-3">
                 {config.socialLinks.discord && (
                   <a href={config.socialLinks.discord} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1F293D] hover:bg-[#2D3748] rounded-full text-slate-200 transition-colors text-sm">
-                    {/* Lucide doesn't have Discord, using generic icon or placeholder if not found, but I included Discord in imports if available, actually Lucide has it now? Let's check imports */}
-                    {/* Lucide might not have Discord. Using Globe as fallback if it fails */}
-                    <MessageCircle size={16} /> 
+                    <MessageSquare size={16} className="text-[#5865F2]" /> 
                     <span>Discord</span>
                   </a>
                 )}
                 {config.socialLinks.github && (
                   <a href={config.socialLinks.github} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1F293D] hover:bg-[#2D3748] rounded-full text-slate-200 transition-colors text-sm">
-                    <Code size={16} />
+                    <Github size={16} />
                     <span>GitHub</span>
                   </a>
                 )}
                 {config.socialLinks.twitter && (
                   <a href={config.socialLinks.twitter} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1F293D] hover:bg-[#2D3748] rounded-full text-slate-200 transition-colors text-sm">
-                    <Globe size={16} />
+                    <Twitter size={16} className="text-[#1DA1F2]" />
                     <span>Twitter</span>
                   </a>
                 )}
                 {config.socialLinks.telegram && (
                   <a href={config.socialLinks.telegram} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1F293D] hover:bg-[#2D3748] rounded-full text-slate-200 transition-colors text-sm">
-                    <Send size={16} />
+                    <Send size={16} className="text-[#0088cc]" />
                     <span>Telegram</span>
                   </a>
                 )}
                 {config.socialLinks.youtube && (
                   <a href={config.socialLinks.youtube} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1F293D] hover:bg-[#2D3748] rounded-full text-slate-200 transition-colors text-sm">
-                    <Play size={16} />
+                    <Youtube size={16} className="text-[#FF0000]" />
                     <span>YouTube</span>
                   </a>
                 )}

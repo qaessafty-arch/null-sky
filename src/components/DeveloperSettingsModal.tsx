@@ -23,8 +23,13 @@ import {
   Flame,
   BadgeAlert,
   Database,
-  Globe,
-  Heart
+  Github,
+  Youtube,
+  Send,
+  Twitter,
+  Instagram,
+  Heart,
+  Globe
 } from 'lucide-react';
 import { UserRole, UserFeedback, AboutUsConfig, SystemConfig } from '../types/chess';
 import { DatabaseView } from './DatabaseView';
@@ -718,6 +723,27 @@ export const DeveloperSettingsModal: React.FC<DeveloperSettingsModalProps> = ({ 
                               value={aboutUsData.socialLinks.twitter || ""}
                               onChange={(e) => setAboutUsData({...aboutUsData, socialLinks: {...aboutUsData.socialLinks, twitter: e.target.value}})}
                               className="w-full px-4 py-2 rounded-xl bg-[#0B0F19] border border-[#1F293D] text-white text-[10px] font-mono focus:border-amber-500/50 outline-none"
+                            />
+                            <input
+                              type="text"
+                              placeholder="GitHub URL"
+                              value={aboutUsData.socialLinks.github || ""}
+                              onChange={(e) => setAboutUsData({...aboutUsData, socialLinks: {...aboutUsData.socialLinks, github: e.target.value}})}
+                              className="w-full px-4 py-2 rounded-xl bg-[#0B0F19] border border-[#1F293D] text-white text-[10px] font-mono focus:border-amber-500/50 outline-none"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Telegram URL"
+                              value={aboutUsData.socialLinks.telegram || ""}
+                              onChange={(e) => setAboutUsData({...aboutUsData, socialLinks: {...aboutUsData.socialLinks, telegram: e.target.value}})}
+                              className="w-full px-4 py-2 rounded-xl bg-[#0B0F19] border border-[#1F293D] text-white text-[10px] font-mono focus:border-amber-500/50 outline-none"
+                            />
+                            <input
+                              type="text"
+                              placeholder="YouTube URL"
+                              value={aboutUsData.socialLinks.youtube || ""}
+                              onChange={(e) => setAboutUsData({...aboutUsData, socialLinks: {...aboutUsData.socialLinks, youtube: e.target.value}})}
+                              className="w-full px-4 py-2 rounded-xl bg-[#0B0F19] border border-[#1F293D] text-white text-[10px] font-mono focus:border-amber-500/50 outline-none col-span-2"
                             />
                           </div>
                         </div>

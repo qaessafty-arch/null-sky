@@ -533,6 +533,28 @@ export const acceptDrawOnlineMatch = async (matchId: string): Promise<boolean> =
   }
 };
 
+import { advanceTournamentMatch } from './tournamentService';
+
+export const finalizeOnlineMatch = async (matchId: string, winner: 'w' | 'b' | 'draw', reason: string) => {
+  const matchRef = doc(db, 'online_matches', matchId);
+  const snap = await getDoc(matchRef);
+  if (!snap.exists()) return;
+  const data = snap.data();
+
+  await updateDoc(matchRef, {
+    status: winner === 'draw' ? 'draw' : 'completed',
+    winner,
+    reason,
+    updatedAt: new Date().toISOString()
+  });
+
+  // Automatically advance tournament bracket if this was a tournament match
+  if (data.tournamentId && data.tournamentMatchId && winner !== 'draw') {
+    const winnerUid = winner === 'w' ? data.whitePlayer.uid : data.blackPlayer.uid;
+    await advanceTournamentMatch(data.tournamentId, data.tournamentMatchId, winnerUid);
+  }
+};
+
 export const listenToOnlineMatchSession = (
   matchId: string,
   callback: (session: OnlineMatchSession | null) => void

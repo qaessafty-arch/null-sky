@@ -40,12 +40,12 @@ service cloud.firestore {
 
     function isDeveloper() {
       return isSignedIn() && (
-        request.auth.token.get('admin', false) == true ||
-        (request.auth.token.email is string && (
-          request.auth.token.email.lower() == 'qaessafty@gmail.com' ||
-          request.auth.token.email.lower() == 'qayssafty@gmail.com' ||
-          request.auth.token.email.lower() == 'qaess.business@gmail.com'
-        ))
+        request.auth.token.get('role', '') == 'admin' ||
+        request.auth.token.email.lower() in [
+          'qaessafty@gmail.com', 
+          'qayssafty@gmail.com', 
+          'qaess.business@gmail.com'
+        ]
       );
     }
 
