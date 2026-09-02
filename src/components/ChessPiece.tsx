@@ -974,17 +974,9 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
       data-piece-color={color}
       data-piece-theme={theme}
     >
-      {/* 3D Floating Shadow */}
-      <div className="absolute bottom-1 w-2/3 h-2 bg-black/40 blur-md rounded-full transform scale-x-125 opacity-60 z-0" />
-      
       {/* The Piece Content */}
-      <div className="relative z-10 w-full h-full flex items-center justify-center transform hover:-translate-y-1.5 transition-transform duration-500 ease-out">
+      <div className="relative z-10 w-full h-full flex items-center justify-center transform hover:-translate-y-1 transition-transform duration-300 ease-out">
         {getPieceContent()}
-        
-        {/* Premium Glass Reflection Overlay */}
-        <div className="absolute inset-0 pointer-events-none mix-blend-soft-light opacity-30">
-          <div className="w-full h-full bg-gradient-to-tr from-transparent via-white/40 to-transparent" />
-        </div>
       </div>
     </div>
   );
