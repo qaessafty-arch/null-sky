@@ -39,6 +39,7 @@ import { GlassButton } from './components/GlassButton';
 import { InGameChatPanel } from './components/InGameChatPanel';
 import { PromotionModal } from './components/PromotionModal';
 import { AboutUsModal } from './components/AboutUsModal';
+import { Watermark } from './components/Watermark';
 import { ViewFallback } from './components/ViewFallback';
 import type { SettingsTab } from './components/SettingsModal';
 import { InGameMessage } from './services/chatService';
@@ -1486,6 +1487,9 @@ export default function App() {
       />
       )}
       </Suspense>
+
+      {/* Global Craft Watermark */}
+      <Watermark onClick={() => setIsAboutUsModalOpen(true)} />
     </div>
   );
 }
