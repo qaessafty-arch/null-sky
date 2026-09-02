@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Suppress benign Vite dev server HMR websocket connection errors in the sandbox environment
 if (typeof window !== 'undefined') {
@@ -40,12 +41,14 @@ if (typeof window !== 'undefined') {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <NotificationProvider>
-        <I18nextProvider i18n={i18n}>
-          <App />
-        </I18nextProvider>
-      </NotificationProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <I18nextProvider i18n={i18n}>
+            <App />
+          </I18nextProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );
