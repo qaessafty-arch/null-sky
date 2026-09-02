@@ -1,0 +1,60 @@
+/* src/styles/multiplayer-visuals.css */
+/* src/styles/multiplayer.css */
+@keyframes sunset-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.kurdistan-sunset-bg {
+  background: linear-gradient(
+    135deg,
+    #0a0a0a 0%,
+    #3d0a0a 20%,
+    #b33a00 50%,
+    #d4af37 80%,
+    #0a0a0a 100%
+  );
+  background-size: 400% 400%;
+  animation: sunset-gradient 20s ease infinite;
+}
+
+/* Cinematic Effects */
+.bg-vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bg-grain {
+  position: fixed;
+  inset: 0;
+  background-image: url("https://www.transparenttextures.com/patterns/60-lines.png");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.particles-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 50%;
+  filter: blur(2px);
+  animation: float-particle var(--duration) linear infinite;
+}
+
+@keyframes float-particle {
+  0% { transform: translateY(110vh) scale(1); opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.5; }
+  100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+}

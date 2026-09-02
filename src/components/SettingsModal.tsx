@@ -219,26 +219,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           initial={{ scale: 0.94, opacity: 0, y: 15 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 320, damping: 26, mass: 0.8 }}
-          className={`relative glass-panel p-4 sm:p-6 w-full shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] transition-all flex flex-col max-h-[94vh] ${
+          className={`relative glass-premium p-4 sm:p-6 w-full shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] transition-all flex flex-col max-h-[94vh] !rounded-[2rem] border-white/10 ${
             activeTab === 'database' || activeTab === 'logs' || activeTab === 'authoring' 
               ? 'max-w-5xl' 
               : 'max-w-2xl'
           }`}
         >
           {/* Ambient Glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F59E0B]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#FFD700]/5 rounded-full blur-3xl pointer-events-none" />
 
           {/* Header Ribbon */}
           <div className="flex items-center justify-between pb-6 border-b border-white/10 shrink-0 mb-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 glass-button text-[#F59E0B] shadow-2xl">
+              <div className="w-12 h-12 glass-interactive !rounded-2xl text-[#FFD700] shadow-2xl flex items-center justify-center">
                 <Sliders className="w-6 h-6" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight uppercase">
                   Settings & Studio
                 </h2>
-                <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em] opacity-60">
+                <p className="text-[10px] font-black text-[#FFD700] uppercase tracking-[0.2em] opacity-60">
                   Architect Tactical Command
                 </p>
               </div>
@@ -246,7 +246,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-10 h-10 glass-button text-[#94A3B8] hover:text-white transition-all active:scale-95 flex items-center justify-center cursor-pointer shadow-xl"
+              className="w-10 h-10 glass-interactive !rounded-xl text-white/60 hover:text-white transition-all active:scale-95 flex items-center justify-center cursor-pointer shadow-xl"
               aria-label="Close Settings"
             >
               <X className="w-5 h-5" />
@@ -263,7 +263,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={() => setActiveTab('themes')}
                   className={`flex-1 min-w-[100px] flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[10px] uppercase tracking-widest font-black transition-all cursor-pointer whitespace-nowrap ${
                     activeTab === 'themes'
-                      ? 'bg-[#F59E0B] text-black shadow-xl shadow-[#F59E0B]/20'
+                      ? 'bg-[#FFD700] text-black shadow-xl shadow-[#FFD700]/20'
                       : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -275,7 +275,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={() => setActiveTab('board')}
                   className={`flex-1 min-w-[110px] flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[10px] uppercase tracking-widest font-black transition-all cursor-pointer whitespace-nowrap ${
                     activeTab === 'board'
-                      ? 'bg-[#F59E0B] text-black shadow-xl shadow-[#F59E0B]/20'
+                      ? 'bg-[#FFD700] text-black shadow-xl shadow-[#FFD700]/20'
                       : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -792,7 +792,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-[#F59E0B] hover:brightness-110 text-[#0B0F19] font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] border border-[#F59E0B] active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-[#FFD700] hover:brightness-110 text-black font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,215,0,0.3)] border border-[#FFD700] active:scale-95 cursor-pointer"
             >
               Done & Save
             </button>

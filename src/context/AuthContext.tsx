@@ -98,6 +98,7 @@ export interface UserProfileData {
   badgeNumber: number;
   customBadge?: string;
   customStatus?: string;
+  isPublic?: boolean;
   isOwner?: boolean;
   isAdmin?: boolean;
   isDeveloper?: boolean;

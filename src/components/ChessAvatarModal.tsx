@@ -507,7 +507,7 @@ export const ChessAvatarModal: React.FC<ChessAvatarModalProps> = ({
                   <span>{userRankTitle}</span>
                 </span>
                 <span className="text-[11px] text-[#F5C453] font-mono">
-                  {profile?.respectPoints || 100} Respect
+                  {isNaN(Number(profile?.respectPoints)) ? 0 : profile?.respectPoints} Respect
                 </span>
               </div>
             </div>

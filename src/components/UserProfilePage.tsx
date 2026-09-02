@@ -43,6 +43,7 @@ interface UserProfilePageProps {
   onAnalyzeGame?: (pgn?: string, fen?: string) => void;
   onEditProfileModal?: () => void;
   onNavigateHome?: () => void;
+  onOpenAbout?: () => void;
 }
 
 type TabType = 'overview' | 'matches' | 'analytics' | 'social';
@@ -149,7 +150,7 @@ const displayName = profile?.displayName || user?.displayName || 'Grandmaster Qa
     ? 'https://images.unsplash.com/photo-1557925923-cd4648e211a0?w=200&auto=format&fit=crop&q=80' 
     : user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80');
 
-  const baseElo = typeof profile?.elo === 'number' ? profile.elo : 2240;
+  const baseElo = typeof profile?.elo === 'number' ? (isNaN(profile.elo) ? 2240 : profile.elo) : 2240;
 
   // Time Control Rating Metrics
   const ratingsData: Record<string, RatingCategory> = useMemo(() => {
@@ -239,8 +240,8 @@ const displayName = profile?.displayName || user?.displayName || 'Grandmaster Qa
   }, [timeRange, baseElo]);
 
   // Chart SVG Coordinates Math
-  const minRating = chartData.length > 0 ? Math.min(...chartData.map(d => d.rating)) - 25 : 0;
-  const maxRating = chartData.length > 0 ? Math.max(...chartData.map(d => d.rating)) + 25 : 100;
+  const minRating = chartData.length > 0 ? Math.min(...chartData.map(d => isNaN(d.rating) ? 1200 : d.rating)) - 25 : 0;
+  const maxRating = chartData.length > 0 ? Math.max(...chartData.map(d => isNaN(d.rating) ? 1200 : d.rating)) + 25 : 100;
   const chartWidth = 700;
   const chartHeight = 220;
   const paddingX = 35;
@@ -588,7 +589,7 @@ const displayName = profile?.displayName || user?.displayName || 'Grandmaster Qa
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 cursor-pointer shadow-sm"
           >
             <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-xs font-black font-mono tracking-tight">{baseElo}</span>
+            <span className="text-xs font-black font-mono tracking-tight">{isNaN(baseElo) ? 2240 : baseElo}</span>
           </div>
 
           <button

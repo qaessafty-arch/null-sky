@@ -24,6 +24,7 @@ export interface UITheme {
     boardDark?: string; // e.g. '#769656'
     boardBorder?: string; // e.g. '#4a6333'
   };
+  backgroundImage?: string;
 }
 
 export type CustomThemeInput = Omit<UITheme, 'id' | 'isCustom'>;

@@ -128,7 +128,7 @@ export const WorldwideMatchModal: React.FC<WorldwideMatchModalProps> = ({
       displayName: profile?.displayName || user?.displayName || 'Peshmerga Warrior',
       country: profile?.country || 'Kurdistan',
       flag: profile?.flag || '☀️',
-      elo: profile?.elo || 1200,
+      elo: Number(profile?.elo) || 1200,
       honorRank: profile?.honorRank || 'Peshmerga Tactician',
       rankBadge: profile?.rankBadge || '🌿',
       avatar: profile?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(profile?.uid || 'guest')}&backgroundColor=1b2416`

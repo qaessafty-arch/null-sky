@@ -1028,7 +1028,7 @@ export const DeveloperSettingsModal: React.FC<DeveloperSettingsModalProps> = ({ 
                           </div>
                         </div>
                         <button
-                          onClick={signInAsSky}
+                          onClick={() => signInAsSky()}
                           className="w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-black text-xs transition-all shadow-lg shadow-sky-500/20"
                         >
                           Switch to [sky]

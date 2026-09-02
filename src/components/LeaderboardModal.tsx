@@ -5,6 +5,7 @@ import { getLeaderboardEntries, HONOR_RANKS, getHonorRank } from '../utils/respe
 import { Trophy, Sword, HeartHandshake, Shield, Sparkles, X, Award, ChevronRight, Flame, RefreshCw, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useGlassFloat } from '../hooks/useGlassFloat';
 
 interface LeaderboardModalProps {
   profile: RespectProfile;
@@ -19,6 +20,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
   const [leaderboard, setLeaderboard] = useState<RespectLeaderboardEntry[]>(() => getLeaderboardEntries(profile, 'respect'));
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const rankInfo = getHonorRank(profile.respectPoints);
+  const floatVariants = useGlassFloat(1.15);
 
   const fetchCloudData = async (type: 'respect' | 'elo') => {
     setIsLoadingCloud(true);
@@ -71,7 +73,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
+        animate={["visible", "float"]}
+        variants={{
+          visible: { scale: 1, opacity: 1, y: 0 },
+          ...floatVariants
+        }}
         transition={{ type: 'spring', stiffness: 350, damping: 25 }}
         className="relative obsidian-panel rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-[#1F293D] max-h-[90vh] flex flex-col overflow-hidden"
       >
@@ -79,16 +85,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
         <div className="absolute top-0 right-0 w-72 h-72 bg-[#F59E0B]/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Header */}
-        <div className="flex items-center justify-between pb-6 border-b border-[#1F293D] relative z-10">
+        <div className="flex items-center justify-between pb-6 border-b border-[var(--glass-border)] relative z-10">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#0B0F19] border border-[#F59E0B] flex items-center justify-center text-2xl shadow-2xl">
-              <Trophy className="w-7 h-7 text-[#F59E0B]" />
+            <div className="w-14 h-14 rounded-2xl bg-[var(--app-bg)] border border-[var(--secondary-accent)] flex items-center justify-center text-2xl shadow-2xl">
+              <Trophy className="w-7 h-7 text-[var(--secondary-accent)]" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">
+              <h2 className="text-xl sm:text-2xl font-black text-[var(--text-main)] tracking-tight uppercase">
                 {t('leaderboard.worldwideLeaderboard')}
               </h2>
-              <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-[0.2em] mt-1 opacity-70">
+              <p className="text-[11px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] mt-1 opacity-70">
                 Global Honor Rankings
               </p>
             </div>
@@ -97,14 +103,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
             <button
               onClick={() => fetchCloudData(leaderboardType)}
               disabled={isLoadingCloud}
-              className="w-10 h-10 rounded-xl bg-[#111827] hover:bg-[#1F293D] text-[#F59E0B] transition-all border border-[#1F293D] active:scale-95 flex items-center justify-center disabled:opacity-50 cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-[var(--glass-bg)] hover:bg-[var(--glass-bg-hover)] text-[var(--secondary-accent)] transition-all border border-[var(--glass-border)] active:scale-95 flex items-center justify-center disabled:opacity-50 cursor-pointer"
               title="Refresh Leaderboard"
             >
               <RefreshCw className={`w-4 h-4 ${isLoadingCloud ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-xl bg-[#111827] hover:bg-[#1F293D] text-[#94A3B8] transition-all border border-[#1F293D] active:scale-95 flex items-center justify-center cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-[var(--glass-bg)] hover:bg-[var(--glass-bg-hover)] text-[var(--text-muted)] transition-all border border-[var(--glass-border)] active:scale-95 flex items-center justify-center cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -112,34 +118,34 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
         </div>
 
         {/* Player Honor Summary Card */}
-        <div className="my-6 p-5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] shadow-inner relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#F59E0B]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="my-6 p-5 rounded-2xl bg-[var(--app-bg)] border border-[var(--glass-border)] shadow-inner relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--secondary-accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           
           <div className="flex flex-wrap items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-[#111827] border border-[#F59E0B]/30 flex items-center justify-center text-3xl shadow-xl">
+              <div className="w-14 h-14 rounded-xl bg-[var(--glass-bg)] border border-[var(--secondary-accent)]/30 flex items-center justify-center text-3xl shadow-xl">
                 {profile.rankBadge || '♟️'}
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] uppercase tracking-widest text-[#F59E0B] font-black">Your Standing</span>
+                  <span className="text-[10px] uppercase tracking-widest text-[var(--secondary-accent)] font-black">Your Standing</span>
                   <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse" />
                 </div>
-                <h3 className="text-xl font-black text-white uppercase tracking-tight">{profile.honorRank}</h3>
+                <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">{profile.honorRank}</h3>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="text-center px-4 py-2 rounded-xl bg-[#111827] border border-[#1F293D]">
-                <span className="text-[9px] text-[#94A3B8] uppercase block font-black mb-1">Respect</span>
-                <span className="text-lg font-black text-[#F59E0B] flex items-center justify-center gap-1">
+              <div className="text-center px-4 py-2 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)]">
+                <span className="text-[9px] text-[var(--text-muted)] uppercase block font-black mb-1">Respect</span>
+                <span className="text-lg font-black text-[var(--secondary-accent)] flex items-center justify-center gap-1">
                   ✊ {profile.respectPoints}
                 </span>
               </div>
 
-              <div className="text-center px-4 py-2 rounded-xl bg-[#111827] border border-[#1F293D]">
-                <span className="text-[9px] text-[#94A3B8] uppercase block font-black mb-1">Rating</span>
-                <span className="text-lg font-black text-white">
+              <div className="text-center px-4 py-2 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)]">
+                <span className="text-[9px] text-[var(--text-muted)] uppercase block font-black mb-1">Rating</span>
+                <span className="text-lg font-black text-[var(--text-main)]">
                   ⚔️ {profile.elo}
                 </span>
               </div>
@@ -148,16 +154,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
 
           {/* Progress Bar */}
           {rankInfo.nextRank && (
-            <div className="mt-5 pt-5 border-t border-[#1F293D]">
+            <div className="mt-5 pt-5 border-t border-[var(--glass-border)]">
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-2">
-                <span className="text-[#94A3B8]">Next Ascension: <strong className="text-white">{rankInfo.nextRank.title}</strong></span>
-                <span className="text-[#F59E0B]">{rankInfo.nextRank.pointsNeeded} ✊ Remaining</span>
+                <span className="text-[var(--text-muted)]">Next Ascension: <strong className="text-[var(--text-main)]">{rankInfo.nextRank.title}</strong></span>
+                <span className="text-[var(--secondary-accent)]">{isNaN(rankInfo.nextRank.pointsNeeded) ? 0 : rankInfo.nextRank.pointsNeeded} ✊ Remaining</span>
               </div>
-              <div className="w-full h-1.5 bg-[#111827] rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-[var(--app-bg)] rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, Math.max(10, ((profile.respectPoints % 100) / 100) * 100))}%` }}
-                  className="h-full bg-[#F59E0B] rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                  animate={{ width: `${Math.min(100, Math.max(10, ((Number(profile.respectPoints || 0) % 100) / 100) * 100)) || 10}%` }}
+                  className="h-full bg-[var(--secondary-accent)] rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]"
                 />
               </div>
             </div>
@@ -165,7 +171,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center justify-between gap-2 mb-6 border-b border-[#1F293D] pb-2">
+        <div className="flex items-center justify-between gap-2 mb-6 border-b border-[var(--glass-border)] pb-2">
           <div className="flex items-center gap-1">
             {['leaderboard', 'ranks', 'lore'].map((tab) => (
               <button
@@ -173,8 +179,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                 onClick={() => setActiveTab(tab as any)}
                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                   activeTab === tab
-                    ? 'bg-[#F59E0B] text-[#0B0F19] shadow-lg shadow-[#F59E0B]/20'
-                    : 'text-[#94A3B8] hover:text-white hover:bg-[#111827]'
+                    ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)] shadow-lg shadow-[var(--secondary-accent)]/20'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--glass-bg)]'
                 }`}
               >
                 {tab}
@@ -183,13 +189,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
           </div>
 
           {activeTab === 'leaderboard' && (
-            <div className="flex items-center p-1 rounded-xl bg-[#111827] border border-[#1F293D]">
+            <div className="flex items-center p-1 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)]">
               <button
                 onClick={() => setLeaderboardType('respect')}
                 className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all ${
                   leaderboardType === 'respect'
-                    ? 'bg-[#F59E0B] text-[#0B0F19]'
-                    : 'text-[#94A3B8] hover:text-white'
+                    ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
                 Respect
@@ -198,8 +204,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                 onClick={() => setLeaderboardType('elo')}
                 className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all ${
                   leaderboardType === 'elo'
-                    ? 'bg-[#F59E0B] text-[#0B0F19]'
-                    : 'text-[#94A3B8] hover:text-white'
+                    ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
                 Rating
@@ -220,22 +226,22 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                 className="space-y-3"
               >
                 {leaderboard.map((entry, idx) => {
-                  const isTop3 = entry.rank <= 3;
+                  const isTop3 = Number(entry.rank) <= 3;
                   return (
                     <div
                       key={entry.id}
                       className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                         entry.isCurrentUser
-                          ? 'bg-[#111827] border-[#F59E0B] shadow-xl'
-                          : 'bg-[#0B0F19] border-[#1F293D] hover:border-[#94A3B8]/30'
+                          ? 'bg-[var(--glass-bg)] border-[var(--secondary-accent)] shadow-xl'
+                          : 'bg-[var(--app-bg)] border-[var(--glass-border)] hover:border-[var(--text-muted)]/30'
                       }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
-                          entry.rank === 1 ? 'bg-[#F59E0B] text-[#0B0F19]' :
-                          entry.rank === 2 ? 'bg-slate-300 text-[#0B0F19]' :
+                          entry.rank === 1 ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)]' :
+                          entry.rank === 2 ? 'bg-slate-300 text-[var(--app-bg)]' :
                           entry.rank === 3 ? 'bg-amber-700 text-white' :
-                          'bg-[#111827] text-[#94A3B8] border border-[#1F293D]'
+                          'bg-[var(--glass-bg)] text-[var(--text-muted)] border border-[var(--glass-border)]'
                         }`}>
                           {entry.rank}
                         </div>
@@ -244,30 +250,30 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                             src={entry.avatar}
                             alt={entry.username}
                             className={`w-10 h-10 rounded-xl object-cover border ${
-                              isTop3 ? 'border-[#F59E0B]' : 'border-[#1F293D]'
+                              isTop3 ? 'border-[var(--secondary-accent)]' : 'border-[var(--glass-border)]'
                             }`}
                           />
                           {entry.isCurrentUser && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#10B981] border-2 border-[#111827] rounded-full" />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#10B981] border-2 border-[var(--app-bg)] rounded-full" />
                           )}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[13px] font-black text-white uppercase tracking-tight">{entry.username}</span>
+                            <span className="text-[13px] font-black text-[var(--text-main)] uppercase tracking-tight">{entry.username}</span>
                             <span className="text-xs">{entry.flag}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-[9px] font-black uppercase text-[#94A3B8] tracking-widest">
-                            <span className="text-[#F59E0B]">{entry.title}</span>
+                          <div className="flex items-center gap-2 text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest">
+                            <span className="text-[var(--secondary-accent)]">{entry.title}</span>
                             <span>•</span>
                             <span>{entry.elo} ELO</span>
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-black text-white">
+                        <div className="text-lg font-black text-[var(--text-main)]">
                           {leaderboardType === 'elo' ? `⚔️ ${entry.elo}` : `✊ ${entry.respectPoints}`}
                         </div>
-                        <div className="text-[9px] font-black uppercase text-[#94A3B8] tracking-tighter opacity-60">
+                        <div className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-tighter opacity-60">
                           Total {leaderboardType}
                         </div>
                       </div>
@@ -286,14 +292,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                 className="space-y-3"
               >
                 {HONOR_RANKS.map(rank => {
-                  const isUnlocked = profile.respectPoints >= rank.minRespect;
+                  const isUnlocked = Number(profile.respectPoints) >= rank.minRespect;
                   return (
                     <div
                       key={rank.title}
                       className={`p-4 rounded-2xl border transition-all ${
                         isUnlocked
-                          ? 'bg-[#111827] border-[#F59E0B]/50 text-white'
-                          : 'bg-[#0B0F19] border-[#1F293D] opacity-40 grayscale text-[#94A3B8]'
+                          ? 'bg-[var(--glass-bg)] border-[var(--secondary-accent)]/50 text-[var(--text-main)]'
+                          : 'bg-[var(--app-bg)] border-[var(--glass-border)] opacity-40 grayscale text-[var(--text-muted)]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -309,10 +315,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-black text-[#F59E0B] block">
+                          <span className="text-xs font-black text-[var(--secondary-accent)] block">
                             {rank.minRespect} ✊
                           </span>
-                          <span className="text-[9px] font-black uppercase tracking-tighter text-[#94A3B8]">
+                          <span className="text-[9px] font-black uppercase tracking-tighter text-[var(--text-muted)]">
                             Requirement
                           </span>
                         </div>

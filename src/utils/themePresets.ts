@@ -25,7 +25,8 @@ export const PRESET_THEMES: UITheme[] = [
       boardLight: '#d4a359',
       boardDark: '#0b1d3a',
       boardBorder: '#a855f7'
-    }
+    },
+    backgroundImage: 'https://images3.alphacoders.com/217/217311.jpg'
   },
   {
     id: 'aot',
@@ -63,15 +64,15 @@ export const PRESET_THEMES: UITheme[] = [
       primaryHover: '#435433',
       secondary: '#F5C453', // Kurdish Sun Gold
       accentGlow: 'rgba(245, 196, 83, 0.40)',
-      appBg: '#10140e', // Mountain Night Dark
-      mesh1: 'rgba(82, 103, 58, 0.28)', // Olive ambient
-      mesh2: 'rgba(245, 196, 83, 0.22)', // Sun Gold ambient
-      mesh3: 'rgba(140, 36, 37, 0.18)', // Jamadani Crimson ambient
+      appBg: '#05070a', // Pure Obsidian
+      mesh1: 'rgba(74, 18, 18, 0.35)', // Subdued Deep Red
+      mesh2: 'rgba(35, 45, 27, 0.28)', // Subdued Tactical Green
+      mesh3: 'rgba(74, 59, 25, 0.20)', // Subdued Gold
       cardBg: 'rgba(223, 208, 176, 0.05)',
       cardBorder: 'rgba(245, 196, 83, 0.24)',
       cardHoverBg: 'rgba(82, 103, 58, 0.14)',
       cardHoverBorder: 'rgba(245, 196, 83, 0.48)',
-      panelBg: 'rgba(18, 24, 16, 0.88)',
+      panelBg: 'rgba(11, 15, 25, 0.85)',
       textMain: '#FDFCF7',
       textMuted: 'rgba(223, 208, 176, 0.70)',
       boardLight: '#DFD0B0', // Sandstone Khaki
@@ -167,15 +168,15 @@ export const PRESET_THEMES: UITheme[] = [
       primaryHover: '#d97706',
       secondary: '#fbbf24',
       accentGlow: 'rgba(245, 158, 11, 0.35)',
-      appBg: '#110f0c',
-      mesh1: 'rgba(245, 158, 11, 0.20)',
-      mesh2: 'rgba(217, 119, 6, 0.16)',
-      mesh3: 'rgba(251, 191, 36, 0.12)',
+      appBg: '#09090b', // Deep Obsidian
+      mesh1: 'rgba(31, 18, 6, 0.20)', // Subtle Amber Glow
+      mesh2: 'rgba(15, 23, 42, 0.16)', // Slate Depth
+      mesh3: 'rgba(2, 6, 23, 0.12)', // Deepest Black
       cardBg: 'rgba(255, 245, 230, 0.05)',
       cardBorder: 'rgba(245, 158, 11, 0.18)',
       cardHoverBg: 'rgba(245, 158, 11, 0.09)',
       cardHoverBorder: 'rgba(251, 191, 36, 0.40)',
-      panelBg: 'rgba(24, 20, 15, 0.82)',
+      panelBg: 'rgba(9, 9, 11, 0.9)',
       textMain: '#fffbeb',
       textMuted: 'rgba(254, 243, 199, 0.65)',
       boardLight: '#fef3c7',
@@ -402,6 +403,12 @@ export function applyThemeToDOM(theme: UITheme) {
   if (c.boardLight) root.style.setProperty('--board-light', c.boardLight);
   if (c.boardDark) root.style.setProperty('--board-dark', c.boardDark);
   if (c.boardBorder) root.style.setProperty('--board-border', c.boardBorder);
+
+  if (theme.backgroundImage) {
+    root.style.setProperty('--app-bg-image', `url(${theme.backgroundImage})`);
+  } else {
+    root.style.removeProperty('--app-bg-image');
+  }
 }
 
 // LocalStorage helpers

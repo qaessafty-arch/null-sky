@@ -18,18 +18,19 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
 }) => {
   const isWhite = color === 'w';
 
-  // --- Theme: 🏴‍☠️ One Piece (Straw Hats vs Marines) ---
-  if (theme === 'one-piece') {
-    return <OnePiecePiece type={type} color={color} className={className} />;
-  }
+  const getPieceContent = () => {
+    // --- Theme: 🏴‍☠️ One Piece (Straw Hats vs Marines) ---
+    if (theme === 'one-piece') {
+      return <OnePiecePiece type={type} color={color} className="w-full h-full" />;
+    }
 
-  // --- Theme: 🦇 Batman Gotham City (Heroes vs Villains) ---
-  if (theme === 'batman') {
-    return <BatmanPiece type={type} color={color} className={className} />;
-  }
+    // --- Theme: 🦇 Batman Gotham City (Heroes vs Villains) ---
+    if (theme === 'batman') {
+      return <BatmanPiece type={type} color={color} className="w-full h-full" />;
+    }
 
-  // --- Theme 1: ☀️ Peshmerga Royal (Kurdish) ---
-  if (theme === 'peshmerga') {
+    // --- Theme 1: ☀️ Peshmerga Royal (Kurdish) ---
+    if (theme === 'peshmerga') {
     const mainBody = isWhite ? '#FDFCF7' : '#1E2818';
     const borderStroke = isWhite ? '#435433' : '#F5C453';
     const goldAccent = '#F5C453';
@@ -38,8 +39,7 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
     const sandstoneAccent = '#DFD0B0';
 
     return (
-      <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-md">
-        <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id={`pesh-grad-${color}-${type}`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={isWhite ? '#FFFFFF' : '#2D3B23'} />
@@ -171,11 +171,8 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
             </g>
           )}
         </svg>
-      </div>
     );
   }
-
-  // --- Theme 2: 🎓 UKH Chancellor (University of Kurdistan Hewlêr) ---
   if (theme === 'ukh') {
     const mainBody = isWhite ? '#F8FAFC' : '#1A3B5C';
     const borderStroke = isWhite ? '#1A3B5C' : '#E5A93B';
@@ -184,8 +181,7 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
     const parchmentAccent = '#E8EEF5';
 
     return (
-      <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(26,59,92,0.4)]">
-        <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id={`ukh-grad-${color}-${type}`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={isWhite ? '#FFFFFF' : '#234E78'} />
@@ -285,15 +281,13 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
             </g>
           )}
         </svg>
-      </div>
     );
   }
 
   // --- Theme: ⚔️ Attack on Titan (Scouts vs Titans) ---
   if (theme === 'aot') {
     return (
-      <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]">
-        <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <defs>
             {/* Scout Gradients */}
             <linearGradient id="scout-blade-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -705,7 +699,6 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
             </g>
           )}
         </svg>
-      </div>
     );
   }
 
@@ -717,8 +710,7 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
     const coreHighlight = isWhite ? '#E0F2FE' : '#FCE7F3';
 
     return (
-      <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-[0_0_12px_rgba(56,189,248,0.4)]">
-        <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <defs>
             <filter id={`neon-bloom-${color}`} x="-30%" y="-30%" width="160%" height="160%">
               <feGaussianBlur stdDeviation="1.2" result="blur" />
@@ -783,98 +775,95 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
             </g>
           )}
         </svg>
-      </div>
     );
   }
 
-  // --- Theme 3: 👑 Classic FIDE Staunton 3D ---
-  if (theme === 'fide_3d') {
-    const baseGradientId = `fide-grad-${color}-${type}`;
-    const lightColor = isWhite ? '#FFFFFF' : '#475569';
-    const darkColor = isWhite ? '#CBD5E1' : '#0F172A';
-    const outlineColor = isWhite ? '#334155' : '#020617';
+    // --- Theme 3: 👑 Classic FIDE Staunton 3D ---
+    if (theme === 'fide_3d') {
+      const baseGradientId = `fide-grad-${color}-${type}`;
+      const lightColor = isWhite ? '#FFFFFF' : '#475569';
+      const darkColor = isWhite ? '#CBD5E1' : '#0F172A';
+      const outlineColor = isWhite ? '#334155' : '#020617';
 
-    return (
-      <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
-        <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id={baseGradientId} x1="20%" y1="0%" x2="80%" y2="100%">
-              <stop offset="0%" stopColor={lightColor} />
-              <stop offset="70%" stopColor={darkColor} />
-              <stop offset="100%" stopColor={outlineColor} />
-            </linearGradient>
-          </defs>
+      return (
+        <svg viewBox="0 0 45 45" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id={baseGradientId} x1="20%" y1="0%" x2="80%" y2="100%">
+                <stop offset="0%" stopColor={lightColor} />
+                <stop offset="70%" stopColor={darkColor} />
+                <stop offset="100%" stopColor={outlineColor} />
+              </linearGradient>
+            </defs>
 
-          {type === 'p' && (
-            <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path
-                d="M 22.5 9 C 20.3 9 18.5 10.8 18.5 13 C 18.5 13.9 18.8 14.7 19.3 15.4 C 17.3 16.5 16 18.6 16 21 C 16 23 16.9 24.8 18.4 26 C 15.4 27.1 11 31.6 11 39.5 L 34 39.5 C 34 31.6 29.6 27.1 26.6 26 C 28.1 24.8 29 23 29 21 C 29 18.6 27.7 16.5 25.7 15.4 C 26.2 14.7 26.5 13.9 26.5 13 C 26.5 10.8 24.7 9 22.5 9 Z"
-                fill={`url(#${baseGradientId})`}
-              />
-              <path d="M 13 37 L 32 37" stroke={isWhite ? '#F8FAFC' : '#64748B'} strokeWidth="1.2" />
-            </g>
-          )}
+            {type === 'p' && (
+              <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path
+                  d="M 22.5 9 C 20.3 9 18.5 10.8 18.5 13 C 18.5 13.9 18.8 14.7 19.3 15.4 C 17.3 16.5 16 18.6 16 21 C 16 23 16.9 24.8 18.4 26 C 15.4 27.1 11 31.6 11 39.5 L 34 39.5 C 34 31.6 29.6 27.1 26.6 26 C 28.1 24.8 29 23 29 21 C 29 18.6 27.7 16.5 25.7 15.4 C 26.2 14.7 26.5 13.9 26.5 13 C 26.5 10.8 24.7 9 22.5 9 Z"
+                  fill={`url(#${baseGradientId})`}
+                />
+                <path d="M 13 37 L 32 37" stroke={isWhite ? '#F8FAFC' : '#64748B'} strokeWidth="1.2" />
+              </g>
+            )}
 
-          {type === 'n' && (
-            <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path
-                d="M 22 10 C 32.5 11 38.5 18 38 39 L 15 39 C 15 30 25 32.5 23 18 C 24.3 20.9 18.4 25.3 16 27 C 13 29 13.1 31.3 11 31 C 9.9 30 12.4 27.9 11 28 C 10 28 11.1 29.2 10 30 C 9 30 6 31 6 26 C 6 24 12 14 12 14 C 12 14 13.8 12.1 14 10.5 C 13.2 9.5 13.5 8.5 13.5 7.5 C 14.5 6.5 16.5 10 16.5 10 L 18.5 10 C 18.5 10 19.2 8 21 7 C 22 7 22 10 22 10 Z"
-                fill={`url(#${baseGradientId})`}
-              />
-              <circle cx="9.5" cy="25.5" r="1.2" fill={isWhite ? '#0F172A' : '#F8FAFC'} stroke="none" />
-            </g>
-          )}
+            {type === 'n' && (
+              <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path
+                  d="M 22 10 C 32.5 11 38.5 18 38 39 L 15 39 C 15 30 25 32.5 23 18 C 24.3 20.9 18.4 25.3 16 27 C 13 29 13.1 31.3 11 31 C 9.9 30 12.4 27.9 11 28 C 10 28 11.1 29.2 10 30 C 9 30 6 31 6 26 C 6 24 12 14 12 14 C 12 14 13.8 12.1 14 10.5 C 13.2 9.5 13.5 8.5 13.5 7.5 C 14.5 6.5 16.5 10 16.5 10 L 18.5 10 C 18.5 10 19.2 8 21 7 C 22 7 22 10 22 10 Z"
+                  fill={`url(#${baseGradientId})`}
+                />
+                <circle cx="9.5" cy="25.5" r="1.2" fill={isWhite ? '#0F172A' : '#F8FAFC'} stroke="none" />
+              </g>
+            )}
 
-          {type === 'b' && (
-            <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path
-                d="M 9 36 C 12.3 35 19.1 36.4 22.5 34 C 25.8 36.4 32.6 35 36 36 C 36 36 37.6 36.5 39 38 C 38.3 39 37.3 39 36 38.5 C 32.6 37.5 25.8 39 22.5 37.5 C 19.1 39 12.3 37.5 9 38.5 C 7.6 39 6.6 39 6 38 C 7.3 36.5 9 36 9 36 Z"
-                fill={`url(#${baseGradientId})`}
-              />
-              <path
-                d="M 15 32 C 17.5 34.5 27.5 34.5 30 32 C 30.5 30.5 30 30 30 30 C 30 27.5 27.5 26 27.5 26 C 33 24.5 33.5 14.5 22.5 10.5 C 11.5 14.5 12 24.5 17.5 26 C 17.5 26 15 27.5 15 30 C 15 30 14.5 30.5 15 32 Z"
-                fill={`url(#${baseGradientId})`}
-              />
-              <circle cx="22.5" cy="8" r="2.5" fill={`url(#${baseGradientId})`} />
-              <path d="M 20 18 L 25 18 M 22.5 15.5 L 22.5 20.5" stroke={outlineColor} />
-            </g>
-          )}
+            {type === 'b' && (
+              <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path
+                  d="M 9 36 C 12.3 35 19.1 36.4 22.5 34 C 25.8 36.4 32.6 35 36 36 C 36 36 37.6 36.5 39 38 C 38.3 39 37.3 39 36 38.5 C 32.6 37.5 25.8 39 22.5 37.5 C 19.1 39 12.3 37.5 9 38.5 C 7.6 39 6.6 39 6 38 C 7.3 36.5 9 36 9 36 Z"
+                  fill={`url(#${baseGradientId})`}
+                />
+                <path
+                  d="M 15 32 C 17.5 34.5 27.5 34.5 30 32 C 30.5 30.5 30 30 30 30 C 30 27.5 27.5 26 27.5 26 C 33 24.5 33.5 14.5 22.5 10.5 C 11.5 14.5 12 24.5 17.5 26 C 17.5 26 15 27.5 15 30 C 15 30 14.5 30.5 15 32 Z"
+                  fill={`url(#${baseGradientId})`}
+                />
+                <circle cx="22.5" cy="8" r="2.5" fill={`url(#${baseGradientId})`} />
+                <path d="M 20 18 L 25 18 M 22.5 15.5 L 22.5 20.5" stroke={outlineColor} />
+              </g>
+            )}
 
-          {type === 'r' && (
-            <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M 9 39 L 36 39 L 36 36 L 9 36 Z" fill={`url(#${baseGradientId})`} />
-              <path d="M 12 36 L 12 32 L 33 32 L 33 36 Z" fill={`url(#${baseGradientId})`} />
-              <path d="M 14 32 L 14 17 L 31 17 L 31 32 Z" fill={`url(#${baseGradientId})`} />
-              <path d="M 11 17 L 11 9 L 15 9 L 15 11 L 20 11 L 20 9 L 25 9 L 25 11 L 30 11 L 30 9 L 34 9 L 34 17 Z" fill={`url(#${baseGradientId})`} />
-            </g>
-          )}
+            {type === 'r' && (
+              <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M 9 39 L 36 39 L 36 36 L 9 36 Z" fill={`url(#${baseGradientId})`} />
+                <path d="M 12 36 L 12 32 L 33 32 L 33 36 Z" fill={`url(#${baseGradientId})`} />
+                <path d="M 14 32 L 14 17 L 31 17 L 31 32 Z" fill={`url(#${baseGradientId})`} />
+                <path d="M 11 17 L 11 9 L 15 9 L 15 11 L 20 11 L 20 9 L 25 9 L 25 11 L 30 11 L 30 9 L 34 9 L 34 17 Z" fill={`url(#${baseGradientId})`} />
+              </g>
+            )}
 
-          {type === 'q' && (
-            <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M 9 26 C 17.5 24.5 30 24.5 36 26 L 38.5 13.5 L 31 25 L 30.7 10.5 L 25.5 24.5 L 22.5 10 L 19.5 24.5 L 14.3 10.5 L 14 25 L 6.5 13.5 Z" fill={`url(#${baseGradientId})`} />
-              <path d="M 9 26 C 9 28 10.5 28 11.5 30 C 12.5 31.5 12.5 31 12 33.5 C 10.5 34.5 11 36 11 36 L 34 36 C 34 36 34.5 34.5 33 33.5 C 32.5 31 32.5 31.5 33.5 30 C 34.5 28 36 28 36 26" fill={`url(#${baseGradientId})`} />
-              <circle cx="6" cy="12" r="1.5" fill={`url(#${baseGradientId})`} />
-              <circle cx="14" cy="9" r="1.5" fill={`url(#${baseGradientId})`} />
-              <circle cx="22.5" cy="8" r="1.8" fill={`url(#${baseGradientId})`} />
-              <circle cx="31" cy="9" r="1.5" fill={`url(#${baseGradientId})`} />
-              <circle cx="39" cy="12" r="1.5" fill={`url(#${baseGradientId})`} />
-            </g>
-          )}
+            {type === 'q' && (
+              <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M 9 26 C 17.5 24.5 30 24.5 36 26 L 38.5 13.5 L 31 25 L 30.7 10.5 L 25.5 24.5 L 22.5 10 L 19.5 24.5 L 14.3 10.5 L 14 25 L 6.5 13.5 Z" fill={`url(#${baseGradientId})`} />
+                <path d="M 9 26 C 9 28 10.5 28 11.5 30 C 12.5 31.5 12.5 31 12 33.5 C 10.5 34.5 11 36 11 36 L 34 36 C 34 36 34.5 34.5 33 33.5 C 32.5 31 32.5 31.5 33.5 30 C 34.5 28 36 28 36 26" fill={`url(#${baseGradientId})`} />
+                <circle cx="6" cy="12" r="1.5" fill={`url(#${baseGradientId})`} />
+                <circle cx="14" cy="9" r="1.5" fill={`url(#${baseGradientId})`} />
+                <circle cx="22.5" cy="8" r="1.8" fill={`url(#${baseGradientId})`} />
+                <circle cx="31" cy="9" r="1.5" fill={`url(#${baseGradientId})`} />
+                <circle cx="39" cy="12" r="1.5" fill={`url(#${baseGradientId})`} />
+              </g>
+            )}
 
-          {type === 'k' && (
-            <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M 22.5 11.6 L 22.5 6 M 20 8 L 25 8" stroke={outlineColor} strokeWidth="1.8" />
-              <path d="M 22.5 25 C 22.5 25 27 17.5 25.5 14.5 C 24 11.5 21 11.5 22.5 25 Z" fill={`url(#${baseGradientId})`} />
-              <path d="M 12.5 37 C 15 40.5 30 40.5 32.5 37 L 32.5 30 C 32.5 30 41.5 25.5 38.5 19.5 C 34.5 13 25 16 22.5 23.5 L 22.5 27 L 22.5 23.5 C 20 16 10.5 13 6.5 19.5 C 3.5 25.5 12.5 30 12.5 30 L 12.5 37 Z" fill={`url(#${baseGradientId})`} />
-            </g>
-          )}
-        </svg>
-      </div>
-    );
-  }
+            {type === 'k' && (
+              <g stroke={outlineColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M 22.5 11.6 L 22.5 6 M 20 8 L 25 8" stroke={outlineColor} strokeWidth="1.8" />
+                <path d="M 22.5 25 C 22.5 25 27 17.5 25.5 14.5 C 24 11.5 21 11.5 22.5 25 Z" fill={`url(#${baseGradientId})`} />
+                <path d="M 12.5 37 C 15 40.5 30 40.5 32.5 37 L 32.5 30 C 32.5 30 41.5 25.5 38.5 19.5 C 34.5 13 25 16 22.5 23.5 L 22.5 27 L 22.5 23.5 C 20 16 10.5 13 6.5 19.5 C 3.5 25.5 12.5 30 12.5 30 L 12.5 37 Z" fill={`url(#${baseGradientId})`} />
+              </g>
+            )}
+          </svg>
+      );
+    }
 
-  // --- Fallback Standard Themes (classic, neo, alpha, vintage) ---
-  let whiteFill = '#FFFFFF';
+    // --- Fallback Standard Themes (classic, neo, alpha, vintage) ---
+    let whiteFill = '#FFFFFF';
   let whiteStroke = '#1E293B';
   let blackFill = '#0F172A';
   let blackStroke = '#94A3B8';
@@ -976,9 +965,23 @@ export const ChessPiece = React.memo<ChessPieceProps>(({
     }
   };
 
+  return renderPieceSvg();
+};
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-md">
-      {renderPieceSvg()}
+    <div className={`relative w-full h-full flex items-center justify-center select-none ${className}`}>
+      {/* 3D Floating Shadow */}
+      <div className="absolute bottom-1 w-2/3 h-2 bg-black/40 blur-md rounded-full transform scale-x-125 opacity-60 z-0" />
+      
+      {/* The Piece Content */}
+      <div className="relative z-10 w-full h-full flex items-center justify-center transform hover:-translate-y-1.5 transition-transform duration-500 ease-out">
+        {getPieceContent()}
+        
+        {/* Premium Glass Reflection Overlay */}
+        <div className="absolute inset-0 pointer-events-none mix-blend-soft-light opacity-30">
+          <div className="w-full h-full bg-gradient-to-tr from-transparent via-white/40 to-transparent" />
+        </div>
+      </div>
     </div>
   );
 });

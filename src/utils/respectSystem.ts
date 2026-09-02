@@ -21,7 +21,12 @@ export function getHonorRank(respectPoints: number | string): { title: string; b
     };
   }
 
-  const numPoints = typeof respectPoints === 'number' ? respectPoints : parseInt(String(respectPoints)) || 0;
+  let numPoints = 0;
+  if (typeof respectPoints === 'number') {
+    numPoints = isNaN(respectPoints) ? 0 : respectPoints;
+  } else {
+    numPoints = parseInt(String(respectPoints)) || 0;
+  }
   let current = HONOR_RANKS[0];
   let nextRank: { title: string; pointsNeeded: number } | undefined = undefined;
 

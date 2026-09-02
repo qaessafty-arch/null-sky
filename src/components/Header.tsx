@@ -4,7 +4,9 @@ import { Menu, X, User, Crown, Shield, Bell, Swords, UserPlus, Trophy, Info, Che
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { useGlassFloat } from '../hooks/useGlassFloat';
 import { formatDistanceToNow } from 'date-fns';
+import { KurdishFlag } from './KurdishFlag';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -39,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const { user, profile } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
+  const floatVariants = useGlassFloat(0.8);
 
   const currentRespect = profile?.respectPoints ?? respectProfile?.respectPoints ?? 100;
   const currentElo = profile?.elo ?? respectProfile?.elo ?? 1200;
@@ -55,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
           id="header-hamburger-toggle"
           type="button"
           onClick={onToggleSidebar}
-          className="w-10 h-10 glass-button text-[#F59E0B] border-white/5 interactive-btn shadow-lg"
+          className="w-10 h-10 glass-button text-[var(--secondary-accent)] border-white/5 interactive-btn shadow-lg"
           aria-label={isSidebarOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
         >
           {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -63,14 +66,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* 2. Brand Logo */}
         <div className="flex items-center gap-3 group cursor-pointer">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#111827] to-[#0B0F19] border border-[#F59E0B]/40 flex items-center justify-center text-sm shadow-xl group-hover:border-[#F59E0B] transition-colors">
-            <span className="animate-pulse">☀️</span>
+          <div className="w-10 h-7 rounded shadow-xl overflow-hidden group-hover:scale-110 transition-transform duration-300">
+            <KurdishFlag />
           </div>
           <div className="flex items-center gap-2">
             <span className="font-display font-black text-xl tracking-tight text-white drop-shadow-md">
               Chesskys
             </span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#F59E0B] text-[#0B0F19] shadow-lg uppercase tracking-tighter font-mono">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-[var(--secondary-accent)] text-[var(--app-bg)] shadow-lg uppercase tracking-tighter font-mono">
               PRO
             </span>
           </div>
@@ -79,11 +82,11 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* 2. Center: Live Match Evaluation Bar */}
       <div className="hidden md:flex flex-col items-center justify-center flex-1 mx-8" dir="ltr">
-        <div className="w-full max-w-sm flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-widest text-[#94A3B8] mb-1.5">
+        <div className="w-full max-w-sm flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
           <span>Engine Analysis</span>
-          <span className="text-[#F59E0B] font-black">+1.2</span>
+          <span className="text-[var(--secondary-accent)] font-black">+1.2</span>
         </div>
-        <div className="w-full max-w-sm h-1.5 bg-[#0B0F19] rounded-full border border-[#1F293D] overflow-hidden flex relative shadow-inner">
+        <div className="w-full max-w-sm h-1.5 bg-[var(--app-bg)] rounded-full border border-[var(--glass-border)] overflow-hidden flex relative shadow-inner">
           <div className="h-full bg-white w-[55%] transition-all duration-700 ease-out shadow-[0_0_15px_rgba(255,255,255,0.4)] z-10" />
           <div className="h-full bg-[#EF4444] flex-1 z-0 opacity-80" />
         </div>
@@ -93,9 +96,9 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-3 sm:gap-6">
         {/* Connection Status - Hidden on mobile */}
         <div className="hidden sm:flex flex-col items-end">
-          <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-[0.2em] leading-none">Global Rank</span>
+          <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] leading-none">Global Rank</span>
           <span className="text-[11px] font-mono font-black text-white mt-1">
-            {currentElo} <span className="text-[#F59E0B]">ELO</span>
+            {currentElo} <span className="text-[var(--secondary-accent)]">ELO</span>
           </span>
         </div>
 
@@ -106,12 +109,12 @@ export const Header: React.FC<HeaderProps> = ({
               id="header-notif-bell-btn"
               type="button"
               onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className={`w-10 h-10 glass-button flex items-center justify-center hover:border-[#F59E0B]/30 transition-all relative interactive-btn ${isNotifOpen ? 'text-[#F59E0B] border-[#F59E0B]/30' : 'text-[#94A3B8]'}`}
+              className={`w-10 h-10 glass-button flex items-center justify-center hover:border-[var(--secondary-accent)]/30 transition-all relative interactive-btn ${isNotifOpen ? 'text-[var(--secondary-accent)] border-[var(--secondary-accent)]/30' : 'text-[var(--text-muted)]'}`}
               aria-label="View Notifications"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#EF4444] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0B0F19] animate-pulse">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#EF4444] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[var(--app-bg)] animate-pulse">
                   {unreadCount}
                 </span>
               )}
@@ -122,23 +125,27 @@ export const Header: React.FC<HeaderProps> = ({
                 <>
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    animate={["visible", "float"]}
+                    variants={{
+                      visible: { opacity: 1, y: 0, scale: 1 },
+                      ...floatVariants
+                    }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    className="absolute right-0 mt-3 w-[320px] sm:w-[380px] bg-[#111827] border border-[#1F293D] backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
+                    className="absolute right-0 mt-3 w-[320px] sm:w-[380px] bg-[var(--glass-panel)] border border-[var(--glass-border)] backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
                   >
                     {/* Header */}
-                    <div className="p-4 border-b border-[#1F293D] flex items-center justify-between bg-[#0B0F19]/50">
+                    <div className="p-4 border-b border-[var(--glass-border)] flex items-center justify-between bg-[var(--app-bg)]/50">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-black text-white uppercase tracking-widest">Inbox</span>
                         {unreadCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded bg-[#F59E0B] text-[#0B0F19] text-[9px] font-black shadow-sm">{unreadCount}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-[var(--secondary-accent)] text-[var(--app-bg)] text-[9px] font-black shadow-sm">{unreadCount}</span>
                         )}
                       </div>
                       {unreadCount > 0 && (
                         <button 
                           onClick={() => markAllAsRead()}
-                          className="text-[10px] font-black text-[#F59E0B] hover:text-white uppercase tracking-tighter transition-colors"
+                          className="text-[10px] font-black text-[var(--secondary-accent)] hover:text-white uppercase tracking-tighter transition-colors"
                         >
                           Mark all as read
                         </button>
@@ -158,12 +165,12 @@ export const Header: React.FC<HeaderProps> = ({
                         ))
                       ) : (
                         <div className="p-12 flex flex-col items-center justify-center text-center gap-4">
-                          <div className="w-16 h-16 rounded-3xl bg-[#0B0F19] border border-[#1F293D] flex items-center justify-center text-3xl shadow-inner">
+                          <div className="w-16 h-16 rounded-3xl bg-[var(--app-bg)] border border-[var(--glass-border)] flex items-center justify-center text-3xl shadow-inner">
                             ☀️
                           </div>
                           <div>
                             <p className="text-sm font-black text-white uppercase tracking-tight">System Status: All Clear</p>
-                            <p className="text-[10px] text-[#94A3B8] font-mono mt-1 opacity-60">No pending notifications in matrix</p>
+                            <p className="text-[10px] text-[var(--text-muted)] font-mono mt-1 opacity-60">No pending notifications in matrix</p>
                           </div>
                         </div>
                       )}
@@ -181,22 +188,22 @@ export const Header: React.FC<HeaderProps> = ({
           id="header-user-avatar-btn"
           type="button"
           onClick={user ? onOpenProfile : (onOpenLogin || onOpenProfile)}
-          className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl bg-[#111827] border border-[#1F293D] interactive-btn hover:border-[#F59E0B]/40 group"
+          className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] interactive-btn hover:border-[var(--secondary-accent)]/40 group"
         >
           <div className="relative">
             {profile?.photoURL || user?.photoURL ? (
               <img
                 src={profile?.photoURL || user?.photoURL || ''}
                 alt={userDisplayName}
-                className="w-9 h-9 rounded-xl object-cover ring-1 ring-[#1F293D] group-hover:ring-[#F59E0B] transition-all"
+                className="w-9 h-9 rounded-xl object-cover ring-1 ring-[var(--glass-border)] group-hover:ring-[var(--secondary-accent)] transition-all"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-9 h-9 rounded-xl bg-[#0B0F19] flex items-center justify-center text-[#F59E0B] border border-[#1F293D] group-hover:border-[#F59E0B] transition-all">
+              <div className="w-9 h-9 rounded-xl bg-[var(--app-bg)] flex items-center justify-center text-[var(--secondary-accent)] border border-[var(--glass-border)] group-hover:border-[var(--secondary-accent)] transition-all">
                 {user ? <span className="text-xs font-black">{userDisplayName.charAt(0).toUpperCase()}</span> : <User className="w-5 h-5" />}
               </div>
             )}
-            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#10B981] rounded-full border-2 border-[#111827] shadow-sm" />
+            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#10B981] rounded-full border-2 border-[var(--app-bg)] shadow-sm" />
           </div>
 
           <div className="hidden lg:flex flex-col items-start leading-tight">
@@ -204,10 +211,10 @@ export const Header: React.FC<HeaderProps> = ({
               {userDisplayName}
             </span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className={`text-[9px] font-black uppercase tracking-widest ${latency < 40 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+              <span className={`text-[9px] font-black uppercase tracking-widest ${latency < 40 ? 'text-[#10B981]' : 'text-[var(--secondary-accent)]'}`}>
                 {latency}ms
               </span>
-              <Shield className="w-2.5 h-2.5 text-[#F59E0B]" />
+              <Shield className="w-2.5 h-2.5 text-[var(--secondary-accent)]" />
             </div>
           </div>
         </button>
@@ -232,31 +239,31 @@ const NotificationListItem: React.FC<{
 
   return (
     <div 
-      className={`p-4 border-b border-[#1F293D] hover:bg-white/5 transition-colors group cursor-pointer relative ${!notification.isRead ? 'bg-[#F59E0B]/5' : ''}`}
+      className={`p-4 border-b border-[var(--glass-border)] hover:bg-white/5 transition-colors group cursor-pointer relative ${!notification.isRead ? 'bg-[var(--secondary-accent)]/5' : ''}`}
       onClick={onRead}
     >
       {!notification.isRead && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#F59E0B]" />
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--secondary-accent)]" />
       )}
       <div className="flex gap-4">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
-          !notification.isRead ? 'bg-[#111827] border-[#F59E0B]/30' : 'bg-[#0B0F19] border-[#1F293D]'
+          !notification.isRead ? 'bg-[var(--glass-bg)] border-[var(--secondary-accent)]/30' : 'bg-[var(--app-bg)] border-[var(--glass-border)]'
         }`}>
           {getIcon()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-black text-white uppercase tracking-tight truncate">{notification.title}</span>
-            <span className="text-[9px] font-mono text-[#94A3B8] shrink-0">
+            <span className="text-[9px] font-mono text-[var(--text-muted)] shrink-0">
               {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
             </span>
           </div>
-          <p className="text-[11px] text-[#94A3B8] leading-normal mt-1 line-clamp-2">{notification.message}</p>
+          <p className="text-[11px] text-[var(--text-muted)] leading-normal mt-1 line-clamp-2">{notification.message}</p>
           
           {!notification.isRead && (
             <div className="flex items-center gap-2 mt-3">
               <button 
-                className="px-3 py-1.5 rounded-lg bg-[#F59E0B] text-[#0B0F19] text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+                className="px-3 py-1.5 rounded-lg bg-[var(--secondary-accent)] text-[var(--app-bg)] text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
               >
                 View Action
               </button>
@@ -265,7 +272,7 @@ const NotificationListItem: React.FC<{
                   e.stopPropagation();
                   onRead();
                 }}
-                className="px-3 py-1.5 rounded-lg bg-[#1F293D] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#374151] transition-all"
+                className="px-3 py-1.5 rounded-lg bg-[var(--glass-border)] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[var(--glass-bg-hover)] transition-all"
               >
                 Dismiss
               </button>
@@ -277,7 +284,7 @@ const NotificationListItem: React.FC<{
             e.stopPropagation();
             onDelete();
           }}
-          className="opacity-0 group-hover:opacity-100 p-1 text-[#94A3B8] hover:text-red-400 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-red-400 transition-all"
         >
           <X className="w-3.5 h-3.5" />
         </button>

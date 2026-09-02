@@ -32,13 +32,18 @@ interface MatchSession {
   matchId: string;
   whiteUid: string;
   blackUid: string;
+  whiteSocketId: string;
+  blackSocketId: string;
   pool: string;
   rated: boolean;
-  status: 'starting' | 'active' | 'completed' | 'aborted';
+  status: 'starting' | 'active' | 'completed' | 'aborted' | 'resigned' | 'timeout';
   createdAt: number;
-  timerStartedAt: number | null;
+  lastMoveAt: number;
+  whiteSecondsRemaining: number;
+  blackSecondsRemaining: number;
   movesCount: number;
   abortTimer?: NodeJS.Timeout;
+  gameInterval?: NodeJS.Timeout;
   chess: Chess;
   blurCountWhite: number;
   blurCountBlack: number;
@@ -48,6 +53,7 @@ export class MatchmakingEngine {
   private io: Server;
   private queue: Map<string, QueuePlayer> = new Map();
   private activeMatches: Map<string, MatchSession> = new Map();
+  private userToMatch: Map<string, string> = new Map(); // uid -> matchId
   private dodgePenalties: Map<string, number> = new Map(); // uid -> unban timestamp
 
   constructor(io: Server) {
@@ -57,8 +63,41 @@ export class MatchmakingEngine {
     setInterval(() => this.processQueue(), 2000);
     
     this.io.on('connection', (socket: Socket) => {
+      console.log(`[Socket] Connection: ${socket.id}`);
+
       socket.on('ping', (cb) => {
         if (typeof cb === 'function') cb(Date.now());
+      });
+
+      socket.on('identify', (data) => {
+        const { uid } = data;
+        if (!uid) return;
+        
+        // Reconnection Logic: Check if user has an active match
+        const matchId = this.userToMatch.get(uid);
+        if (matchId) {
+          const match = this.activeMatches.get(matchId);
+          if (match && (match.status === 'active' || match.status === 'starting')) {
+            console.log(`[Reconnection] User ${uid} rejoining match ${matchId}`);
+            socket.join(matchId);
+            
+            // Update socket ID for the player
+            if (uid === match.whiteUid) match.whiteSocketId = socket.id;
+            if (uid === match.blackUid) match.blackSocketId = socket.id;
+
+            socket.emit('reconnect_success', {
+              matchId,
+              fen: match.chess.fen(),
+              pgn: match.chess.pgn(),
+              turn: match.chess.turn(),
+              whiteSecondsRemaining: match.whiteSecondsRemaining,
+              blackSecondsRemaining: match.blackSecondsRemaining,
+              white: match.whiteUid,
+              black: match.blackUid,
+              status: match.status
+            });
+          }
+        }
       });
 
       socket.on('join_queue', async (data) => {
@@ -91,17 +130,28 @@ export class MatchmakingEngine {
       });
 
       socket.on('make_move', (data) => {
-        const { matchId, uid, from, to, promotion } = data;
+        const { matchId, uid, from, to, promotion, moveIndex } = data;
         const match = this.activeMatches.get(matchId);
         if (!match) return;
 
-        // Authoritative Server Move Validation
+        // BUG: Multiplayer desync when moves are sent rapidly without verification
+        // FIXED: Authoritative Server Move Validation & Move Index tracking
         try {
+          // Verify Move Index to prevent race conditions
+          if (typeof moveIndex === 'number' && moveIndex !== match.movesCount) {
+             socket.emit('move_rejected', { 
+               error: 'Out of sync move index.', 
+               expectedIndex: match.movesCount,
+               currentFen: match.chess.fen() 
+             });
+             return;
+          }
+
           const activeTurn = match.chess.turn();
           const playerColor = uid === match.whiteUid ? 'w' : (uid === match.blackUid ? 'b' : null);
           
           if (playerColor !== activeTurn) {
-             socket.emit('move_rejected', { error: 'Not your turn or invalid player.' });
+             socket.emit('move_rejected', { error: 'Not your turn.' });
              return;
           }
 
@@ -112,36 +162,57 @@ export class MatchmakingEngine {
           });
 
           if (!moveResult) {
-             socket.emit('move_rejected', { error: 'Illegal move.' });
+             socket.emit('move_rejected', { error: 'Illegal move sequence detected.' });
              return;
           }
 
-          // Cancel the abort timer if this is the first move (White's move)
-          if (match.movesCount === 0 && match.whiteUid === uid) {
-            if (match.abortTimer) clearTimeout(match.abortTimer);
-            match.status = 'active';
+          // Move Accepted
+          const now = Date.now();
+          const elapsed = (now - match.lastMoveAt) / 1000;
+          
+          // Update timers
+          if (match.movesCount > 0) { // Don't subtract time on first move usually or handle differently
+            if (activeTurn === 'w') {
+              match.whiteSecondsRemaining = Math.max(0, match.whiteSecondsRemaining - elapsed);
+            } else {
+              match.blackSecondsRemaining = Math.max(0, match.blackSecondsRemaining - elapsed);
+            }
           }
+          
+          match.lastMoveAt = now;
           match.movesCount++;
           
-          // Broadcast to room
-          socket.to(matchId).emit('move_made', {
+          if (match.status === 'starting') {
+            if (match.abortTimer) clearTimeout(match.abortTimer);
+            match.status = 'active';
+            this.startMatchTimers(match);
+          }
+
+          // IMPROVED: Send authoritative state back to both players
+          this.io.to(matchId).emit('move_made', {
              ...data,
              fen: match.chess.fen(),
-             san: moveResult.san
+             san: moveResult.san,
+             whiteSecondsRemaining: match.whiteSecondsRemaining,
+             blackSecondsRemaining: match.blackSecondsRemaining,
+             moveIndex: match.movesCount
           });
 
           // Check for game end
           if (match.chess.isGameOver()) {
-             match.status = 'completed';
-             this.io.to(matchId).emit('game_over', {
-                reason: match.chess.isCheckmate() ? 'checkmate' : 'draw',
-                winner: match.chess.isCheckmate() ? playerColor : null
-             });
-             this.activeMatches.delete(matchId);
+             this.handleGameOver(match, match.chess.isCheckmate() ? 'checkmate' : 'draw', playerColor);
           }
-
         } catch (e) {
-          socket.emit('move_rejected', { error: 'Invalid move payload.' });
+          socket.emit('move_rejected', { error: 'Engine processing error.' });
+        }
+      });
+
+      socket.on('resign', (data) => {
+        const { matchId, uid } = data;
+        const match = this.activeMatches.get(matchId);
+        if (match && match.status === 'active') {
+          const winner = uid === match.whiteUid ? 'b' : 'w';
+          this.handleGameOver(match, 'resignation', winner);
         }
       });
 
@@ -255,16 +326,24 @@ export class MatchmakingEngine {
       matchId,
       whiteUid: whitePlayer.uid,
       blackUid: blackPlayer.uid,
+      whiteSocketId: whitePlayer.socketId,
+      blackSocketId: blackPlayer.socketId,
       pool: whitePlayer.pool,
       rated: whitePlayer.rated,
       status: 'starting',
       createdAt: Date.now(),
-      timerStartedAt: Date.now(),
+      lastMoveAt: Date.now(),
+      whiteSecondsRemaining: whitePlayer.pool === 'blitz' ? 180 : (whitePlayer.pool === 'bullet' ? 60 : 600),
+      blackSecondsRemaining: whitePlayer.pool === 'blitz' ? 180 : (whitePlayer.pool === 'bullet' ? 60 : 600),
       movesCount: 0,
       chess: new Chess(),
       blurCountWhite: 0,
       blurCountBlack: 0
     };
+
+    // Track user to match mapping for reconnection
+    this.userToMatch.set(whitePlayer.uid, matchId);
+    this.userToMatch.set(blackPlayer.uid, matchId);
 
     // 2. 30-Second First Move Abort Timer
     session.abortTimer = setTimeout(() => {
@@ -289,10 +368,54 @@ export class MatchmakingEngine {
     });
   }
 
+  private startMatchTimers(match: MatchSession) {
+    match.gameInterval = setInterval(() => {
+      const turn = match.chess.turn();
+      if (turn === 'w') {
+        match.whiteSecondsRemaining--;
+      } else {
+        match.blackSecondsRemaining--;
+      }
+
+      // Check for timeout
+      if (match.whiteSecondsRemaining <= 0 || match.blackSecondsRemaining <= 0) {
+        this.handleGameOver(match, 'timeout', match.whiteSecondsRemaining <= 0 ? 'b' : 'w');
+      }
+
+      // Throttle clock updates to every 2 seconds to reduce payload
+      if (Math.floor(Date.now() / 1000) % 2 === 0) {
+        this.io.to(match.matchId).emit('clock_sync', {
+          white: match.whiteSecondsRemaining,
+          black: match.blackSecondsRemaining
+        });
+      }
+    }, 1000);
+  }
+
+  private handleGameOver(match: MatchSession, reason: string, winner: 'w' | 'b' | 'draw' | null) {
+    if (match.status === 'completed') return;
+    match.status = 'completed';
+    
+    if (match.gameInterval) clearInterval(match.gameInterval);
+    if (match.abortTimer) clearTimeout(match.abortTimer);
+
+    this.io.to(match.matchId).emit('game_over', {
+      reason,
+      winner,
+      fen: match.chess.fen()
+    });
+
+    // Cleanup mappings
+    this.userToMatch.delete(match.whiteUid);
+    this.userToMatch.delete(match.blackUid);
+    this.activeMatches.delete(match.matchId);
+  }
+
   private handleAbort(session: MatchSession, triggeredByUid: string) {
-    if (session.status !== 'starting') return;
+    if (session.status !== 'starting' && session.status !== 'active') return;
     session.status = 'aborted';
     if (session.abortTimer) clearTimeout(session.abortTimer);
+    if (session.gameInterval) clearInterval(session.gameInterval);
 
     // If a player specifically aborted/dodged, add penalty
     if (triggeredByUid === session.whiteUid || triggeredByUid === 'system') {
@@ -304,6 +427,8 @@ export class MatchmakingEngine {
       reason: triggeredByUid === 'system' ? 'White failed to make the first move in 30 seconds.' : 'Opponent aborted the match.'
     });
 
+    this.userToMatch.delete(session.whiteUid);
+    this.userToMatch.delete(session.blackUid);
     this.activeMatches.delete(session.matchId);
   }
 }

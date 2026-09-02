@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useGlassFloat } from '../hooks/useGlassFloat';
 import { AppSettings, BoardThemeId, PieceThemeId } from '../types/chess';
 import { ChessPiece } from './ChessPiece';
 import { 
@@ -176,26 +178,34 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
     );
   };
 
+  const floatVariants = useGlassFloat(1.1);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div
+      <motion.div
         id="theme-selector-modal"
-        className="w-full max-w-2xl max-h-[92vh] obsidian-panel flex flex-col overflow-hidden"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={["visible", "float"]}
+        variants={{
+          visible: { opacity: 1, scale: 1, y: 0 },
+          ...floatVariants
+        }}
+        className="w-full max-w-2xl max-h-[92vh] bg-[var(--glass-panel)] border border-[var(--glass-border)] rounded-[24px] flex flex-col overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.8)]"
       >
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#1F293D] flex items-center justify-between bg-black/40 shrink-0">
+        <div className="p-4 sm:p-5 border-b border-[var(--glass-border)] flex items-center justify-between bg-[var(--app-bg)]/40 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#0B0F19] flex items-center justify-center shadow-lg border border-[#F59E0B]">
-              <Palette className="w-5 h-5 text-[#F59E0B]" />
+            <div className="w-10 h-10 rounded-2xl bg-[var(--app-bg)] flex items-center justify-center shadow-lg border border-[var(--secondary-accent)]">
+              <Palette className="w-5 h-5 text-[var(--secondary-accent)]" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <span>Theme Engine & Pieces</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#F59E0B] text-black font-black">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--secondary-accent)] text-[var(--app-bg)] font-black">
                   PRO
                 </span>
               </h2>
-              <p className="text-xs text-[#94A3B8]">
+              <p className="text-xs text-[var(--text-muted)]">
                 Attack on Titan, Batman Gotham City, Classic, & Crossover Mode
               </p>
             </div>
@@ -220,14 +230,14 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 p-2 bg-black/60 border-b border-[#1F293D] shrink-0">
+        <div className="flex items-center gap-1 p-2 bg-black/60 border-b border-[var(--glass-border)] shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('presets')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'presets'
-                ? 'bg-[#F59E0B] text-black shadow-md border border-[#F59E0B]/50'
-                : 'text-[#94A3B8] hover:text-white'
+                ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)] shadow-md border border-[var(--secondary-accent)]/50'
+                : 'text-[var(--text-muted)] hover:text-white'
             }`}
           >
             <Crown className="w-3.5 h-3.5" />
@@ -239,8 +249,8 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
             onClick={() => setActiveTab('crossover')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'crossover'
-                ? 'bg-[#111827] text-white shadow-md border border-purple-400/50'
-                : 'text-[#94A3B8] hover:text-white'
+                ? 'bg-[var(--glass-bg)] text-white shadow-md border border-purple-400/50'
+                : 'text-[var(--text-muted)] hover:text-white'
             }`}
           >
             <Shuffle className="w-3.5 h-3.5 text-purple-300" />
@@ -252,8 +262,8 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
             onClick={() => setActiveTab('boards')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'boards'
-                ? 'bg-[#111827] text-white shadow-md border border-[#F59E0B]/50'
-                : 'text-[#94A3B8] hover:text-white'
+                ? 'bg-[var(--glass-bg)] text-white shadow-md border border-[var(--secondary-accent)]/50'
+                : 'text-[var(--text-muted)] hover:text-white'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -479,7 +489,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
           {/* TAB 3: BOARD STYLES */}
           {activeTab === 'boards' && (
             <div className="space-y-3">
-              <p className="text-xs text-[#DFD0B0]/70">
+              <p className="text-xs text-[var(--text-muted)]">
                 Choose the background surface and textures for the 64-square battlefield:
               </p>
 
@@ -496,7 +506,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
                       }}
                       className={`min-h-[50px] p-3 rounded-2xl border text-left transition-all flex items-center justify-between cursor-pointer ${
                         isSelected
-                          ? 'bg-white/10 border-[#F5C453] shadow-lg ring-1 ring-[#F5C453]/40'
+                          ? 'bg-white/10 border-[var(--secondary-accent)] shadow-lg ring-1 ring-[var(--secondary-accent)]/40'
                           : 'bg-white/[0.03] hover:bg-white/[0.07] border-white/10'
                       }`}
                     >
@@ -510,7 +520,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
                         <span className="text-xs font-bold text-white">{b.name}</span>
                       </div>
 
-                      {isSelected && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                      {isSelected && <Check className="w-4 h-4 text-[var(--secondary-accent)] shrink-0" />}
                     </button>
                   );
                 })}
@@ -520,7 +530,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-black/60 border-t border-white/10 flex justify-end shrink-0">
+        <div className="p-4 bg-[var(--app-bg)]/60 border-t border-[var(--glass-border)] flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -529,7 +539,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
             Done
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { BotProfile, TimeControl, PieceColor, GameMode } from '../types/chess';
 import { BOT_PROFILES, TIME_CONTROLS } from '../utils/chessEngine';
 import { Bot, Users, Play, Clock, Sparkles, X, Globe, Zap, Sun, Flame } from 'lucide-react';
 import { getTodayDateKey, getDailyPuzzleForDate, loadDailyProgress } from '../utils/dailyPuzzles';
+import { useGlassFloat } from '../hooks/useGlassFloat';
 
 interface NewGameModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   const todayKey = getTodayDateKey();
   const todayPuzzle = getDailyPuzzleForDate(todayKey);
   const dailyProgress = loadDailyProgress(todayKey);
+  const floatVariants = useGlassFloat(1.2);
 
   if (!isOpen) return null;
 
@@ -54,7 +56,11 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            animate={["visible", "float"]}
+            variants={{
+              visible: { opacity: 1, scale: 1, y: 0 },
+              ...floatVariants
+            }}
             exit={{ opacity: 0, scale: 0.94, y: 10 }}
             transition={{ type: 'spring', stiffness: 320, damping: 26, mass: 0.8 }}
             className="relative glass-panel rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] overflow-y-auto max-h-[90vh] no-scrollbar"

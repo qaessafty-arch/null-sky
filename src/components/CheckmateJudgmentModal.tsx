@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Shield, Sword, HeartHandshake, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { GlassButton } from './GlassButton';
 
 interface CheckmateJudgmentModalProps {
   onExecute: () => void;
@@ -78,11 +79,12 @@ export const CheckmateJudgmentModal: React.FC<CheckmateJudgmentModalProps> = ({
         {/* Dual Choice Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
           {/* Choice 1: EXECUTE */}
-          <button
+          <GlassButton
             onClick={handleExecuteClick}
-            className="group relative p-5 rounded-2xl bg-[#0B0F19] border border-[#EF4444]/30 hover:border-[#EF4444] text-left transition-all active:scale-95 shadow-lg flex flex-col justify-between cursor-pointer"
+            variant="red"
+            className="group relative !p-5 !rounded-2xl !bg-[#0B0F19] border border-[#EF4444]/30 hover:border-[#EF4444] !flex-col !items-start transition-all active:scale-95 shadow-lg flex justify-between cursor-pointer"
           >
-            <div>
+            <div className="w-full text-left">
               <div className="flex items-center justify-between mb-4">
                 <span className="p-2 rounded-xl bg-[#EF4444] text-white shadow-lg">
                   <Sword className="w-5 h-5" />
@@ -98,18 +100,19 @@ export const CheckmateJudgmentModal: React.FC<CheckmateJudgmentModalProps> = ({
                 Lethal blow. Claim rating points immediately.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#1F293D] flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
+            <div className="w-full mt-4 pt-3 border-t border-[#1F293D] flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
               <span className="text-[#94A3B8]">Reward</span>
               <span className="text-[#EF4444]">+8 ELO</span>
             </div>
-          </button>
+          </GlassButton>
 
           {/* Choice 2: MERCY */}
-          <button
+          <GlassButton
             onClick={handleMercyClick}
-            className="group relative p-5 rounded-2xl bg-[#0B0F19] border border-[#10B981]/30 hover:border-[#10B981] text-left transition-all active:scale-95 shadow-lg flex flex-col justify-between cursor-pointer"
+            variant="secondary"
+            className="group relative !p-5 !rounded-2xl !bg-[#0B0F19] border border-[#10B981]/30 hover:border-[#10B981] !flex-col !items-start transition-all active:scale-95 shadow-lg flex justify-between cursor-pointer"
           >
-            <div>
+            <div className="w-full text-left">
               <div className="flex items-center justify-between mb-4">
                 <span className="p-2 rounded-xl bg-[#10B981] text-white shadow-lg">
                   <HeartHandshake className="w-5 h-5" />
@@ -125,11 +128,11 @@ export const CheckmateJudgmentModal: React.FC<CheckmateJudgmentModalProps> = ({
                 Spare opponent. Earn maximum respect.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#1F293D] flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
+            <div className="w-full mt-4 pt-3 border-t border-[#1F293D] flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
               <span className="text-[#94A3B8]">Bonus</span>
               <span className="text-[#F59E0B]">+50 Respect</span>
             </div>
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </div>

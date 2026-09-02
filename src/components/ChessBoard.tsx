@@ -15,7 +15,7 @@ interface ChessBoardProps {
   showCoordinates: boolean;
   highlightLastMove: boolean;
   showLegalMoves: boolean;
-  lastMove: { from: string; to: string } | null;
+  lastMove?: { from: string; to: string } | null;
   onMove: (from: Square, to: Square) => boolean | void;
   disabled?: boolean;
   evalScore?: number | null;
@@ -47,14 +47,14 @@ const THEME_STYLES: Record<
   }
 > = {
   obsidian: {
-    light: 'bg-[#41506E]',
-    dark: 'bg-[#161E2E]',
-    lightText: 'text-[#0E1524]',
-    darkText: 'text-[#8296BC]',
-    border: 'border-[#1F293D]',
-    glow: 'shadow-[0_0_50px_rgba(245,158,11,0.1)]',
-    marker: 'bg-white/45',
-    captureRing: 'border-white/45'
+    light: 'obsidian-texture-light bg-[#27272a]', // Zinc 800
+    dark: 'obsidian-texture-dark bg-[#09090b]',  // Zinc 950
+    lightText: 'text-[#a1a1aa]', // Zinc 400
+    darkText: 'text-[#3f3f46]',  // Zinc 600
+    border: 'border-[#3f3f46]',  // Zinc 600
+    glow: 'shadow-[0_0_50px_rgba(245,158,11,0.08)]',
+    marker: 'bg-[var(--secondary-accent)]/30',
+    captureRing: 'border-[var(--secondary-accent)]/30'
   },
   'one-piece': {
     light: 'bg-[#0b1d3a]',
@@ -145,14 +145,24 @@ const THEME_STYLES: Record<
     glow: 'shadow-[0_0_30px_rgba(103,130,146,0.3)]'
   },
   midnight: {
-    light: 'bg-[#48597A]',
-    dark: 'bg-[#141C2C]',
-    lightText: 'text-[#101725]',
-    darkText: 'text-[#8B9DC0]',
-    border: 'border-slate-800',
-    glow: 'shadow-[0_0_35px_rgba(30,41,59,0.5)]',
-    marker: 'bg-white/45',
-    captureRing: 'border-white/45'
+    light: 'bg-[#1a1a2e]',
+    dark: 'bg-[#16213e]',
+    lightText: 'text-[#4e5d7a]',
+    darkText: 'text-[#0f3460]',
+    border: 'border-[#0f3460]',
+    glow: 'shadow-[0_0_50px_rgba(15,52,96,0.4)]',
+    marker: 'bg-blue-400/30',
+    captureRing: 'border-blue-400/40'
+  },
+  premium: {
+    light: 'bg-[#1e293b]', // Slate 800ish
+    dark: 'bg-[#0f172a]',  // Slate 900ish
+    lightText: 'text-slate-500',
+    darkText: 'text-slate-400',
+    border: 'border-slate-700',
+    glow: 'shadow-[0_20px_50px_rgba(0,0,0,0.5)]',
+    marker: 'bg-emerald-400/40',
+    captureRing: 'border-emerald-400/50'
   },
   marble: {
     light: 'bg-[#8ca2b0]',
@@ -884,21 +894,16 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                 role="gridcell"
                 aria-label={`${square}${piece ? `, ${piece.color === 'w' ? 'white' : 'black'} ${PIECE_NAMES[piece.type]}` : ', empty'}${isLegalTarget ? `, ${isLegalTarget.isCapture ? 'capture' : 'legal'} move` : ''}`}
                 aria-selected={isSelected}
-                className={`relative flex items-center justify-center transition-colors duration-150 ${
+                className={`relative flex items-center justify-center transition-all duration-200 ${
                   piece || isLegalTarget ? 'cursor-pointer' : 'cursor-default'
-                } ${isLight ? theme.light : theme.dark}`}
+                } ${isLight ? theme.light : theme.dark} group`}
               >
+                {/* Gradient Square Overlays for Premium Look */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+                
                 {/* Last Move Overlay */}
                 {isLastMoveSquare && (
-                  isAotBoard ? (
-                    <div className="absolute inset-0 bg-emerald-500/25 border border-emerald-400/40 shadow-[inset_0_0_12px_rgba(34,197,94,0.35)] pointer-events-none" />
-                  ) : isBatmanBoard ? (
-                    <div className="absolute inset-0 bg-yellow-500/30 border border-yellow-400/50 shadow-[inset_0_0_12px_rgba(234,179,8,0.4)] pointer-events-none" />
-                  ) : isOnePieceBoard ? (
-                    <div className="absolute inset-0 bg-purple-500/30 border border-purple-400/50 shadow-[inset_0_0_12px_rgba(168,85,247,0.4)] pointer-events-none" />
-                  ) : (
-                    <div className="absolute inset-0 bg-amber-400/35 mix-blend-multiply pointer-events-none" />
-                  )
+                  <div className="absolute inset-0 bg-yellow-500/20 border border-yellow-400/30 shadow-[inset_0_0_12px_rgba(234,179,8,0.2)] pointer-events-none z-10" />
                 )}
 
                 {/* Selected Square Highlight (ODM Gas Glow Aura for AoT, Bat-Signal Yellow for Batman) */}
@@ -1001,6 +1006,27 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
             );
           })
         )}
+
+        {/* Checkmate / Draw Overlays */}
+        <AnimatePresence>
+          {game.isGameOver() && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none"
+            >
+              <div className="text-center space-y-2 p-6 rounded-3xl bg-black/80 border border-white/10 shadow-2xl">
+                <h2 className="text-3xl font-black text-[#F5C453] uppercase tracking-widest animate-pulse">
+                  {game.isCheckmate() ? 'Checkmate' : 'Game Over'}
+                </h2>
+                <p className="text-xs text-white/60 font-medium">
+                  {game.isCheckmate() ? (game.turn() === 'w' ? 'Black Wins' : 'White Wins') : 'Draw'}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Animated Pieces Overlay Layer with Framer Motion Spring Transitions */}
         <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">

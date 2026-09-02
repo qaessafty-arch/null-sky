@@ -4,15 +4,26 @@ class SocketService {
   private socket: Socket | null = null;
   private uid: string | null = null;
   
-  public connect() {
+  public connect(uid?: string) {
+    if (uid) this.uid = uid;
+    
     if (!this.socket) {
       this.socket = io({
         autoConnect: true,
         reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
       });
       
       this.socket.on('connect', () => {
         console.log('[Matchmaking] Connected to Real-time Engine:', this.socket?.id);
+        if (this.uid) {
+          this.socket?.emit('identify', { uid: this.uid });
+        }
+      });
+
+      this.socket.on('reconnect_success', (data) => {
+        console.log('[Reconnection] Authoritative state restored for match:', data.matchId);
       });
     }
     return this.socket;

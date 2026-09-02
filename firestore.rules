@@ -40,16 +40,17 @@ service cloud.firestore {
 
     function isDeveloper() {
       return isSignedIn() && (
-        (request.auth.token.keys().hasAll(['admin']) && request.auth.token.admin == true) ||
+        request.auth.token.get('admin', false) == true ||
         (request.auth.token.email is string && (
           request.auth.token.email.lower() == 'qaessafty@gmail.com' ||
-          request.auth.token.email.lower() == 'qayssafty@gmail.com'
+          request.auth.token.email.lower() == 'qayssafty@gmail.com' ||
+          request.auth.token.email.lower() == 'qaess.business@gmail.com'
         ))
       );
     }
 
     function isOwnerOf(targetUid) {
-      return isSignedIn() && uid() == targetUid;
+      return isSignedIn() && (uid() == targetUid || isDeveloper());
     }
 
     /* ---------------------------------------------------------------- *
@@ -57,29 +58,22 @@ service cloud.firestore {
      * ---------------------------------------------------------------- */
 
     function isValidUserProfile(data) {
-      return data.keys().hasAll(['uid', 'displayName', 'elo', 'respectPoints'])
+      return data.keys().hasAll(['uid', 'displayName'])
         && data.uid is string && data.uid.size() <= 128
-        && data.displayName is string && data.displayName.size() <= 100
-        && (data.get('username', '') is string && data.get('username', '').size() <= 50)
-        && (data.get('email', '') is string && data.get('email', '').size() <= 200)
-        && data.elo is number
-        && data.respectPoints is number;
+        && data.displayName is string && data.displayName.size() <= 100;
     }
 
     function isValidOnlineMatch(data) {
       return data.keys().hasAll(['id', 'fen', 'status', 'turn'])
         && data.id is string && data.id.size() <= 128
-        && data.fen is string && data.fen.size() <= 200
         && data.status in ['waiting', 'in_progress', 'completed', 'aborted', 'checkmate', 'resigned', 'draw', 'timeout', 'abandoned']
         && data.turn in ['w', 'b'];
     }
 
     function isValidDirectMessage(data) {
-      return data.keys().hasAll(['id', 'chatId', 'senderId', 'text'])
-        && data.id is string && data.id.size() <= 128
-        && data.chatId is string && data.chatId.size() <= 256
+      return data.keys().hasAll(['senderId', 'text'])
         && data.senderId is string && data.senderId.size() <= 128
-        && data.text is string && data.text.size() <= 2000;
+        && data.text is string && data.text.size() <= 5000;
     }
 
     /* ---------------------------------------------------------------- *
@@ -91,33 +85,30 @@ service cloud.firestore {
       allow list: if true;
       
       allow create: if isOwnerOf(userId) && isValidUserProfile(incoming());
-      allow update: if (isOwnerOf(userId) || isDeveloper()) 
-        && isValidUserProfile(incoming())
-        && incoming().uid == userId;
+      allow update: if isOwnerOf(userId) && isValidUserProfile(incoming());
 
       match /friends/{friendId} {
-        allow read: if isOwnerOf(userId) || isOwnerOf(friendId) || isDeveloper();
-        allow write: if isOwnerOf(userId) || isDeveloper();
+        allow read: if isOwnerOf(userId) || isOwnerOf(friendId);
+        allow write: if isOwnerOf(userId) || isOwnerOf(friendId);
       }
 
       match /notifications/{notificationId} {
-        allow read: if isOwnerOf(userId) || isDeveloper();
-        allow create: if isSignedIn() && incoming().userId == userId;
-        allow update: if (isOwnerOf(userId) || isDeveloper()) 
-          && incoming().diff(existing()).affectedKeys().hasAny(['isRead', 'status']);
-        allow delete: if isOwnerOf(userId) || isDeveloper();
+        allow read: if isOwnerOf(userId);
+        allow create: if isSignedIn();
+        allow update: if isOwnerOf(userId);
+        allow delete: if isOwnerOf(userId);
       }
 
       match /blocked/{blockedId} {
-        allow read, write: if isOwnerOf(userId) || isDeveloper();
+        allow read, write: if isOwnerOf(userId);
       }
     }
 
     match /friend_requests/{requestId} {
       allow read: if isSignedIn() && (resource.data.fromUserId == uid() || resource.data.toUserId == uid() || isDeveloper());
       allow create: if isSignedIn() && incoming().fromUserId == uid();
-      allow update: if isSignedIn() && (existing().toUserId == uid() || existing().fromUserId == uid());
-      allow delete: if isSignedIn() && (existing().toUserId == uid() || existing().fromUserId == uid());
+      allow update: if isSignedIn() && (existing().toUserId == uid() || existing().fromUserId == uid() || isDeveloper());
+      allow delete: if isSignedIn() && (existing().toUserId == uid() || existing().fromUserId == uid() || isDeveloper());
     }
 
     match /online_matches/{matchId} {
@@ -125,17 +116,12 @@ service cloud.firestore {
         let whiteId = resource.data.get(['whitePlayer', 'uid'], '');
         let blackId = resource.data.get(['blackPlayer', 'uid'], '');
         let guestId = resource.data.get('guestId', '');
-        return isOwnerOf(whiteId) || isOwnerOf(blackId) || isOwnerOf(guestId) || isOwnerOf(resource.data.hostId);
+        let hostId = resource.data.get('hostId', '');
+        return isOwnerOf(whiteId) || isOwnerOf(blackId) || isOwnerOf(guestId) || isOwnerOf(hostId);
       }
 
-      function isNewPlayer() {
-        let whiteId = incoming().get(['whitePlayer', 'uid'], '');
-        let blackId = incoming().get(['blackPlayer', 'uid'], '');
-        return isOwnerOf(whiteId) || isOwnerOf(blackId) || isOwnerOf(incoming().hostId);
-      }
-
-      allow read: if true;
-      allow create: if isNewPlayer() && isValidOnlineMatch(incoming());
+      allow read: if true; // Allow spectators
+      allow create: if isSignedIn() && isValidOnlineMatch(incoming());
       allow update: if (isPlayer() || isDeveloper()) && isValidOnlineMatch(incoming());
       allow delete: if isDeveloper();
 
@@ -150,16 +136,33 @@ service cloud.firestore {
       }
     }
 
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn(); // Simplified for now to allow joining
+      allow delete: if isDeveloper() || isOwnerOf(resource.data.creatorId);
+    }
+
     match /direct_messages/{chatId} {
-      function inChat() {
-        return isSignedIn() && chatId.split('_').hasAny([uid()]);
+      function inChat(data) {
+        return isSignedIn() && (
+          data.fromUserId == uid() || 
+          data.toUserId == uid() || 
+          isDeveloper()
+        );
       }
-      allow read: if inChat() || isDeveloper();
-      allow write: if inChat() || isDeveloper();
+      allow read: if inChat(resource.data);
+      allow create: if inChat(incoming());
+      allow update: if inChat(existing()) || isDeveloper();
+      allow delete: if isDeveloper();
 
       match /messages/{messageId} {
-        allow read: if inChat() || isDeveloper();
-        allow create: if inChat() && isOwnerOf(incoming().senderId) && isValidDirectMessage(incoming());
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/direct_messages/$(chatId)).data.fromUserId == uid() ||
+          get(/databases/$(database)/documents/direct_messages/$(chatId)).data.toUserId == uid() ||
+          isDeveloper()
+        );
+        allow create: if isSignedIn() && isOwnerOf(incoming().senderId) && isValidDirectMessage(incoming());
       }
     }
 

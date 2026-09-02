@@ -37,30 +37,30 @@ export const EvalBar: React.FC<EvalBarProps> = ({ score, isFlipped }) => {
   return (
     <div
       id="eval-bar-container"
-      className="relative w-4 sm:w-6 md:w-7 shrink-0 self-stretch my-2 sm:my-4 min-h-[220px] bg-black/60 rounded-xl overflow-hidden border border-white/15 shadow-xl flex flex-col justify-between select-none backdrop-blur-md"
+      className="relative w-full h-full glass-premium overflow-hidden border-white/10 flex flex-col justify-between select-none"
     >
-      {/* Black's territory (top or bottom depending on flip) */}
+      {/* Black's territory */}
       <div
-        className="w-full bg-[#12141c]/95 transition-all duration-300 ease-out flex items-start justify-center pt-2"
+        className="w-full bg-black/60 transition-all duration-700 ease-out flex items-start justify-center pt-3"
         style={{ height: `${100 - whiteBarHeight}%` }}
       >
-        <span className="hidden md:block w-full text-center px-0.5 text-[9px] leading-none font-mono font-extrabold text-white/80 tracking-tighter">
+        <span className="hidden md:block w-full text-center px-0.5 text-[10px] leading-none font-black text-white/90 tracking-tighter uppercase">
           {!isFlipped && score < -0.1 ? displayScore : isFlipped && score > 0.1 ? displayScore : ''}
         </span>
       </div>
 
       {/* White's territory */}
       <div
-        className="w-full bg-white/95 transition-all duration-300 ease-out flex items-end justify-center pb-2"
+        className="w-full bg-white/80 transition-all duration-700 ease-out flex items-end justify-center pb-3"
         style={{ height: `${whiteBarHeight}%` }}
       >
-        <span className="hidden md:block w-full text-center px-0.5 text-[9px] leading-none font-mono font-extrabold text-slate-900 tracking-tighter">
+        <span className="hidden md:block w-full text-center px-0.5 text-[10px] leading-none font-black text-black tracking-tighter uppercase">
           {!isFlipped && score > 0.1 ? displayScore : isFlipped && score < -0.1 ? displayScore : ''}
         </span>
       </div>
 
-      {/* Center 0.0 line indicator */}
-      <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 to-purple-400 transform -translate-y-1/2 pointer-events-none z-10 opacity-80 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+      {/* Center line indicator - Premium Gold/Red */}
+      <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FFD700] to-[#D32F2F] transform -translate-y-1/2 pointer-events-none z-10 opacity-100 shadow-[0_0_10px_rgba(255,215,0,0.5)]" />
     </div>
   );
 };

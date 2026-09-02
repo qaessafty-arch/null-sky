@@ -8,6 +8,7 @@ import { MoveHistory } from './MoveHistory';
 import { engine } from '../engine/client';
 import { detectOpening } from '../utils/openings';
 import { soundManager } from '../utils/audio';
+import { StrategicVisionPanel } from './StrategicVisionPanel';
 import {
   ChevronFirst,
   ChevronLeft,
@@ -16,17 +17,20 @@ import {
   RotateCw,
   Sparkles,
   ClipboardPaste,
-  FileText
+  FileText,
+  Glasses
 } from 'lucide-react';
 
 interface AnalysisPanelProps {
   settings: AppSettings;
+  onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
   initialFen?: string;
   initialPgn?: string;
 }
 
 export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   settings,
+  onUpdateSettings,
   initialFen,
   initialPgn
 }) => {
@@ -183,6 +187,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           showLegalMoves={settings.showLegalMoves}
           lastMove={null}
           onMove={handleAnalysisMove}
+          showTerritory={settings.showTerritory}
+          showWeather={settings.showWeather}
         />
       </div>
 
@@ -295,6 +301,12 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Strategic Vision (The Glasses Panel) */}
+        <StrategicVisionPanel
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+        />
 
         {/* Move History Table */}
         <MoveHistory

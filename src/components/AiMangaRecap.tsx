@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Share2 } from 'lucide-react';
+import { Glasses, Share2 } from 'lucide-react';
 
 interface AiMangaRecapProps {
   pgn: string;
@@ -34,7 +34,7 @@ export const AiMangaRecap: React.FC<AiMangaRecapProps> = ({ pgn }) => {
         onClick={fetchRecap}
         className="w-full flex items-center justify-center gap-2 py-3 px-4 mt-2 rounded-2xl bg-gradient-to-r from-orange-500 to-rose-600 text-white font-black uppercase text-xs hover:opacity-95 transition-all shadow-[0_0_15px_rgba(249,115,22,0.4)]"
       >
-        <Sparkles className="w-4 h-4" />
+        <Glasses className="w-4 h-4" />
         Generate AI Manga Recap
       </button>
     );
@@ -52,7 +52,7 @@ export const AiMangaRecap: React.FC<AiMangaRecapProps> = ({ pgn }) => {
     <div className="w-full mt-3 p-4 rounded-3xl bg-gradient-to-b from-black/80 to-slate-900/90 border-2 border-orange-500/40 relative overflow-hidden group">
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none" />
       <h3 className="text-sm font-black text-orange-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <Sparkles className="w-4 h-4" /> 
+        <Glasses className="w-4 h-4" /> 
         Match Chronicle
       </h3>
       <div className="text-left space-y-2 text-xs text-slate-300 leading-relaxed font-medium italic relative z-10 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">

@@ -36,6 +36,7 @@ import {
   Copy, 
   Check, 
   MessageSquare, 
+  Layers,
   Crown, 
   Shield, 
   Sun,
@@ -43,8 +44,9 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
-
-import { InGameChatDrawer } from './InGameChatDrawer';
+import { GameRoom } from './GameRoom';
+import { ConnectionStatus } from './multiplayer/ConnectionStatus';
+import { InGameChatPanel } from './InGameChatPanel';
 
 interface FloatingEmote {
   id: string;
@@ -75,8 +77,10 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [pendingDraw, setPendingDraw] = useState(false);
 
   // In-Game Chat State
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'moves' | 'chat'>('moves');
   const [isMuted, setIsMuted] = useState(false);
+  const [isPendingMove, setIsPendingMove] = useState(false);
+  const [socketStatus, setSocketStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
   const [chatMessages, setChatMessages] = useState<InGameMessage[]>([]);
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [typingMap, setTypingMap] = useState<Record<string, boolean>>({});
@@ -90,6 +94,9 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [evalScore, setEvalScore] = useState<number>(0);
   const [showWeather, setShowWeather] = useState(false);
   const [showTerritory, setShowTerritory] = useState(false);
+
+  const [moveHistory, setMoveHistory] = useState<string[]>([]);
+  const [moveIndex, setMoveIndex] = useState(0);
 
   const myUid = profile?.uid || user?.uid || getLocalPlayerUid();
   const isWhitePlayer = session?.whitePlayer?.uid === myUid;
@@ -127,20 +134,92 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       }
     });
 
-    const socket = socketService.getSocket() || socketService.connect();
+    const socket = socketService.getSocket() || socketService.connect(myUid);
     
+    setSocketStatus(socket.connected ? 'connected' : 'connecting');
+
+    const onConnect = () => setSocketStatus('connected');
+    const onDisconnect = () => setSocketStatus('reconnecting');
+    const onConnectError = () => setSocketStatus('error');
+
+    const onMoveMade = (data: any) => {
+      console.log('[Socket] Move made:', data.san);
+      setIsPendingMove(false);
+      try {
+        const updatedGame = new Chess(data.fen);
+        setGame(updatedGame);
+        setMoveHistory(updatedGame.history());
+        setEvalScore(evaluateBoard(updatedGame));
+        setLastMove({ from: data.from, to: data.to });
+        setWhiteTime(data.whiteSecondsRemaining);
+        setBlackTime(data.blackSecondsRemaining);
+        setMoveIndex(data.moveIndex);
+        
+        // Play sounds based on move result
+        if (updatedGame.isCheckmate()) soundManager.playVictory();
+        else if (updatedGame.inCheck()) soundManager.playCheck();
+        else if (data.san.includes('x')) soundManager.playCapture('p', 'w'); // generic capture sound
+        else soundManager.playMove('p', 'w');
+      } catch (e) {
+        console.error('Error processing socket move:', e);
+      }
+    };
+
+    const onClockSync = (data: { white: number, black: number }) => {
+      setWhiteTime(data.white);
+      setBlackTime(data.black);
+    };
+
+    const onGameOver = (data: { reason: string, winner: string }) => {
+      soundManager.playDefeat();
+      // Session update will come via Firestore to show the outcome banner
+    };
+
     const onMatchAborted = (data: { reason: string }) => {
       alert(`Match Aborted: ${data.reason}`);
       onClose();
     };
+
+    const onReconnectSuccess = (data: any) => {
+      const g = new Chess(data.fen);
+      setGame(g);
+      setMoveHistory(g.history());
+      setWhiteTime(data.whiteSecondsRemaining);
+      setBlackTime(data.blackSecondsRemaining);
+      setMoveIndex(g.history().length);
+    };
     
+    socket.on('move_made', onMoveMade);
+    socket.on('move_rejected', (data: any) => {
+      console.error('[Socket] Move rejected:', data.error);
+      setIsPendingMove(false);
+      if (data.currentFen) {
+        setGame(new Chess(data.currentFen));
+      }
+    });
+    socket.on('clock_sync', onClockSync);
+    socket.on('game_over', onGameOver);
     socket.on('match_aborted', onMatchAborted);
+    socket.on('reconnect_success', onReconnectSuccess);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
+
+    // Initial identify
+    socket.emit('identify', { uid: myUid });
 
     return () => {
       if (unsub) unsub();
+      socket.off('move_made', onMoveMade);
+      socket.off('clock_sync', onClockSync);
+      socket.off('game_over', onGameOver);
       socket.off('match_aborted', onMatchAborted);
+      socket.off('reconnect_success', onReconnectSuccess);
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
     };
-  }, [matchId, onClose]);
+  }, [matchId, onClose, myUid]);
 
   // Subscribe to Chat & Typing
   useEffect(() => {
@@ -191,11 +270,11 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       unsubChat();
       unsubTyping();
     };
-  }, [matchId, myUid, isMuted]);
+  }, [matchId, myUid, isMuted, chatMessages.length]);
 
   useEffect(() => {
-    if (isChatOpen) setSeenChatCount(chatMessages.length);
-  }, [isChatOpen, chatMessages.length]);
+    if (activeTab === 'chat') setSeenChatCount(chatMessages.length);
+  }, [activeTab, chatMessages.length]);
 
   const unreadChatCount = Math.max(0, chatMessages.length - seenChatCount);
 
@@ -295,87 +374,33 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
 
   // Execute Move handler
   const handleMakeMove = useCallback(
-    async (from: Square, to: Square) => {
-      if (!isMyTurn || session?.status !== 'in_progress') return;
+    (from: Square, to: Square) => {
+      if (!isMyTurn || session?.status !== 'in_progress' || isPendingMove) return;
 
-      try {
-        const testGame = new Chess(game.fen());
-        const move = testGame.move({ from, to, promotion: 'q' });
-        if (!move) return;
+      const socket = socketService.getSocket();
+      if (!socket) return;
 
-        // Play local move sound
-        if (testGame.isCheckmate()) {
-          soundManager.playVictory();
-          try {
-            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-          } catch {}
-        } else if (testGame.inCheck()) {
-          soundManager.playCheck();
-        } else if (move.captured) {
-          soundManager.playCapture(move.piece, move.color);
-        } else {
-          soundManager.playMove(move.piece, move.color);
-        }
-
-        const nextTurn: 'w' | 'b' = testGame.turn() === 'w' ? 'w' : 'b';
-        let status: 'in_progress' | 'checkmate' | 'draw' = 'in_progress';
-        let winner: 'w' | 'b' | 'draw' | null = null;
-        let reason: string | undefined = undefined;
-
-        if (testGame.isCheckmate()) {
-          status = 'checkmate';
-          winner = myColor;
-          reason = `Checkmate! ${profile?.displayName || 'Player'} wins the match!`;
-
-          // Reward Respect Points & ELO for victory against friend
-          if (updateRespectMetrics) {
-            updateRespectMetrics({
-              respectPoints: 30,
-              elo: 20,
-              wins: 1,
-              gamesPlayed: 1
-            });
-          }
-
-          if (session?.tournamentId && session?.tournamentMatchId) {
-            advanceTournamentMatch(session.tournamentId, session.tournamentMatchId, myUid || '').catch(console.error);
-          }
-        } else if (testGame.isDraw()) {
-          status = 'draw';
-          winner = 'draw';
-          reason = 'Game drawn by stalemate or rule.';
-        }
-
-        // Apply increment if any
-        const increment = session?.timeControl?.incrementSeconds || 0;
-        const finalWhiteTime = myColor === 'w' ? whiteTime + increment : whiteTime;
-        const finalBlackTime = myColor === 'b' ? blackTime + increment : blackTime;
-
-        await sendOnlineMove(
-          matchId,
-          testGame.fen(),
-          testGame.pgn(),
-          nextTurn,
-          from,
-          to,
-          finalWhiteTime,
-          finalBlackTime,
-          status,
-          winner,
-          reason
-        );
-      } catch (e) {
-        console.error('Online move error:', e);
-      }
+      setIsPendingMove(true);
+      // Send move to server
+      socket.emit('make_move', {
+        matchId,
+        uid: myUid,
+        from,
+        to,
+        promotion: 'q',
+        moveIndex
+      });
     },
-    [isMyTurn, session, game, myColor, whiteTime, blackTime, matchId, profile?.displayName, updateRespectMetrics, myUid]
+    [isMyTurn, session, myUid, matchId, moveIndex, isPendingMove]
   );
 
   const handleResign = async () => {
     if (!session || session.status !== 'in_progress') return;
     if (window.confirm('Are you sure you want to resign the online match?')) {
-      soundManager.playDefeat();
-      await resignOnlineMatch(matchId, myColor, profile?.displayName || 'Player');
+      const socket = socketService.getSocket();
+      if (socket) {
+        socket.emit('resign', { matchId, uid: myUid });
+      }
       
       if (session.tournamentId && session.tournamentMatchId) {
         const winnerColor = myColor === 'w' ? 'b' : 'w';
@@ -453,44 +478,75 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
 
   return (
     <PanelContainer>
-      {/* Header Bar */}
-      <div className="glass-panel p-3.5 sm:p-4 rounded-3xl border border-[#F5C453]/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-[#8C2425] via-[#52673A] to-[#F5C453] text-[#F5C453] border border-[#F5C453]/40 shadow-md">
-            <Swords className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                Live Online Match
-              </h2>
-              <span className="px-2 py-0.5 rounded-md bg-[#8C2425]/40 text-[#F5C453] text-[10px] font-black border border-[#F5C453]/40 uppercase">
-                {session?.timeControl.name || 'Rapid'}
-              </span>
-            </div>
-            <p className="text-xs text-[#DFD0B0]/70">
-              Battle for Peshmerga Grandmaster Honor & Respect Points
-            </p>
-          </div>
-        </div>
+      {/* Network & Connection Indicators */}
+      <div className="fixed top-20 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+        <ConnectionStatus 
+          status={socketStatus === 'connected' ? 'online' : socketStatus === 'reconnecting' ? 'syncing' : 'offline'} 
+          latency={24}
+        />
+      </div>
 
-        <div className="flex items-center gap-2">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <GameRoom
+          status={session.status === 'in_progress' ? 'in_progress' : 'game_over'}
+          turn={session.turn === 'w' ? 'white' : 'black'}
+          myColor={isWhitePlayer ? 'white' : 'black'}
+          whitePlayer={{ 
+            name: session.whitePlayer?.displayName || 'White', 
+            elo: session.whitePlayer?.elo || 1200,
+            avatar: session.whitePlayer?.photoURL 
+          }}
+          blackPlayer={{ 
+            name: session.blackPlayer?.displayName || 'Black', 
+            elo: session.blackPlayer?.elo || 1200,
+            avatar: session.blackPlayer?.photoURL 
+          }}
+          clocks={{ 
+            white: whiteTime, 
+            black: blackTime, 
+            total: session.timeControl.initialSeconds 
+          }}
+          onResign={handleResign}
+          onOfferDraw={handleOfferDraw}
+          isReconnecting={socketStatus === 'reconnecting'}
+        />
+
+        <div className="glass-panel p-3.5 sm:p-4 rounded-3xl border border-[#F5C453]/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-[#8C2425] via-[#52673A] to-[#F5C453] text-[#F5C453] border border-[#F5C453]/40 shadow-md">
+              <Swords className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+                  Live Online Match
+                </h2>
+                <span className="px-2 py-0.5 rounded-md bg-[#8C2425]/40 text-[#F5C453] text-[10px] font-black border border-[#F5C453]/40 uppercase">
+                  {session?.timeControl.name || 'Rapid'}
+                </span>
+              </div>
+              <p className="text-xs text-[#DFD0B0]/70">
+                Battle for Peshmerga Grandmaster Honor & Respect Points
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
           {/* In-Game Chat Toggle */}
           <button
             type="button"
-            onClick={() => setIsChatOpen(prev => !prev)}
-            aria-expanded={isChatOpen}
+            onClick={() => setActiveTab(activeTab === 'moves' ? 'chat' : 'moves')}
             className={`min-h-[38px] px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer relative ${
-              isChatOpen
+              activeTab === 'chat'
                 ? 'bg-[#52673A] text-white border-[#F5C453] shadow-md'
                 : 'bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border-white/10'
             }`}
             title="Toggle In-Game Match Chat"
           >
             <MessageSquare className="w-4 h-4 text-[#F59E0B]" />
-            <span>Chat</span>
-            {unreadChatCount > 0 && !isChatOpen && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-[#F59E0B] text-black text-[10px] font-black flex items-center justify-center shadow-lg">
+            <span>{activeTab === 'chat' ? 'Show Moves' : 'Show Chat'}</span>
+            {unreadChatCount > 0 && activeTab !== 'chat' && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg border-2 border-[var(--app-bg)] animate-bounce">
                 {unreadChatCount > 9 ? '9+' : unreadChatCount}
               </span>
             )}
@@ -569,7 +625,40 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           </div>
 
           {/* Chess Board */}
-          <div className="relative p-2.5 sm:p-3.5 rounded-3xl bg-[#10140e] border-2 border-[#F5C453]/30 shadow-2xl">
+          <div className={`relative p-2.5 sm:p-3.5 rounded-3xl bg-[#10140e] border-2 border-[#F5C453]/30 shadow-2xl ${settings.boardTheme === 'one-piece' ? 'one-piece-board-bg' : ''}`}>
+            {/* Status Overlays */}
+            <AnimatePresence>
+              {socketStatus !== 'connected' && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-3xl"
+                >
+                  <div className="w-10 h-10 rounded-full border-4 border-[#F5C453] border-t-transparent animate-spin" />
+                  <span className="text-white font-black uppercase tracking-widest text-xs">
+                    {socketStatus === 'reconnecting' ? 'Reconnecting...' : 'Connecting to Arena...'}
+                  </span>
+                </motion.div>
+              )}
+
+              {socketStatus === 'connected' && session?.status === 'waiting' && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-[60] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-3xl"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#F5C453]/20 flex items-center justify-center">
+                    <span className="w-3 h-3 rounded-full bg-[#F5C453] animate-ping" />
+                  </div>
+                  <span className="text-white font-black uppercase tracking-widest text-xs">
+                    Waiting for Opponent...
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <ChessBoard
               game={game}
               isFlipped={!isWhitePlayer}
@@ -631,8 +720,8 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
               isWhite={isWhitePlayer}
               playerName={profile?.displayName || 'You'}
               playerTitle={profile?.honorRank}
-              avatar={profile?.photoURL || profile?.avatar || (isWhitePlayer ? '♔' : '♚')}
-              elo={profile?.elo || 1200}
+              avatar={profile?.photoURL || (isWhitePlayer ? '♔' : '♚')}
+              elo={Number(profile?.elo) || 1200}
             />
             {/* My Floating Emotes */}
             <div className="absolute bottom-16 left-12 z-20">
@@ -654,8 +743,122 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Controls, Draw Offers & Result Details */}
-        <div className="lg:col-span-4 space-y-4">
+        {/* RIGHT COLUMN: Controls, Move History & Chat Hub */}
+        <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-0 overflow-hidden">
+          {/* Tactical Tabs Card */}
+          <div className="glass-panel rounded-3xl border border-white/10 flex-1 flex flex-col overflow-hidden shadow-2xl relative min-h-[400px]">
+            {/* Tab Header */}
+            <div className="flex items-center p-1.5 bg-black/40 border-b border-white/10 shrink-0">
+              <button
+                onClick={() => setActiveTab('moves')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                  activeTab === 'moves'
+                    ? 'text-black'
+                    : 'text-[#94A3B8] hover:text-white'
+                }`}
+              >
+                {activeTab === 'moves' && (
+                  <motion.div
+                    layoutId="match-tab-bg"
+                    className="absolute inset-0 bg-[#F5C453] rounded-2xl shadow-lg shadow-[#F5C453]/20"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <Layers className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">Move Log</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                  activeTab === 'chat'
+                    ? 'text-black'
+                    : 'text-[#94A3B8] hover:text-white'
+                }`}
+              >
+                {activeTab === 'chat' && (
+                  <motion.div
+                    layoutId="match-tab-bg"
+                    className="absolute inset-0 bg-[#F5C453] rounded-2xl shadow-lg shadow-[#F5C453]/20"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <MessageSquare className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">Match Chat</span>
+                {unreadChatCount > 0 && activeTab !== 'chat' && (
+                  <span className="absolute top-1 right-2 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center animate-bounce shadow-lg border-2 border-[var(--app-bg)] relative z-20">
+                    {unreadChatCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 min-h-0 relative">
+              <AnimatePresence mode="wait">
+                {activeTab === 'moves' ? (
+                  <motion.div
+                    key="match-moves"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    className="h-full flex flex-col"
+                  >
+                    <div className="flex items-center justify-between p-3 border-b border-white/5 bg-black/20">
+                      <h4 className="text-[10px] font-black text-[#DFD0B0]/50 uppercase tracking-widest">
+                        Tactical History
+                      </h4>
+                      <span className="px-2 py-0.5 rounded bg-white/5 text-[9px] text-white/60 font-mono">
+                        {moveHistory.length} Moves
+                      </span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-1 p-3 custom-scrollbar">
+                      {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, i) => (
+                        <div key={i} className="grid grid-cols-6 items-center gap-2 py-1 border-b border-white/5 last:border-0 font-mono">
+                          <span className="col-span-1 text-[10px] text-white/30 font-black">{i + 1}.</span>
+                          <span className={`col-span-2 text-xs font-bold cursor-pointer hover:text-[#F5C453] transition-colors ${moveIndex === i * 2 + 1 ? 'text-[#F5C453]' : 'text-white/80'}`}>
+                            {moveHistory[i * 2]}
+                          </span>
+                          {moveHistory[i * 2 + 1] && (
+                            <span className={`col-span-3 text-xs font-bold cursor-pointer hover:text-[#F5C453] transition-colors ${moveIndex === i * 2 + 2 ? 'text-[#F5C453]' : 'text-white/80'}`}>
+                              {moveHistory[i * 2 + 1]}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {moveHistory.length === 0 && (
+                        <div className="h-full flex flex-col items-center justify-center text-[#DFD0B0]/20 gap-3 py-10">
+                          <Layers className="w-10 h-10 opacity-20" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Awaiting First Strike</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="match-chat"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="h-full"
+                  >
+                      <InGameChatPanel
+                        messages={chatMessages}
+                        onSendMessage={handleSendMessage}
+                        myUid={myUid}
+                        opponentName={opponent?.displayName || 'Opponent'}
+                        opponentUid={opponent?.uid}
+                        isMuted={isMuted}
+                        onToggleMute={() => setIsMuted(prev => !prev)}
+                        typingMap={typingMap}
+                        onTyping={handleTyping}
+                      />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
           {/* Match Outcome Banner */}
           {session?.status && session.status !== 'in_progress' && session.status !== 'waiting' && (
             <div className="glass-panel p-5 rounded-3xl border border-[#F5C453]/40 shadow-xl space-y-3 animate-in zoom-in-95 text-center">
@@ -676,6 +879,16 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
                   +30 Respect Points & +20 Elo Awarded! ☀️
                 </div>
               )}
+
+              <div className="pt-2">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full py-3 rounded-2xl bg-[#F5C453] hover:bg-[#D4AF37] text-black font-black text-sm flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer shadow-lg"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  New Match / Rematch
+                </button>
+              </div>
             </div>
           )}
 
@@ -742,21 +955,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
         </div>
       </div>
 
-      {/* In-Game Chat Drawer */}
-      <InGameChatDrawer
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        gameId={matchId}
-        myUid={myUid}
-        opponentName={opponent?.displayName || 'Opponent'}
-        opponentUid={opponent?.uid}
-        messages={chatMessages}
-        onSendMessage={handleSendMessage}
-        isMuted={isMuted}
-        onToggleMute={() => setIsMuted(prev => !prev)}
-        typingMap={typingMap}
-        onTyping={handleTyping}
-      />
+      </div>
     </PanelContainer>
   );
 };

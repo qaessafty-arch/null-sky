@@ -54,7 +54,7 @@ export const LiveHypeMeter: React.FC<LiveHypeMeterProps> = ({ matchId }) => {
     <div className="w-full flex flex-col gap-2 relative">
       <div className="flex items-center justify-between text-[10px] uppercase font-black text-[#F5C453]/70">
         <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Spectator Hype</span>
-        <span>{hype}%</span>
+        <span>{isNaN(hype) ? 0 : hype}%</span>
       </div>
       <button 
         onClick={handleClick}
@@ -62,7 +62,7 @@ export const LiveHypeMeter: React.FC<LiveHypeMeterProps> = ({ matchId }) => {
       >
         <div 
           className="absolute top-0 left-0 h-full bg-gradient-to-r from-orange-500 via-rose-500 to-purple-500 transition-all duration-300"
-          style={{ width: `${hype}%` }}
+          style={{ width: `${isNaN(hype) ? 0 : hype}%` }}
         >
           <div className="absolute inset-0 bg-white/20 animate-pulse mix-blend-overlay" />
         </div>

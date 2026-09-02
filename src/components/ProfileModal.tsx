@@ -129,7 +129,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   const [deleteError, setDeleteError] = useState('');
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
   useEffect(() => {
-    if (user?.uid && isOpen) {
+    // Only listen to blocked list if it's the current user's profile to avoid permission-denied errors
+    const isActuallyOwnProfile = user?.uid === useAuth().user?.uid;
+    if (user?.uid && isOpen && isActuallyOwnProfile) {
       const unsub = onSnapshot(collection(db, `users/${user.uid}/blocked`), snap => {
         setBlockedUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });

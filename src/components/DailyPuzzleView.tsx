@@ -234,9 +234,9 @@ export const DailyPuzzleView: React.FC<DailyPuzzleViewProps> = ({
           // Reward Respect points (+25 Respect, +15 Elo)
           if (updateRespectMetrics) {
             updateRespectMetrics({
-              respectChange: 25,
-              eloChange: 15,
-              won: true
+              respectPoints: 25,
+              elo: 15,
+              wins: 1
             });
           }
 

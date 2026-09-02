@@ -10,7 +10,7 @@ import {
   Bot,
   Swords,
   Sparkles,
-  Compass,
+  Glasses,
   User,
   Globe,
   Users,
@@ -146,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'analysis',
       mode: 'analysis' as GameMode,
       label: t('sidebar.analysis'),
-      icon: <Compass className="w-5 h-5 text-sky-400" />,
+      icon: <Glasses className="w-5 h-5 text-sky-400" />,
       action: () => {
         onSelectMode('analysis');
         onClose();
@@ -235,9 +235,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{ willChange: 'transform' }}
           >
             {/* Sidebar Header & Brand */}
-            <div className="p-5 border-b border-[#1F293D] flex items-center justify-between bg-[#111827]">
+            <div className="p-5 border-b border-[var(--glass-border)] flex items-center justify-between bg-[var(--app-bg)]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#0B0F19] border border-[#F59E0B]/50 flex items-center justify-center text-xl shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-[var(--glass-bg)] border border-[var(--secondary-accent)]/50 flex items-center justify-center text-xl shadow-inner">
                   <span>☀️</span>
                 </div>
                 <div>
@@ -245,11 +245,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className="font-display font-black text-lg text-white tracking-tight">
                       Chesskys
                     </span>
-                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#F59E0B] text-[#0B0F19] shadow-md uppercase tracking-tighter font-mono">
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[var(--secondary-accent)] text-[var(--app-bg)] shadow-md uppercase tracking-tighter font-mono">
                       PRO
                     </span>
                   </div>
-                  <p className="text-[10px] text-[#94A3B8] font-mono mt-1 uppercase tracking-widest opacity-60">Architect System</p>
+                  <p className="text-[10px] text-[var(--text-muted)] font-mono mt-1 uppercase tracking-widest opacity-60">Architect System</p>
                 </div>
               </div>
 
@@ -257,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 id="sidebar-close-btn"
                 type="button"
                 onClick={onClose}
-                className="w-10 h-10 rounded-xl bg-[#0B0F19] text-[#94A3B8] hover:text-[#F59E0B] flex items-center justify-center transition-all interactive-btn border border-[#1F293D] hover:border-[#F59E0B]/30"
+                className="w-10 h-10 rounded-xl bg-[var(--glass-bg)] text-[var(--text-muted)] hover:text-[var(--secondary-accent)] flex items-center justify-center transition-all interactive-btn border border-[var(--glass-border)] hover:border-[var(--secondary-accent)]/30"
                 aria-label="Close Sidebar"
               >
                 <X className="w-5 h-5" />
@@ -266,7 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Sidebar Navigation Items */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-6 space-y-2 overscroll-contain">
-              <div className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#94A3B8] opacity-50 font-mono">
+              <div className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-50 font-mono">
                 System Main
               </div>
 
@@ -280,13 +280,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={item.action}
                     className={`w-full min-h-[52px] px-4 py-3 rounded-2xl flex items-center justify-between text-left transition-all group border ${
                       isActive
-                        ? 'bg-[#111827] text-white border-[#F59E0B] shadow-[0_0_20px_rgba(245,158,11,0.15)]'
-                        : 'text-[#94A3B8] hover:text-white hover:bg-[#111827] border-transparent hover:border-[#1F293D]'
+                        ? 'bg-[var(--glass-bg)] text-white border-[var(--secondary-accent)] shadow-[0_0_20px_rgba(245,158,11,0.15)]'
+                        : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--glass-bg-hover)] border-transparent hover:border-[var(--glass-border)]'
                     } active:scale-95`}
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-                        isActive ? 'bg-[#F59E0B] text-[#0B0F19]' : 'bg-[#0B0F19] text-[#94A3B8] border border-[#1F293D] group-hover:border-[#94A3B8]/30 group-hover:text-white'
+                        isActive ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)]' : 'bg-[var(--app-bg)] text-[var(--text-muted)] border border-[var(--glass-border)] group-hover:border-[var(--text-muted)]/30 group-hover:text-white'
                       }`}>
                         {item.icon}
                       </div>
@@ -297,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-2">
                         {item.badgeDot && <span className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse" />}
                         <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-lg border ${
-                          isActive ? 'bg-white/10 text-white border-white/20' : 'bg-[#0B0F19] text-[#94A3B8] border-[#1F293D]'
+                          isActive ? 'bg-white/10 text-white border-white/20' : 'bg-[var(--app-bg)] text-[var(--text-muted)] border-[var(--glass-border)]'
                         }`}>
                           {item.badge}
                         </span>
@@ -309,7 +309,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Bottom Theme & Settings Controls (Pinned) */}
-            <div className="p-4 border-t border-[#1F293D] bg-[#111827] space-y-3">
+            <div className="p-4 border-t border-[var(--glass-border)] bg-[var(--glass-panel)] space-y-3">
               {/* Switch Theme Button */}
               <button
                 id="sidebar-switch-theme-btn"
@@ -318,25 +318,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onOpenThemes();
                   onClose();
                 }}
-                className="w-full min-h-[52px] px-4 py-3 rounded-2xl bg-[#0B0F19] border border-[#1F293D] hover:border-[#F59E0B]/40 text-white flex items-center justify-between transition-all interactive-btn group shadow-xl"
+                className="w-full min-h-[52px] px-4 py-3 rounded-2xl bg-[var(--app-bg)] border border-[var(--glass-border)] hover:border-[var(--secondary-accent)]/40 text-white flex items-center justify-between transition-all interactive-btn group shadow-xl"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#111827] border border-[#F59E0B]/30 flex items-center justify-center text-[#F59E0B] group-hover:rotate-12 transition-transform duration-300">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--glass-bg)] border border-[var(--secondary-accent)]/30 flex items-center justify-center text-[var(--secondary-accent)] group-hover:rotate-12 transition-transform duration-300">
                     <Palette className="w-4 h-4" />
                   </div>
                   <div className="text-left leading-tight">
                     <div className="text-xs font-black text-white flex items-center gap-2">
                       <span>VISUAL CORES</span>
-                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-[#F59E0B] text-[#0B0F19] font-black font-mono">
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-[var(--secondary-accent)] text-[var(--app-bg)] font-black font-mono">
                         NEW
                       </span>
                     </div>
-                    <span className="text-[9px] text-[#94A3B8] font-mono uppercase tracking-widest opacity-60">
+                    <span className="text-[9px] text-[var(--text-muted)] font-mono uppercase tracking-widest opacity-60">
                       Design Presets
                     </span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-[#F59E0B]/60 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-4 h-4 text-[var(--secondary-accent)]/60 group-hover:translate-x-1 transition-transform" />
               </button>
 
               <div className="grid grid-cols-2 gap-2">
@@ -347,7 +347,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onOpenSettings();
                     onClose();
                   }}
-                  className="w-full min-h-[44px] rounded-xl bg-[#0B0F19] text-[#94A3B8] hover:text-[#F59E0B] flex items-center justify-center gap-2 text-[10px] font-black transition-all interactive-btn border border-[#1F293D] uppercase tracking-widest"
+                  className="w-full min-h-[44px] rounded-xl bg-[var(--app-bg)] text-[var(--text-muted)] hover:text-[var(--secondary-accent)] flex items-center justify-center gap-2 text-[10px] font-black transition-all interactive-btn border border-[var(--glass-border)] uppercase tracking-widest"
                 >
                   <Settings className="w-3.5 h-3.5" />
                   <span>{t('sidebar.settings')}</span>

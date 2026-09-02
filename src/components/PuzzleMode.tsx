@@ -113,9 +113,9 @@ export const PuzzleMode: React.FC<PuzzleModeProps> = ({ settings }) => {
             // Reward Respect Points (+25 for daily puzzle)
             if (updateRespectMetrics) {
               updateRespectMetrics({
-                respectChange: 25,
-                eloChange: 15,
-                won: true
+                respectPoints: 25,
+                elo: 15,
+                wins: 1
               });
             }
           } else {

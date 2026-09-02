@@ -23,19 +23,25 @@ import { useAuth } from './context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { MessageSquare, Layers } from 'lucide-react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { AmbientBackground } from './components/AmbientBackground';
 import { ChessBoard } from './components/ChessBoard';
 import { EvalBar } from './components/EvalBar';
 import { CapturedPieces } from './components/CapturedPieces';
+import { GlassCard } from './components/GlassUI';
 import { ChessClock } from './components/ChessClock';
 import { MoveHistory } from './components/MoveHistory';
+import { StrategicVisionPanel } from './components/StrategicVisionPanel';
 import { GameControls } from './components/GameControls';
-import { LocalChatDock } from './components/LocalChatDock';
+import { GlassButton } from './components/GlassButton';
+import { InGameChatPanel } from './components/InGameChatPanel';
 import { PromotionModal } from './components/PromotionModal';
 import { AboutUsModal } from './components/AboutUsModal';
 import { ViewFallback } from './components/ViewFallback';
 import type { SettingsTab } from './components/SettingsModal';
+import { InGameMessage } from './services/chatService';
 import { logCompletedGame } from './services/loggingService';
 import { FriendUser } from './types/chess';
 
@@ -85,7 +91,9 @@ export default function App() {
     showCoordinates: true,
     highlightLastMove: true,
     showEvalBar: true,
-    showMoveArrows: true
+    showMoveArrows: true,
+    showTerritory: false,
+    showWeather: false
   });
 
   // Respect System Profile
@@ -117,12 +125,14 @@ export default function App() {
   useEffect(() => {
     if (authProfile) {
       setRespectProfile({
-        respectPoints: authProfile.respectPoints || 100,
-        elo: authProfile.elo || 1200,
-        executions: authProfile.executions || 0,
-        merciesGranted: authProfile.merciesGranted || 0,
+        respectPoints: Number(authProfile.respectPoints || 0),
+        elo: Number(authProfile.elo || 1200),
+        executions: Number(authProfile.executions || 0),
+        merciesGranted: Number(authProfile.merciesGranted || 0),
         honorRank: authProfile.honorRank || 'Peshmerga Tactician',
-        rankBadge: authProfile.rankBadge || '🌿'
+        rankBadge: authProfile.rankBadge || '🌿',
+        gamesPlayed: Number(authProfile.gamesPlayed || 0),
+        wins: Number(authProfile.wins || 0)
       });
     }
   }, [authProfile]);
@@ -167,6 +177,66 @@ export default function App() {
   const [isJudgmentModalOpen, setIsJudgmentModalOpen] = useState(false);
   const [pendingCheckmateResult, setPendingCheckmateResult] = useState<GameResult | null>(null);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
+
+  // Tactical HUD Tabs (Moves vs Chat)
+  const [activeTacticalTab, setActiveTacticalTab] = useState<'moves' | 'chat'>('moves');
+  const [localMessages, setLocalMessages] = useState<InGameMessage[]>([]);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  const handleSendLocalMessage = useCallback((text: string, type: 'text' | 'canned' | 'emote') => {
+    const isAiMode = activeMode === 'ai';
+    const currentTurn = game.turn();
+    const senderUid = isAiMode ? 'local_white' : currentTurn === 'w' ? 'local_white' : 'local_black';
+    const senderName = isAiMode ? 'You' : currentTurn === 'w' ? 'White' : 'Black';
+
+    const newMessage: InGameMessage = {
+      id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      senderUid,
+      senderName,
+      text,
+      type,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setLocalMessages(prev => [...prev, newMessage]);
+
+    if (isAiMode) {
+      setTimeout(() => {
+        const botReplies = [
+          'Interesting choice. 🤔',
+          'My turn to punish that. ⚔️',
+          'Calculating... ⏳',
+          'Bold. I respect it. 👑',
+          'You will need more than that. 🔥',
+          'Nice one. 🎯',
+          'Kodiiiiiiii ☀️🔥',
+          'NAH I\'D WIN!! 👑⚡'
+        ];
+        const botMessage: InGameMessage = {
+          id: `bot_${Date.now()}`,
+          senderUid: 'local_bot',
+          senderName: currentBot.name,
+          text: botReplies[Math.floor(Math.random() * botReplies.length)],
+          type: 'text',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setLocalMessages(prev => [...prev, botMessage]);
+        if (settings.sound) soundManager.playChat();
+      }, 1000 + Math.random() * 1500);
+    }
+  }, [activeMode, game, currentBot.name, settings.sound]);
+
+  useEffect(() => {
+    if (activeTacticalTab === 'chat') {
+      setUnreadChatCount(0);
+    } else if (localMessages.length > 0) {
+      const lastMsg = localMessages[localMessages.length - 1];
+      // If last message is from opponent, increment unread
+      if (lastMsg.senderUid !== 'local_white') {
+        setUnreadChatCount(prev => prev + 1);
+      }
+    }
+  }, [localMessages.length, activeTacticalTab]);
 
   // Tab focus tracking for anti-cheat
   useEffect(() => {
@@ -712,24 +782,20 @@ export default function App() {
     settings.blackPieceTheme === 'batman';
 
   return (
-    <div id="app-root-container" className="flex flex-col min-h-screen bg-[#0B0F19] text-white overflow-hidden font-sans selection:bg-[#F59E0B]/30 relative transition-colors duration-500">
-      {/* Background Ambient Glow */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#F59E0B]/5 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#F59E0B]/5 blur-[120px] rounded-full" />
-      </div>
-
+    <div id="app-root-container" className="min-h-screen flex flex-col relative overflow-x-hidden font-jakarta text-white selection:bg-[#FFD700]/30 selection:text-white transition-all duration-700">
       {/* Sleek Tactical Hint Banner */}
       {hintMessage && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-black/90 border border-[#F5C453] text-[#F5C453] text-xs font-bold shadow-2xl backdrop-blur-xl">
             <span>{hintMessage}</span>
-            <button
+            <GlassButton
               onClick={() => setHintMessage(null)}
-              className="text-[#DFD0B0]/60 hover:text-white ml-2 text-xs"
+              variant="ghost"
+              size="sm"
+              className="!px-2 !py-1 ml-2 text-xs"
             >
               ✕
-            </button>
+            </GlassButton>
           </div>
         </div>
       )}
@@ -759,12 +825,8 @@ export default function App() {
       />
 
       {/* Top Header */}
-      {/* Ambient Dynamic Glow Backdrop */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="ambient-sphere w-[600px] h-[600px] bg-cyan-500/20 top-[-10%] left-[-10%] animate-[ambient-float_20s_infinite_ease-in-out]" />
-        <div className="ambient-sphere w-[500px] h-[500px] bg-orange-500/15 bottom-[10%] right-[-5%] animate-[ambient-float_25s_infinite_ease-in-out_reverse]" />
-        <div className="ambient-sphere w-[400px] h-[400px] bg-blue-500/10 top-[40%] left-[20%] animate-[ambient-float_18s_infinite_linear]" />
-      </div>
+      {/* Cinematic Ambient Backdrop */}
+      <AmbientBackground />
 
       <Header
         onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
@@ -781,11 +843,11 @@ export default function App() {
           {activeMode === 'login' ? (
             <motion.div
               key="login"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="w-full h-full"
+              initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
+              transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+              className="w-full h-full flex flex-col items-center justify-center"
             >
               <LoginPage
                 onSuccess={() => setActiveMode('profile_page')}
@@ -796,9 +858,10 @@ export default function App() {
           ) : activeMode === 'profile_page' ? (
             <motion.div
               key="profile"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -30, filter: 'blur(10px)' }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               className="w-full"
             >
               <UserProfilePage
@@ -821,123 +884,226 @@ export default function App() {
               />
             </motion.div>
           ) : activeMode === 'online_match' && activeOnlineMatchId ? (
-            <OnlineMatchView
-              matchId={activeOnlineMatchId}
-              settings={settings}
-              onClose={() => {
-                setActiveOnlineMatchId(null);
-                setActiveMode('ai');
-              }}
-            />
+            <motion.div
+              key="online-match-view"
+              initial={{ opacity: 0, scale: 0.98, filter: 'blur(15px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 1.02, filter: 'blur(15px)' }}
+              transition={{ duration: 0.7, ease: [0.19, 1, 0.22, 1] }}
+              className="w-full h-full"
+            >
+              <OnlineMatchView
+                matchId={activeOnlineMatchId}
+                settings={settings}
+                onClose={() => {
+                  setActiveOnlineMatchId(null);
+                  setActiveMode('ai');
+                }}
+              />
+            </motion.div>
           ) : (activeMode === 'multiplayer' || (activeMode === 'online_match' && !activeOnlineMatchId)) ? (
-            <MultiplayerLobbyView
-              settings={settings}
-              onStartMatch={matchId => {
-                setActiveOnlineMatchId(matchId);
-                setActiveMode('online_match');
-              }}
-              onOpenWorldwideModal={() => setIsWorldwideMatchModalOpen(true)}
-            />
+            <motion.div
+              key="multiplayer-lobby"
+              initial={{ opacity: 0, y: 40, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -40, filter: 'blur(10px)' }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full h-full"
+            >
+              <MultiplayerLobbyView
+                settings={settings}
+                onStartMatch={matchId => {
+                  setActiveOnlineMatchId(matchId);
+                  setActiveMode('online_match');
+                }}
+                onOpenWorldwideModal={() => setIsWorldwideMatchModalOpen(true)}
+              />
+            </motion.div>
           ) : activeMode === 'authoring' ? (
-            <AuthoringView
-              settings={settings}
-              onOpenAnalysisWithFen={fen => {
-                try {
-                  const g = new Chess(fen);
-                  setGame(g);
-                  setActiveMode('analysis');
-                } catch {}
-              }}
-            />
+            <motion.div
+              key="authoring-view"
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.4 }}
+              className="w-full h-full"
+            >
+              <AuthoringView
+                settings={settings}
+                onOpenAnalysisWithFen={fen => {
+                  try {
+                    const g = new Chess(fen);
+                    setGame(g);
+                    setActiveMode('analysis');
+                  } catch {}
+                }}
+              />
+            </motion.div>
           ) : activeMode === 'logging' ? (
-            <LoggingView
-              settings={settings}
-              onOpenAnalysisWithFen={fen => {
-                try {
-                  const g = new Chess(fen);
-                  setGame(g);
-                  setActiveMode('analysis');
-                } catch {}
-              }}
-            />
+            <motion.div
+              key="logging-view"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.4 }}
+              className="w-full h-full"
+            >
+              <LoggingView
+                settings={settings}
+                onOpenAnalysisWithFen={fen => {
+                  try {
+                    const g = new Chess(fen);
+                    setGame(g);
+                    setActiveMode('analysis');
+                  } catch {}
+                }}
+              />
+            </motion.div>
           ) : activeMode === 'leaderboard' ? (
-            <WorldwideLeaderboardView />
+            <motion.div
+              key="leaderboard-view"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.5 }}
+              className="w-full h-full"
+            >
+              <WorldwideLeaderboardView />
+            </motion.div>
           ) : activeMode === 'database' ? (
-            <DatabaseView
-              onClose={() => setActiveMode('ai')}
-            />
+            <motion.div
+              key="database-view"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.5 }}
+              className="w-full h-full"
+            >
+              <DatabaseView
+                onClose={() => setActiveMode('ai')}
+              />
+            </motion.div>
           ) : activeMode === 'daily_puzzle' ? (
-            <DailyPuzzleView
-              settings={settings}
-              onNavigateMode={mode => setActiveMode(mode)}
-            />
+            <motion.div
+              key="daily-puzzle-view"
+              initial={{ opacity: 0, scale: 0.9, rotate: -1 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 1.1, rotate: 1 }}
+              transition={{ duration: 0.5 }}
+              className="w-full h-full"
+            >
+              <DailyPuzzleView
+                settings={settings}
+                onNavigateMode={mode => setActiveMode(mode)}
+              />
+            </motion.div>
           ) : activeMode === 'puzzle' ? (
-            <PuzzleMode settings={settings} />
+            <motion.div
+              key="puzzle-mode"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.4 }}
+              className="w-full h-full"
+            >
+              <PuzzleMode settings={settings} />
+            </motion.div>
           ) : activeMode === 'analysis' ? (
-            <AnalysisPanel settings={settings} initialPgn={game.pgn()} initialFen={game.fen()} />
+            <motion.div
+              key="analysis-panel"
+              initial={{ opacity: 0, filter: 'brightness(0.5) blur(10px)' }}
+              animate={{ opacity: 1, filter: 'brightness(1) blur(0px)' }}
+              exit={{ opacity: 0, filter: 'brightness(0.5) blur(10px)' }}
+              transition={{ duration: 0.4 }}
+              className="w-full h-full"
+            >
+              <AnalysisPanel 
+                settings={settings} 
+                onUpdateSettings={updates => setSettings(s => ({ ...s, ...updates }))}
+                initialPgn={game.pgn()} 
+                initialFen={game.fen()} 
+              />
+            </motion.div>
           ) : (
-            /* Live Match View (Play AI / Pass & Play) */
-            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:px-8 lg:py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start justify-center">
+            <motion.div
+              key="local-game-view"
+              initial={{ opacity: 0, scale: 1.02, filter: 'blur(20px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 0.98, filter: 'blur(20px)' }}
+              transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+              className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:px-8 lg:py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start justify-center relative z-10"
+            >
               {/* Center Left: Chess Board & Eval Bar Area */}
-              <div className="lg:col-span-8 flex flex-col items-center justify-center">
+              <div className="lg:col-span-8 flex flex-col items-center justify-center relative">
+                
                 {/* Board stage: clocks, board and eval bar share one grid so their edges line up */}
                 <div className="w-full max-w-[644px] lg:max-w-[min(644px,calc(100svh-300px))] grid grid-cols-[auto_1fr] gap-x-2 sm:gap-x-4 gap-y-3 items-stretch">
-                {/* Top Player Status / Clock Bar */}
-                <div className="col-start-2 flex flex-col gap-3 min-w-0">
-                  <ChessClock
-                    timeSeconds={isBoardFlipped ? whiteTime : blackTime}
-                    totalTimeSeconds={timeControl.initialSeconds}
-                    isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
-                    isWhite={isBoardFlipped}
-                    playerName={
-                      activeMode === 'ai'
-                        ? isBoardFlipped
-                          ? 'Player (You)'
-                          : `${currentBot.name}`
-                        : isBoardFlipped
-                        ? 'White Player'
-                        : 'Black Player'
-                    }
-                    playerTitle={activeMode === 'ai' && !isBoardFlipped ? currentBot.title : undefined}
-                    avatar={activeMode === 'ai' && !isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♔' : '♚'}
-                    elo={activeMode === 'ai' && !isBoardFlipped ? currentBot.elo : respectProfile.elo}
-                    isUnlimited={timeControl.category === 'unlimited'}
-                  />
+                  
+                  {/* Top Player Status / Clock Bar */}
+                  <div className="col-start-2 flex flex-col gap-3 min-w-0">
+                    <GlassCard intensity="low" className="p-3 !rounded-2xl" animateFloat>
+                      <ChessClock
+                        timeSeconds={isBoardFlipped ? whiteTime : blackTime}
+                        totalTimeSeconds={timeControl.initialSeconds}
+                        isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'w' : game.turn() === 'b')}
+                        isWhite={isBoardFlipped}
+                        playerName={
+                          activeMode === 'ai'
+                            ? isBoardFlipped
+                              ? 'Player (You)'
+                              : `${currentBot.name}`
+                            : isBoardFlipped
+                            ? 'White Player'
+                            : 'Black Player'
+                        }
+                        playerTitle={activeMode === 'ai' && !isBoardFlipped ? currentBot.title : undefined}
+                        avatar={activeMode === 'ai' && !isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♔' : '♚'}
+                        elo={activeMode === 'ai' && !isBoardFlipped ? currentBot.elo : Number(respectProfile.elo)}
+                        isUnlimited={timeControl.category === 'unlimited'}
+                      />
+                    </GlassCard>
 
-                  <div className="px-1 flex items-center justify-between">
-                    <CapturedPieces
-                      pieces={isBoardFlipped ? capturedMaterial.capturedByBlack : capturedMaterial.capturedByWhite}
-                      pieceTheme={settings.pieceTheme}
-                      colorOfCapturedPieces={isBoardFlipped ? 'w' : 'b'}
-                      materialAdvantage={
-                        isBoardFlipped
-                          ? capturedMaterial.materialDifference < 0
-                            ? Math.abs(capturedMaterial.materialDifference)
+                    <div className="px-1 flex items-center justify-between">
+                      <CapturedPieces
+                        pieces={isBoardFlipped ? capturedMaterial.capturedByBlack : capturedMaterial.capturedByWhite}
+                        pieceTheme={settings.pieceTheme}
+                        colorOfCapturedPieces={isBoardFlipped ? 'w' : 'b'}
+                        materialAdvantage={
+                          isBoardFlipped
+                            ? capturedMaterial.materialDifference < 0
+                              ? Math.abs(capturedMaterial.materialDifference)
+                              : 0
+                            : capturedMaterial.materialDifference > 0
+                            ? capturedMaterial.materialDifference
                             : 0
-                          : capturedMaterial.materialDifference > 0
-                          ? capturedMaterial.materialDifference
-                          : 0
-                      }
-                    />
+                        }
+                      />
 
-                    {isAiThinking && !isBoardFlipped && (
-                      <div className="flex items-center gap-2 text-[10px] text-[#F59E0B] font-black uppercase tracking-widest animate-pulse px-3 py-1 rounded-full bg-[#111827] border border-[#F59E0B]/30 shadow-lg">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] animate-ping" />
-                        <span>Calculating Path...</span>
-                      </div>
-                    )}
+                      {isAiThinking && !isBoardFlipped && (
+                        <div className="flex items-center gap-2 text-[10px] text-[var(--secondary-accent)] font-black uppercase tracking-widest animate-pulse px-3 py-1 rounded-full bg-[var(--app-bg)] border border-[var(--secondary-accent)]/30 shadow-lg">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--secondary-accent)] animate-ping" />
+                          <span>Calculating Path...</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {settings.showEvalBar && (
                   <div className="col-start-1 row-start-2 flex">
-                    <EvalBar score={evalScore} isFlipped={isBoardFlipped} />
+                    <div className="w-5 sm:w-8 h-full glass-premium overflow-hidden !rounded-xl border-white/10">
+                      <EvalBar score={evalScore} isFlipped={isBoardFlipped} />
+                    </div>
                   </div>
                 )}
 
                 <div className="col-start-2 row-start-2 flex justify-center min-w-0">
-                  <div className="relative group w-full max-w-[600px]">
-                    <div className="absolute -inset-4 bg-[#F59E0B]/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                  <div className="relative group w-full max-w-[600px] glass-platform">
+                    {/* Cinematic Reflection */}
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[90%] h-6 bg-black/40 blur-2xl rounded-full pointer-events-none" />
+                    
+                    {/* Golden Glow Edge */}
+                    <div className="absolute inset-0 z-[5] pointer-events-none rounded-[2rem] bg-gradient-to-tr from-[#FFD700]/10 via-transparent to-white/10 opacity-50" />
+                    
                     <ChessBoard
                       game={displayGame}
                       isFlipped={isBoardFlipped}
@@ -951,6 +1117,8 @@ export default function App() {
                       lastMove={lastMove}
                       onMove={handleBoardMove}
                       disabled={viewingMoveIndex !== -1 || isAiThinking || !!gameResult || isJudgmentModalOpen}
+                      showTerritory={settings.showTerritory}
+                      showWeather={settings.showWeather}
                     />
                   </div>
                 </div>
@@ -974,83 +1142,168 @@ export default function App() {
                     />
 
                     {isAiThinking && isBoardFlipped && (
-                      <div className="flex items-center gap-2 text-[10px] text-[#F59E0B] font-black uppercase tracking-widest animate-pulse px-3 py-1 rounded-full bg-[#111827] border border-[#F59E0B]/30 shadow-lg">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] animate-ping" />
+                      <div className="flex items-center gap-2 text-[10px] text-[#FFD700] font-black uppercase tracking-widest animate-pulse px-3 py-1 rounded-full bg-white/5 border border-[#FFD700]/30 shadow-lg backdrop-blur-md">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FFD700] animate-ping" />
                         <span>Calculating Path...</span>
                       </div>
                     )}
-                  </div>
+                   </div>
 
-                  <ChessClock
-                    timeSeconds={isBoardFlipped ? blackTime : whiteTime}
-                    totalTimeSeconds={timeControl.initialSeconds}
-                    isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'b' : game.turn() === 'w')}
-                    isWhite={!isBoardFlipped}
-                    playerName={
-                      activeMode === 'ai'
-                        ? isBoardFlipped
-                          ? `${currentBot.name}`
-                          : 'Player (You)'
-                        : isBoardFlipped
-                        ? 'Black Player'
-                        : 'White Player'
-                    }
-                    playerTitle={activeMode === 'ai' && isBoardFlipped ? currentBot.title : undefined}
-                    avatar={activeMode === 'ai' && isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♚' : '♔'}
-                    elo={activeMode === 'ai' && isBoardFlipped ? currentBot.elo : respectProfile.elo}
-                    isUnlimited={timeControl.category === 'unlimited'}
-                  />
-                </div>
+                  <GlassCard intensity="low" className="p-3 !rounded-2xl border-white/10" animateFloat>
+                    <ChessClock
+                      timeSeconds={isBoardFlipped ? blackTime : whiteTime}
+                      totalTimeSeconds={timeControl.initialSeconds}
+                      isActive={isClockRunning && (isBoardFlipped ? game.turn() === 'b' : game.turn() === 'w')}
+                      isWhite={!isBoardFlipped}
+                      playerName={
+                        activeMode === 'ai'
+                          ? isBoardFlipped
+                            ? `${currentBot.name}`
+                            : 'Player (You)'
+                          : isBoardFlipped
+                          ? 'Black Player'
+                          : 'White Player'
+                      }
+                      playerTitle={activeMode === 'ai' && isBoardFlipped ? currentBot.title : undefined}
+                      avatar={activeMode === 'ai' && isBoardFlipped ? currentBot.avatar : isBoardFlipped ? '♚' : '♔'}
+                      elo={activeMode === 'ai' && isBoardFlipped ? currentBot.elo : Number(respectProfile.elo)}
+                      isUnlimited={timeControl.category === 'unlimited'}
+                    />
+                  </GlassCard>
                 </div>
               </div>
+            </div>
 
               {/* Right Sidebar: History & Tactical Controls */}
               <div className="lg:col-span-4 flex flex-col gap-5 w-full max-w-[600px] mx-auto lg:max-w-none">
                 {/* Game Control Action Buttons */}
-                <GameControls
-                  onNewGame={() => setIsNewGameModalOpen(true)}
-                  onFlipBoard={() => setSettings(s => ({ ...s, flipBoard: !s.flipBoard }))}
-                  onUndo={handleUndo}
-                  onRedo={handleRedo}
-                  onResign={handleResign}
-                  onHint={handleGetHint}
-                  soundEnabled={settings.sound}
-                  onToggleSound={() => setSettings(s => ({ ...s, sound: !s.sound }))}
-                  canUndo={moveLogs.length > 0 && !gameResult && !isAiThinking && activeMode !== 'multiplayer' && activeMode !== 'puzzle' && activeMode !== 'online_match'}
-                  canRedo={redoStack.length > 0 && !gameResult && !isAiThinking && activeMode !== 'multiplayer' && activeMode !== 'puzzle' && activeMode !== 'online_match'}
-                  isAiMode={activeMode === 'ai'}
-                />
-
-                <LocalChatDock
-                  mode={activeMode === 'ai' ? 'ai' : 'local'}
-                  turn={game.turn() as 'w' | 'b'}
-                  botName={currentBot.name}
-                  isMuted={!settings.sound}
-                  onToggleMute={() => setSettings(s => ({ ...s, sound: !s.sound }))}
-                />
-
-                {/* Move Notation & History Log */}
-                <div className="h-[360px] lg:h-[clamp(280px,calc(100svh-372px),560px)]">
-                  <MoveHistory
-                    moveLogs={moveLogs}
-                    currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
-                    onSelectMoveIndex={idx => {
-                      if (idx === moveLogs.length - 1) {
-                        setViewingMoveIndex(-1);
-                      } else {
-                        setViewingMoveIndex(idx);
-                      }
-                    }}
-                    openingInfo={openingInfo}
-                    pgn={game.pgn()}
-                    fen={displayGame.fen()}
+                <GlassCard className="p-4 !rounded-[2rem] border-white/10 shadow-2xl" animateFloat>
+                  <GameControls
+                    onNewGame={() => setIsNewGameModalOpen(true)}
+                    onFlipBoard={() => setSettings(s => ({ ...s, flipBoard: !s.flipBoard }))}
+                    onUndo={handleUndo}
+                    onRedo={handleRedo}
+                    onResign={handleResign}
+                    onHint={handleGetHint}
+                    soundEnabled={settings.sound}
+                    onToggleSound={() => setSettings(s => ({ ...s, sound: !s.sound }))}
+                    canUndo={moveLogs.length > 0 && !gameResult && !isAiThinking && (activeMode as string) !== 'multiplayer' && (activeMode as string) !== 'puzzle' && (activeMode as string) !== 'online_match'}
+                    canRedo={redoStack.length > 0 && !gameResult && !isAiThinking && (activeMode as string) !== 'multiplayer' && (activeMode as string) !== 'puzzle' && (activeMode as string) !== 'online_match'}
+                    isAiMode={activeMode === 'ai'}
                   />
+                </GlassCard>
+
+                {/* TACTICAL HUD: Unified Tabs for Moves & Chat */}
+                <div className="flex flex-col gap-4 h-full">
+                  <GlassCard className="flex-1 !rounded-[2rem] border-white/10 shadow-2xl overflow-hidden flex flex-col" animateFloat>
+                    {/* Tab Header */}
+                    <div className="flex items-center p-1.5 bg-white/5 border-b border-white/10 shrink-0">
+                      <button
+                        onClick={() => setActiveTacticalTab('moves')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                          activeTacticalTab === 'moves'
+                            ? 'text-black'
+                            : 'text-[#94A3B8] hover:text-white'
+                        }`}
+                      >
+                        {activeTacticalTab === 'moves' && (
+                          <motion.div
+                            layoutId="tactical-tab-bg"
+                            className="absolute inset-0 bg-[var(--secondary-accent)] rounded-2xl shadow-lg shadow-[var(--secondary-accent)]/20"
+                            transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                          />
+                        )}
+                        <Layers className="w-3.5 h-3.5 relative z-10" />
+                        <span className="relative z-10">Battle Log</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveTacticalTab('chat')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                          activeTacticalTab === 'chat'
+                            ? 'text-black'
+                            : 'text-[#94A3B8] hover:text-white'
+                        }`}
+                      >
+                        {activeTacticalTab === 'chat' && (
+                          <motion.div
+                            layoutId="tactical-tab-bg"
+                            className="absolute inset-0 bg-[var(--secondary-accent)] rounded-2xl shadow-lg shadow-[var(--secondary-accent)]/20"
+                            transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                          />
+                        )}
+                        <MessageSquare className="w-3.5 h-3.5 relative z-10" />
+                        <span className="relative z-10">Match Chat</span>
+                        {unreadChatCount > 0 && activeTacticalTab !== 'chat' && (
+                          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center animate-bounce shadow-lg border-2 border-[var(--app-bg)] relative z-20">
+                            {unreadChatCount}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Content Area */}
+                    <div className="flex-1 min-h-0 overflow-hidden relative">
+                      <AnimatePresence mode="wait">
+                        {activeTacticalTab === 'moves' ? (
+                          <motion.div
+                            key="tab-moves"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10 }}
+                            className="h-full flex flex-col"
+                          >
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+                              <MoveHistory
+                                moveLogs={moveLogs}
+                                currentMoveIndex={viewingMoveIndex >= 0 ? viewingMoveIndex : moveLogs.length - 1}
+                                onSelectMoveIndex={idx => {
+                                  if (idx === moveLogs.length - 1) {
+                                    setViewingMoveIndex(-1);
+                                  } else {
+                                    setViewingMoveIndex(idx);
+                                  }
+                                }}
+                                openingInfo={openingInfo}
+                                pgn={game.pgn()}
+                                fen={displayGame.fen()}
+                              />
+                            </div>
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="tab-chat"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            className="h-full"
+                          >
+                            <InGameChatPanel
+                              messages={localMessages}
+                              onSendMessage={handleSendLocalMessage}
+                              myUid="local_white"
+                              opponentName={activeMode === 'ai' ? currentBot.name : 'Black'}
+                              isMuted={!settings.sound}
+                              onToggleMute={() => setSettings(s => ({ ...s, sound: !s.sound }))}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </GlassCard>
+
+                  {/* Strategic Vision (The Glasses Panel) */}
+                  <GlassCard className="p-4 !rounded-[2rem] border-white/10 shadow-2xl" animateFloat>
+                    <StrategicVisionPanel
+                      settings={settings}
+                      onUpdateSettings={updates => setSettings(s => ({ ...s, ...updates }))}
+                    />
+                  </GlassCard>
                 </div>
 
                 {/* Quick Game Info Card */}
                 <div className="p-4 obsidian-panel flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] gold-glow" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[var(--secondary-accent)] gold-glow" />
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
                         {activeMode === 'ai' ? `VS ${currentBot.name}` : 'Local Session'}
@@ -1060,14 +1313,14 @@ export default function App() {
                       </span>
                     </div>
                   </div>
-                  <div className="px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1F293D] text-[10px] font-black text-[#F59E0B] uppercase tracking-tighter">
+                  <div className="px-3 py-1.5 rounded-lg bg-[var(--app-bg)] border border-[var(--glass-border)] text-[10px] font-black text-[var(--secondary-accent)] uppercase tracking-tighter">
                     {timeControl.name}
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
-        </AnimatePresence>
+          </AnimatePresence>
         </Suspense>
       </main>
 

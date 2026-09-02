@@ -1,6 +1,8 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { RotateCw, Undo2, Redo2, Flag, Volume2, VolumeX, Sparkles, PlusCircle, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { GlassButton } from './GlassButton';
 
 interface GameControlsProps {
   onNewGame: () => void;
@@ -33,91 +35,122 @@ export const GameControls: React.FC<GameControlsProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        staggerChildren: 0.05,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.8, y: 10 },
+    visible: { opacity: 1, scale: 1, y: 0 }
+  };
+
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 p-3 obsidian-panel shadow-2xl border-[#1F293D]">
-      <button
-        id="btn-new-game"
-        onClick={onNewGame}
-        className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#F59E0B] text-[#0B0F19] hover:brightness-110 transition-all interactive-btn shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-        title="Start a new chess match"
-      >
-        <PlusCircle className="w-4 h-4 mb-1" />
-        <span className="text-[10px] font-black uppercase tracking-tighter">New</span>
-      </button>
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="grid grid-cols-4 sm:grid-cols-7 gap-2 p-3 bg-[var(--glass-panel)] backdrop-blur-xl rounded-[2rem] border border-[var(--glass-border)] shadow-2xl"
+    >
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-new-game"
+          onClick={onNewGame}
+          variant="primary"
+          className="flex-col w-full h-full !rounded-2xl !p-3 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+          ariaLabel="Start a new chess match"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-tighter">New</span>
+        </GlassButton>
+      </motion.div>
 
-      <button
-        id="btn-flip-board"
-        onClick={onFlipBoard}
-        className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#111827] text-[#94A3B8] hover:text-[#F59E0B] border border-[#1F293D] hover:border-[#F59E0B]/30 transition-all interactive-btn"
-        title="Flip board orientation"
-      >
-        <RotateCw className="w-4 h-4 mb-1" />
-        <span className="text-[10px] font-black uppercase tracking-tighter">Flip</span>
-      </button>
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-flip-board"
+          onClick={onFlipBoard}
+          variant="default"
+          className="flex-col w-full h-full !rounded-2xl !p-3"
+          ariaLabel="Flip board orientation"
+        >
+          <RotateCw className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-tighter">Flip</span>
+        </GlassButton>
+      </motion.div>
 
-      <button
-        id="btn-undo-move"
-        onClick={onUndo}
-        disabled={!canUndo}
-        className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all interactive-btn ${
-          canUndo
-            ? 'bg-[#111827] text-[#94A3B8] hover:text-[#F59E0B] border-[#1F293D] hover:border-[#F59E0B]/30'
-            : 'bg-[#0B0F19] text-[#94A3B8]/20 border-[#1F293D]/50 opacity-40 grayscale pointer-events-none'
-        }`}
-        title="Take back last move"
-      >
-        <Undo2 className="w-4 h-4 mb-1" />
-        <span className="text-[10px] font-black uppercase tracking-tighter">Undo</span>
-      </button>
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-undo-move"
+          onClick={onUndo}
+          disabled={!canUndo}
+          variant="default"
+          className="flex-col w-full h-full !rounded-2xl !p-3"
+          ariaLabel="Take back last move"
+        >
+          <Undo2 className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-tighter">Undo</span>
+        </GlassButton>
+      </motion.div>
 
-      <button
-        id="btn-redo-move"
-        onClick={onRedo}
-        disabled={!canRedo}
-        className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all interactive-btn ${
-          canRedo
-            ? 'bg-[#111827] text-[#94A3B8] hover:text-[#F59E0B] border-[#1F293D] hover:border-[#F59E0B]/30'
-            : 'bg-[#0B0F19] text-[#94A3B8]/20 border-[#1F293D]/50 opacity-40 grayscale pointer-events-none'
-        }`}
-        title="Redo move"
-      >
-        <Redo2 className="w-4 h-4 mb-1" />
-        <span className="text-[10px] font-black uppercase tracking-tighter">Redo</span>
-      </button>
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-redo-move"
+          onClick={onRedo}
+          disabled={!canRedo}
+          variant="default"
+          className="flex-col w-full h-full !rounded-2xl !p-3"
+          ariaLabel="Redo move"
+        >
+          <Redo2 className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-tighter">Redo</span>
+        </GlassButton>
+      </motion.div>
 
-      <button
-        id="btn-get-hint"
-        onClick={onHint}
-        className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#111827] text-[#F59E0B] border border-[#F59E0B]/20 hover:border-[#F59E0B]/60 transition-all interactive-btn shadow-lg"
-        title="Request engine tactical hint"
-      >
-        <Sparkles className="w-4 h-4 mb-1" />
-        <span className="text-[10px] font-black uppercase tracking-tighter">Hint</span>
-      </button>
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-get-hint"
+          onClick={onHint}
+          variant="secondary"
+          className="flex-col w-full h-full !rounded-2xl !p-3 shadow-lg"
+          ariaLabel="Request engine tactical hint"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-tighter">Hint</span>
+        </GlassButton>
+      </motion.div>
 
-      <button
-        id="btn-toggle-sound"
-        onClick={onToggleSound}
-        className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all interactive-btn ${
-          soundEnabled
-            ? 'bg-[#111827] text-[#F59E0B] border-[#F59E0B]/20'
-            : 'bg-[#0B0F19] text-[#94A3B8] border-[#1F293D]'
-        }`}
-        title={soundEnabled ? 'Mute audio' : 'Enable audio'}
-      >
-        {soundEnabled ? <Volume2 className="w-4 h-4 mb-1" /> : <VolumeX className="w-4 h-4 mb-1 opacity-40" />}
-        <span className="text-[10px] font-black uppercase tracking-tighter">{soundEnabled ? 'On' : 'Off'}</span>
-      </button>
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-toggle-sound"
+          onClick={onToggleSound}
+          variant={soundEnabled ? "secondary" : "default"}
+          className="flex-col w-full h-full !rounded-2xl !p-3"
+          ariaLabel={soundEnabled ? 'Mute audio' : 'Enable audio'}
+        >
+          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-40" />}
+          <span className="text-[10px] font-black uppercase tracking-tighter">{soundEnabled ? 'On' : 'Off'}</span>
+        </GlassButton>
+      </motion.div>
 
-      <button
-        id="btn-resign-game"
-        onClick={onResign}
-        className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 border border-[#EF4444]/30 transition-all interactive-btn"
-        title="Resign current match"
-      >
-        <Flag className="w-4 h-4 mb-1" />
-        <span className="text-[10px] font-black uppercase tracking-tighter">Resign</span>
-      </button>
-    </div>
+      <motion.div variants={itemVariants} className="h-full">
+        <GlassButton
+          id="btn-resign-game"
+          onClick={onResign}
+          variant="red"
+          className="flex-col w-full h-full !rounded-2xl !p-3"
+          ariaLabel="Resign current match"
+        >
+          <Flag className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-tighter">Resign</span>
+        </GlassButton>
+      </motion.div>
+    </motion.div>
   );
 };

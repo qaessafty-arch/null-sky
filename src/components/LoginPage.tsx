@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../utils/firebase';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'motion/react';
+import { useGlassFloat } from '../hooks/useGlassFloat';
 import { LanguageSelector } from './LanguageSelector';
 import { 
   Lock, 
@@ -48,6 +50,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     signOut
   } = useAuth();
   const { t } = useTranslation();
+  const floatVariants = useGlassFloat(1.3);
 
   // Mode: Sign In vs Sign Up vs Forgot Password
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
@@ -275,7 +278,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       </div>
 
       {/* Main Glassmorphic Authentication Card */}
-      <div className="relative w-full max-w-md bg-slate-900/85 backdrop-blur-2xl rounded-3xl border border-slate-700/60 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10 transition-all duration-300">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={["visible", "float"]}
+        variants={{
+          visible: { opacity: 1, scale: 1, y: 0 },
+          ...floatVariants
+        }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-md bg-slate-900/85 backdrop-blur-2xl rounded-3xl border border-slate-700/60 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10 transition-all duration-300"
+      >
         {/* Top Accent Strip */}
         <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-[#F5C453] to-[#8C2425]" />
 
@@ -673,7 +685,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </form>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
