@@ -671,34 +671,26 @@
 }
 
 /* ========================================================================= */
-/* CRISP HIGH-DEF VECTOR PIECE SILHOUETTES (NO FOG / NO GLOW HAZE)          */
+/* 100% SHARP VECTOR PIECES (NO BLUR, NO GLOW, NO DROP-SHADOW HAZE)         */
 /* ========================================================================= */
 
 .chess-board-piece {
-  /* Crisp clean silhouette without hazy fog */
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  /* Zero blur, zero glow, pure razor-sharp SVG vector rendering */
+  filter: none !important;
+  text-shadow: none !important;
   transition: transform 0.2s ease-out;
   will-change: transform;
 }
 
-/* White & Black Pieces: Clean subtle drop shadow for readability */
 .chess-board-piece[data-piece-color="w"],
-.chess-board-piece.piece-white {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
-}
-
+.chess-board-piece.piece-white,
 .chess-board-piece[data-piece-color="b"],
-.chess-board-piece.piece-black {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
-}
-
-/* Dynamic Interactive Hover & Floating Drag Elevation */
-.chess-board-piece:hover {
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.75));
-}
-
+.chess-board-piece.piece-black,
+.chess-board-piece:hover,
 .chess-drag-piece.chess-board-piece,
 .chess-drag-piece .chess-board-piece {
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.85)) !important;
+  filter: none !important;
+  text-shadow: none !important;
 }
+
 
