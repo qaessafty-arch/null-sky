@@ -430,13 +430,118 @@ async function startServer() {
   const matchmaking = new MatchmakingEngine(io);
   console.log('[Matchmaking] Enterprise Real-Time Engine Initialized.');
 
-  
-app.post('/api/gemini/recap', async (req, res) => {
-  try {
-    const { pgn } = req.body;
-    if (!pgn) {
-      return res.status(400).json({ error: 'PGN required' });
+  // ==========================================
+  // 7. REST API ENDPOINTS FOR CHESS GAMES
+  // ==========================================
+
+  // POST /api/games → Create game with unique 6-character code
+  app.post('/api/games', (req, res) => {
+    try {
+      const { timeControl, side, playerInfo, customCode } = req.body || {};
+      const game = matchmaking.createCustomRoom({
+        hostUid: playerInfo?.uid || 'host_' + Date.now(),
+        hostName: playerInfo?.displayName || playerInfo?.name || 'Player 1',
+        hostRating: playerInfo?.elo || playerInfo?.rating || 1200,
+        timeControl,
+        side,
+        customCode
+      });
+      res.status(201).json({
+        gameId: game.gameId,
+        gameCode: game.gameCode,
+        status: 'waiting',
+        timeControl: game.session.timeControl,
+        fen: game.session.chess.fen(),
+        pgn: game.session.chess.pgn()
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'Failed to create game' });
     }
+  });
+
+  // POST /api/games/:id/cancel → Cancel waiting game
+  app.post('/api/games/:id/cancel', (req, res) => {
+    try {
+      const { id } = req.params;
+      const match = matchmaking.getMatch(id);
+      if (!match) return res.status(404).json({ error: 'Game not found' });
+      if (match.status !== 'waiting') {
+        return res.status(400).json({ error: 'Only waiting games can be cancelled' });
+      }
+      match.status = 'cancelled';
+      if (match.waitingTimer) clearTimeout(match.waitingTimer);
+      io.to(match.matchId).emit('gameCancelled', {
+        gameId: match.matchId,
+        gameCode: match.gameCode,
+        reason: 'Host cancelled the game.'
+      });
+      res.json({ success: true, message: 'Game cancelled successfully' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'Failed to cancel game' });
+    }
+  });
+
+  // POST /api/games/:id/join → Join game with 6-character code or ID
+  app.post('/api/games/:id/join', (req, res) => {
+    try {
+      const { id } = req.params;
+      const { playerInfo } = req.body || {};
+      const result = matchmaking.joinCustomRoom(id, {
+        uid: playerInfo?.uid || 'guest_' + Date.now(),
+        name: playerInfo?.displayName || playerInfo?.name || 'Player 2',
+        rating: playerInfo?.elo || playerInfo?.rating || 1200
+      });
+      res.json({
+        success: true,
+        playerColor: result.playerColor,
+        gameId: result.match.matchId,
+        gameCode: result.match.gameCode,
+        game: matchmaking.getGameState(result.match.matchId)
+      });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || 'Failed to join game' });
+    }
+  });
+
+  // GET /api/games/:id/state → Full game state
+  app.get('/api/games/:id/state', (req, res) => {
+    const state = matchmaking.getGameState(req.params.id);
+    if (!state) return res.status(404).json({ error: 'Game not found' });
+    res.json(state);
+  });
+
+  // GET /api/games/:id/pgn → Export game in PGN format
+  app.get('/api/games/:id/pgn', (req, res) => {
+    const pgn = matchmaking.getGamePgn(req.params.id);
+    if (pgn === null) return res.status(404).json({ error: 'Game not found' });
+    if (req.headers.accept?.includes('application/json')) {
+      res.json({ pgn });
+    } else {
+      res.type('text/plain').send(pgn);
+    }
+  });
+
+  // GET /api/games/:id/fen → Current FEN string
+  app.get('/api/games/:id/fen', (req, res) => {
+    const fen = matchmaking.getGameFen(req.params.id);
+    if (!fen) return res.status(404).json({ error: 'Game not found' });
+    res.json({ fen });
+  });
+
+  // GET /api/games/:id/moves → List of all moves
+  app.get('/api/games/:id/moves', (req, res) => {
+    const moves = matchmaking.getGameMoves(req.params.id);
+    if (!moves) return res.status(404).json({ error: 'Game not found' });
+    res.json({ moves });
+  });
+
+  // AI Game Recap Endpoint
+  app.post('/api/ai/recap', async (req, res) => {
+    try {
+      const { pgn } = req.body;
+      if (!pgn) {
+        return res.status(400).json({ error: 'PGN required' });
+      }
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await ai.models.generateContent({

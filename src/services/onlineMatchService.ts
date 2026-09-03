@@ -580,14 +580,29 @@ export const listenToOnlineMatchSession = (
 };
 
 /**
- * Creates an open multiplayer match room in Firestore
+ * Generates a memorable, unique 6-character game room code
+ * (Uppercase alphanumeric, excluding ambiguous characters 0, O, 1, I)
+ */
+export const generateGameRoomCode = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
+/**
+ * Creates an open multiplayer match room in Firestore with a 6-character code
  */
 export const createOnlineMatch = async (
   hostPlayer: OnlineMatchPlayer,
   timeControl: TimeControl,
-  side: 'w' | 'b' | 'random' = 'random'
+  side: 'w' | 'b' | 'random' = 'random',
+  customCode?: string
 ): Promise<string> => {
-  const matchId = `match_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const cleanCode = (customCode?.trim().toUpperCase() || generateGameRoomCode());
+  const matchId = cleanCode;
   const matchDocRef = doc(db, 'online_matches', matchId);
 
   const resolvedSide = side === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : side;
@@ -595,6 +610,7 @@ export const createOnlineMatch = async (
 
   const initialSession: OnlineMatchSession = {
     id: matchId,
+    code: matchId,
     hostId: hostPlayer.uid,
     whitePlayer: isHostWhite ? hostPlayer : null,
     blackPlayer: isHostWhite ? null : hostPlayer,
@@ -613,6 +629,21 @@ export const createOnlineMatch = async (
   };
 
   await setDoc(matchDocRef, initialSession);
+
+  // Also register with server REST endpoint in background
+  try {
+    fetch('/api/games', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customCode: matchId,
+        timeControl,
+        side,
+        playerInfo: hostPlayer
+      })
+    }).catch(() => {});
+  } catch {}
+
   return matchId;
 };
 
@@ -620,14 +651,34 @@ export const createOnlineMatch = async (
  * Joins an existing multiplayer match room as the challenger/guest
  */
 export const joinOnlineMatch = async (
-  matchId: string,
+  codeOrId: string,
   guestPlayer: OnlineMatchPlayer
 ): Promise<OnlineMatchSession> => {
-  const matchDocRef = doc(db, 'online_matches', matchId);
-  const snap = await getDoc(matchDocRef);
+  const cleanCode = codeOrId.trim().toUpperCase();
+  let matchDocRef = doc(db, 'online_matches', cleanCode);
+  let snap = await getDoc(matchDocRef);
 
+  // If not found by direct ID, search by code field or lowercase ID
   if (!snap.exists()) {
-    throw new Error('Match room not found.');
+    const q = query(
+      collection(db, 'online_matches'),
+      where('code', '==', cleanCode),
+      limit(1)
+    );
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      matchDocRef = querySnap.docs[0].ref;
+      snap = querySnap.docs[0];
+    } else {
+      // Fallback: search by id case-insensitively if legacy match_ id
+      const legacyRef = doc(db, 'online_matches', codeOrId.trim());
+      snap = await getDoc(legacyRef);
+      if (snap.exists()) {
+        matchDocRef = legacyRef;
+      } else {
+        throw new Error(`Match room "${cleanCode}" not found. Please verify the code.`);
+      }
+    }
   }
 
   const session = snap.data() as OnlineMatchSession;
@@ -647,6 +698,16 @@ export const joinOnlineMatch = async (
   };
 
   await updateDoc(matchDocRef, updateData);
+
+  // Also notify server REST endpoint
+  try {
+    fetch(`/api/games/${encodeURIComponent(cleanCode)}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerInfo: guestPlayer })
+    }).catch(() => {});
+  } catch {}
+
   return { ...session, ...updateData } as OnlineMatchSession;
 };
 

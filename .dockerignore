@@ -1,0 +1,10 @@
+# FILE: .dockerignore
+node_modules
+dist
+.git
+.gitignore
+*.log
+.env
+.env.local
+coverage
+.DS_Store

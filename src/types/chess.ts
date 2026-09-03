@@ -162,6 +162,7 @@ export interface OnlineMatchClock {
 
 export interface OnlineMatchSession {
   id: string;
+  code?: string;
   hostId: string;
   guestId?: string;
   whitePlayer: OnlineMatchPlayer;

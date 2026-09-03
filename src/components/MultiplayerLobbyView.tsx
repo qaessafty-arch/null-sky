@@ -14,7 +14,8 @@ import {
   joinOnlineMatch,
   joinWorldwideMatchmaking,
   listenToOnlineMatchSession,
-  listenToPublicOpenMatches 
+  listenToPublicOpenMatches,
+  generateGameRoomCode
 } from '../services/onlineMatchService';
 import { 
   listenToTournaments,
@@ -43,6 +44,8 @@ import {
   Trophy
 } from 'lucide-react';
 import { Tournament, TournamentPlayer } from '../types/chess';
+import { ModernWaitingRoom } from './multiplayer/ModernWaitingRoom';
+import { ModernGameCreationModal } from './multiplayer/ModernGameCreationModal';
 
 interface MultiplayerLobbyViewProps {
   settings: AppSettings;
@@ -73,12 +76,32 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   const [selectedSide, setSelectedSide] = useState<'w' | 'b' | 'random'>('random');
   const [isCreating, setIsCreating] = useState(false);
   const [createdMatchId, setCreatedMatchId] = useState<string | null>(null);
+  const [pregeneratedCode, setPregeneratedCode] = useState<string>(() => generateGameRoomCode());
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showCreationModal, setShowCreationModal] = useState(false);
 
   // Join Room state
   const [joinMatchId, setJoinMatchId] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+
+  // Auto-transition host into match when opponent joins with the code
+  useEffect(() => {
+    if (!createdMatchId) return;
+    const unsub = listenToOnlineMatchSession(createdMatchId, session => {
+      if (
+        session &&
+        (session.status === 'in_progress' ||
+          (session.guestId && session.guestId !== buildLocalPlayer().uid))
+      ) {
+        soundManager.playVictory();
+        onStartMatch(createdMatchId);
+      }
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [createdMatchId]);
 
   // Open Public Matches from Firestore
   const [openMatches, setOpenMatches] = useState<OnlineMatchSession[]>([]);
@@ -208,7 +231,8 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   const handleCreateRoom = async () => {
     setIsCreating(true);
     try {
-      const matchId = await createOnlineMatch(buildLocalPlayer(), selectedTimeControl, selectedSide);
+      const code = (pregeneratedCode || generateGameRoomCode()).trim().toUpperCase();
+      const matchId = await createOnlineMatch(buildLocalPlayer(), selectedTimeControl, selectedSide, code);
       setCreatedMatchId(matchId);
       setIsCreating(false);
       soundManager.playCapture();
@@ -218,10 +242,28 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     }
   };
 
+  const handleModalCreateGame = async (config: {
+    timeControl: TimeControl;
+    isRated: boolean;
+    colorPreference: 'w' | 'b' | 'random';
+    roomCode: string;
+  }) => {
+    const matchId = await createOnlineMatch(
+      buildLocalPlayer(),
+      config.timeControl,
+      config.colorPreference,
+      config.roomCode
+    );
+    setCreatedMatchId(matchId);
+    setSelectedTimeControl(config.timeControl);
+    setSelectedSide(config.colorPreference);
+    return matchId;
+  };
+
   const handleJoinRoom = async () => {
-    const cleanId = joinMatchId.trim();
+    const cleanId = joinMatchId.trim().toUpperCase();
     if (!cleanId) {
-      setJoinError('Please enter a valid match room code.');
+      setJoinError('Please enter a valid 6-character match room code.');
       return;
     }
 
@@ -530,6 +572,40 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
 
           {!createdMatchId ? (
             <div className="space-y-4">
+              {/* Unique 6-character Game Code Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-black/90 via-[#182214] to-black/90 border border-[#F5C453]/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-[#F5C453] tracking-widest block">
+                    Assigned 6-Character Game Code
+                  </span>
+                  <span className="font-mono text-2xl sm:text-3xl font-black text-white tracking-[0.25em]">
+                    {pregeneratedCode}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pregeneratedCode);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#F5C453]" />}
+                    <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPregeneratedCode(generateGameRoomCode())}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all cursor-pointer"
+                    title="Generate different 6-character code"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#DFD0B0]">Time Control</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -589,52 +665,37 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={handleCreateRoom}
-                disabled={isCreating}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#52673A] via-[#8C2425] to-[#F5C453] hover:brightness-110 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#F5C453]/20 border border-[#F5C453]/50 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{isCreating ? 'Creating Room...' : 'Generate Match Room'}</span>
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <button
+                  onClick={handleCreateRoom}
+                  disabled={isCreating}
+                  className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#52673A] via-[#8C2425] to-[#F5C453] hover:brightness-110 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#F5C453]/20 border border-[#F5C453]/50 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{isCreating ? 'Creating Room...' : `Create Game (${pregeneratedCode})`}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreationModal(true)}
+                  className="px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/20 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Custom Game Creator</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="p-5 rounded-2xl bg-black/80 border-2 border-[#F5C453] text-center space-y-4 animate-in zoom-in-95">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex items-center justify-center mx-auto">
-                <Check className="w-5 h-5" />
-              </div>
-              <h4 className="text-base font-black text-white">Room Created Successfully!</h4>
-              <p className="text-xs text-[#DFD0B0]/70">
-                Share this Room Code with your opponent — you'll enter the arena automatically when they join:
-              </p>
-
-              <div className="p-3 rounded-xl bg-white/5 border border-white/20 flex items-center justify-between gap-3 max-w-sm mx-auto">
-                <span className="font-mono text-sm font-black text-[#F5C453]">{createdMatchId}</span>
-                <button
-                  onClick={handleCopyCode}
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedCode ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-
-              <div className="pt-2 flex items-center justify-center gap-3">
-                <button
-                  onClick={() => onStartMatch(createdMatchId)}
-                  className="px-5 py-2.5 rounded-xl bg-[#52673A] hover:bg-[#52673A]/90 text-white font-black text-xs flex items-center gap-2 shadow-md border border-[#F5C453]/40 cursor-pointer"
-                >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>Enter Match Room</span>
-                </button>
-                <button
-                  onClick={() => setCreatedMatchId(null)}
-                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
-                >
-                  Create Another
-                </button>
-              </div>
-            </div>
+            <ModernWaitingRoom
+              gameCode={createdMatchId}
+              timeControlName={selectedTimeControl.name}
+              isRated={true}
+              playerSide={selectedSide}
+              onCancel={() => {
+                setCreatedMatchId(null);
+                setPregeneratedCode(generateGameRoomCode());
+              }}
+              onEnterBoard={() => onStartMatch(createdMatchId)}
+            />
           )}
         </div>
       )}
@@ -645,9 +706,9 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
           <div className="flex items-center gap-3 border-b border-white/10 pb-3">
             <Users className="w-6 h-6 text-[#F5C453]" />
             <div>
-              <h3 className="text-base font-black text-white">Join Room by Match Code</h3>
+              <h3 className="text-base font-black text-white">Join Game with Code</h3>
               <p className="text-xs text-[#DFD0B0]/70">
-                Enter the room ID provided by your opponent.
+                Enter the unique 6-character game code generated by Player 1.
               </p>
             </div>
           </div>
@@ -658,24 +719,25 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#DFD0B0]">Match Room ID / Code</label>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#DFD0B0]">6-Character Game Code</label>
             <input
               type="text"
               value={joinMatchId}
-              onChange={e => setJoinMatchId(e.target.value)}
-              placeholder="e.g. match_1710000000_abc"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white font-mono text-xs font-bold focus:border-[#F5C453] focus:outline-none"
+              onChange={e => setJoinMatchId(e.target.value.toUpperCase())}
+              maxLength={12}
+              placeholder="e.g. K9X2P7"
+              className="w-full px-4 py-3.5 rounded-2xl bg-black/70 border-2 border-[#F5C453]/40 text-white font-mono text-center text-xl font-black tracking-[0.25em] focus:border-[#F5C453] focus:outline-none transition-all placeholder:text-white/20"
             />
           </div>
 
           <button
             onClick={handleJoinRoom}
             disabled={isJoining || !joinMatchId.trim()}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#8C2425] via-[#52673A] to-[#F5C453] hover:brightness-110 disabled:opacity-40 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#F5C453]/20 border border-[#F5C453]/50 transition-all cursor-pointer"
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#8C2425] via-[#52673A] to-[#F5C453] hover:brightness-110 disabled:opacity-40 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#F5C453]/20 border border-[#F5C453]/50 transition-all cursor-pointer"
           >
             <ArrowRight className="w-4 h-4" />
-            <span>{isJoining ? 'Connecting to Room...' : 'Join & Start Match'}</span>
+            <span>{isJoining ? 'Connecting to Room...' : 'Join & Start Playing'}</span>
           </button>
         </div>
       )}
@@ -932,6 +994,14 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
           )}
         </div>
       )}
+
+      {/* Advanced Custom Game Creation Modal */}
+      <ModernGameCreationModal
+        isOpen={showCreationModal}
+        onClose={() => setShowCreationModal(false)}
+        onCreateGame={handleModalCreateGame}
+        onStartMatch={onStartMatch}
+      />
     </PanelContainer>
   );
 };
