@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+patch_*.cjs
+test_*.cjs
+test_*.js
+*.png
+bun.lock
