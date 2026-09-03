@@ -323,7 +323,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
     if (success) {
       setDevPasskeyInput('');
     } else {
-      setDevPassError('Invalid Developer Passkey. Access restricted to q.brz.');
+      setDevPassError('Invalid passkey. Developer account requires password [q.brz]+[BLUEBERRY].');
     }
   };
 
@@ -350,10 +350,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
         setShowSkyPassModal(false);
         setSkyPassInput('');
       } else {
-        setSkyError('Invalid Developer Passkey for Sky account.');
+        setSkyError('Invalid password. Celestial [sky] account requires [q.brz]+[BLUEBERRY].');
       }
     } catch (e: any) {
-      setSkyError(e?.message || 'Access Denied: Only Developer can log in as [sky].');
+      setSkyError(e?.message || 'Access Denied: The Celestial [sky] account requires its special and only password [q.brz]+[BLUEBERRY].');
     }
   };
 
@@ -497,7 +497,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
               </div>
               <input
                 type="password"
-                placeholder="Enter Developer Passkey"
+                placeholder="Enter [q.brz]+[BLUEBERRY]"
                 value={skyPassInput}
                 onChange={e => setSkyPassInput(e.target.value)}
                 autoComplete="new-password"

@@ -477,8 +477,8 @@ export default function App() {
 
     setIsAiThinking(true);
 
-    // Natural bot think delay (300ms - 750ms)
-    const delay = Math.min(800, Math.max(300, 200 + currentBot.depth * 100));
+    // Ultra-responsive bot think delay (50ms - 180ms)
+    const delay = Math.min(200, Math.max(50, 40 + currentBot.depth * 18));
 
     const timeoutId = setTimeout(() => {
       try {

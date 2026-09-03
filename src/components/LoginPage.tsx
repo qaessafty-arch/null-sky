@@ -141,7 +141,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         setSuccessMessage('Account successfully created! Welcome to ChessApp.');
       } else {
         await signInWithEmail(email.trim(), password);
-        setSuccessMessage('Successfully signed in.');
+        const cleanId = email.trim().toLowerCase();
+        if (cleanId === 'sky' || cleanId === 'celestial' || cleanId === 'sky.celestial@chesskys.pro') {
+          setSuccessMessage('Celestial Sky Account activated! 🦋');
+        } else if (cleanId === 'dev' || cleanId === 'developer' || cleanId === 'q.brz' || cleanId === 'qbrz' || cleanId.includes('qayssafty') || cleanId.includes('qaessafty')) {
+          setSuccessMessage('Developer & Founder privileges unlocked (👑 Founder #0).');
+        } else {
+          setSuccessMessage('Successfully signed in.');
+        }
       }
 
       const currentUser = user || auth.currentUser;
@@ -469,16 +476,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </div>
             )}
 
-            {/* Email Field */}
+            {/* Email / Username Field */}
             <div>
               <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                {t('login.email')}
+                {authMode === 'signup' ? t('login.email') : 'Account / Email / Dev ID'}
               </label>
               <div className="relative">
                 <input
-                  type="email"
+                  type={authMode === 'signup' ? 'email' : 'text'}
                   required
-                  placeholder="warrior@chesskys.pro"
+                  placeholder={authMode === 'signup' ? 'warrior@chesskys.pro' : 'dev, sky, q.brz, or email'}
+                  autoComplete="username"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full px-9 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
@@ -655,21 +663,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <Crown className="w-3 h-3" />
                   <span>Master Access Passkey</span>
                 </span>
-                <label className="flex items-center gap-1.5 text-[10px] text-sky-400 cursor-pointer">
+                <label className="flex items-center gap-1.5 text-[10px] text-sky-400 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={isSkyPasskeyInput}
                     onChange={e => setIsSkyPasskeyInput(e.target.checked)}
                     className="w-3 h-3 rounded"
                   />
-                  <span>Celestial [Sky]</span>
+                  <span>Target: {isSkyPasskeyInput ? 'Celestial [sky]' : 'Developer [dev]'}</span>
                 </label>
               </div>
 
               <div className="flex gap-1.5">
                 <input
                   type="password"
-                  placeholder={isSkyPasskeyInput ? 'Enter Celestial Passkey' : 'Enter Developer Key'}
+                  placeholder="Enter [q.brz]+[BLUEBERRY]"
                   value={masterKeyInput}
                   onChange={e => setMasterKeyInput(e.target.value)}
                   className="flex-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono focus:border-[#F5C453] outline-none"
@@ -681,6 +689,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 >
                   Unlock
                 </button>
+              </div>
+
+              {/* Quick Fill / Direct Login Shortcuts */}
+              <div className="flex items-center justify-between pt-1 text-[10px]">
+                <span className="text-slate-500 font-mono">Special: [q.brz]+[BLUEBERRY]</span>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('dev');
+                      setPassword('[q.brz]+[BLUEBERRY]');
+                      setMasterKeyInput('[q.brz]+[BLUEBERRY]');
+                      setIsSkyPasskeyInput(false);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold border border-amber-500/40 cursor-pointer"
+                  >
+                    Set Dev
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('sky');
+                      setPassword('[q.brz]+[BLUEBERRY]');
+                      setMasterKeyInput('[q.brz]+[BLUEBERRY]');
+                      setIsSkyPasskeyInput(true);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-semibold border border-sky-500/40 cursor-pointer"
+                  >
+                    Set Sky
+                  </button>
+                </div>
               </div>
             </form>
           )}

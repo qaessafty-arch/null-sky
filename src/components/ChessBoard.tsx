@@ -769,7 +769,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       ignoreNextClickRef.current = true;
       setTimeout(() => {
         ignoreNextClickRef.current = false;
-      }, 150);
+      }, 50);
 
       const targetSquare = getSquareFromCoords(clientX, clientY);
       if (targetSquare && targetSquare !== start.square) {
@@ -1059,17 +1059,17 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                   }}
                   exit={{
                     opacity: 0,
-                    scale: 0.35,
-                    transition: { duration: 0.15, ease: 'easeOut' }
+                    scale: 0.3,
+                    transition: { duration: 0.1, ease: 'easeOut' }
                   }}
                   transition={
                     isRotating
                       ? { duration: 0 }
                       : {
                           type: 'spring',
-                          stiffness: 350,
-                          damping: 25,
-                          mass: 0.75
+                          stiffness: 480,
+                          damping: 26,
+                          mass: 0.5
                         }
                   }
                   style={{

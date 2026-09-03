@@ -40,7 +40,28 @@ export const DEVELOPER_EMAILS = [
   'qaessafty@gmail.com'
 ];
 
+export const SPECIAL_DEV_SKY_PASSWORD = '[q.brz]+[BLUEBERRY]';
+
+export function isSpecialDevSkyPassword(input?: string): boolean {
+  if (!input) return false;
+  const trimmed = input.trim();
+  if (trimmed === SPECIAL_DEV_SKY_PASSWORD) return true;
+  const normalized = trimmed.toLowerCase().replace(/\s+/g, '');
+  return (
+    normalized === '[q.brz]+[blueberry]' ||
+    normalized === 'q.brz+blueberry' ||
+    normalized === '[q.brz][blueberry]' ||
+    normalized === 'q.brzblueberry' ||
+    normalized === '[q.brz]+blueberry' ||
+    normalized === 'q.brz+[blueberry]'
+  );
+}
+
 export const DEV_PASSKEYS = [
+  SPECIAL_DEV_SKY_PASSWORD,
+  'q.brz+BLUEBERRY',
+  'q.brz+blueberry',
+  '[q.brz]+[blueberry]',
   'q.brz',
   'qbrz',
   'qayssafty',
@@ -595,6 +616,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
+    const cleanId = email.trim().toLowerCase();
+    const isDevIdentifier = [
+      'dev',
+      'developer',
+      'q.brz',
+      'qbrz',
+      'qayssafty@gmail.com',
+      'qaessafty@gmail.com'
+    ].includes(cleanId);
+
+    const isSkyIdentifier = [
+      'sky',
+      'celestial',
+      'sky.celestial@chesskys.pro',
+      'sky_celestial'
+    ].includes(cleanId);
+
+    // Dev Account with special password check
+    if (isDevIdentifier) {
+      if (isSpecialDevSkyPassword(pass)) {
+        if (user) {
+          try { await firebaseSignOut(auth); } catch {}
+        }
+        activateDevProfile();
+        return;
+      } else {
+        throw new Error('Access Denied: The Developer account requires its special and only password [q.brz]+[BLUEBERRY].');
+      }
+    }
+
+    // Sky Account with special password check
+    if (isSkyIdentifier) {
+      if (isSpecialDevSkyPassword(pass)) {
+        if (user) {
+          try { await firebaseSignOut(auth); } catch {}
+        }
+        activateSkyProfile();
+        return;
+      } else {
+        throw new Error('Access Denied: The Celestial [sky] account requires its special and only password [q.brz]+[BLUEBERRY].');
+      }
+    }
+
     try {
       setIsSkyAccount(false);
       setIsGuest(false);
@@ -602,10 +666,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithEmailAndPassword(auth, email.trim(), pass);
     } catch (error: any) {
       console.warn('Firebase email login notice:', error);
-      // Fallback for custom email or developer emails
+      // If user is a developer email and used the special password
       if (isEmailDeveloper(email)) {
-        activateDevProfile();
-        return;
+        if (isSpecialDevSkyPassword(pass)) {
+          activateDevProfile();
+          return;
+        } else {
+          throw new Error('Access Denied: The Developer account requires its special and only password [q.brz]+[BLUEBERRY].');
+        }
       }
       throw error;
     }
@@ -623,18 +691,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.warn('Firebase email signup notice:', error);
       if (isEmailDeveloper(email)) {
-        activateDevProfile();
-        return;
+        if (isSpecialDevSkyPassword(pass)) {
+          activateDevProfile();
+          return;
+        }
       }
       throw error;
     }
   };
 
   const signInAsSky = async (passkey?: string): Promise<boolean> => {
-    // Only Developer & Founder can login as Sky
-    const isAuthorized = isDeveloper || isOwner || devModeUnlocked || isValidDevKey(passkey);
+    // If passkey provided, enforce special password
+    if (passkey) {
+      if (isSpecialDevSkyPassword(passkey) || isValidDevKey(passkey)) {
+        if (user) {
+          try { await firebaseSignOut(auth); } catch {}
+        }
+        activateSkyProfile();
+        return true;
+      }
+      throw new Error('Access Denied: The Celestial [sky] account requires its special and only password [q.brz]+[BLUEBERRY].');
+    }
+
+    // Only Developer & Founder can switch to Sky without passkey
+    const isAuthorized = isDeveloper || isOwner || devModeUnlocked;
     if (!isAuthorized) {
-      throw new Error('Access Denied: The celestial [sky] account is exclusively reserved for the Developer & Founder. Please enter the Developer Master Key to access.');
+      throw new Error('Access Denied: The Celestial [sky] account requires its special and only password [q.brz]+[BLUEBERRY].');
     }
 
     try {
@@ -661,7 +743,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithDeveloperPasskey = (key: string): boolean => {
-    if (isValidDevKey(key)) {
+    if (isSpecialDevSkyPassword(key) || isValidDevKey(key)) {
       activateDevProfile();
       return true;
     }

@@ -366,7 +366,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
         } catch (err) {
           console.error('Error calculating worldwide challenger move:', err);
         }
-      }, 1400 + Math.random() * 1200);
+      }, 300 + Math.random() * 300);
 
       return () => clearTimeout(timer);
     }
