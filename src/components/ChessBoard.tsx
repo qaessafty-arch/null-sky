@@ -648,6 +648,49 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
     }
   }, [selectedSquare, game, disabled]);
 
+  // Fast O(1) hash map of legal target moves for 64-square lookups
+  const legalTargetsMap = useMemo(() => {
+    const map = new Map<Square, { square: Square; isCapture: boolean }>();
+    for (let i = 0; i < legalTargets.length; i++) {
+      map.set(legalTargets[i].square, legalTargets[i]);
+    }
+    return map;
+  }, [legalTargets]);
+
+  // Fast O(1) Board Pieces Map to avoid 64 game.get() calls on every render
+  const boardPiecesMap = useMemo(() => {
+    const map = new Map<Square, { type: PieceType; color: PieceColor }>();
+    const bState = game.board();
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
+        const p = bState[r][f];
+        if (p) {
+          const fileStr = String.fromCharCode(97 + f);
+          const rankStr = (8 - r).toString();
+          map.set((fileStr + rankStr) as Square, { type: p.type as PieceType, color: p.color as PieceColor });
+        }
+      }
+    }
+    return map;
+  }, [fen, game]);
+
+  // Fast O(1) file and rank index maps for active pieces positioning
+  const fileIndexMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let i = 0; i < displayFiles.length; i++) {
+      map[displayFiles[i]] = i;
+    }
+    return map;
+  }, [displayFiles]);
+
+  const rankIndexMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let i = 0; i < displayRanks.length; i++) {
+      map[displayRanks[i]] = i;
+    }
+    return map;
+  }, [displayRanks]);
+
   // Reset selected square when disabled or game turn changes
   useEffect(() => {
     if (disabled) {
@@ -700,7 +743,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       return;
     }
 
-    const clickedPiece = game.get(square);
+    const clickedPiece = boardPiecesMap.get(square);
     const isCurrentPlayerPiece = clickedPiece && clickedPiece.color === game.turn();
 
     if (selectedSquare === null) {
@@ -723,7 +766,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       }
 
       // Target square is either empty or enemy piece: check legal move
-      const isLegal = legalTargets.some(t => t.square === square);
+      const isLegal = legalTargetsMap.has(square);
       if (isLegal) {
         onMove(selectedSquare, square);
         setSelectedSquare(null);
@@ -736,7 +779,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   // Pointer / Mouse Down
   const handlePointerDown = (clientX: number, clientY: number, square: Square) => {
     if (disabled) return;
-    const piece = game.get(square);
+    const piece = boardPiecesMap.get(square);
     if (!piece || piece.color !== game.turn()) {
       return;
     }
@@ -816,17 +859,23 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
     }
   }, [game, getSquareFromCoords, onMove]);
 
-  // Global window listeners for drag tracking
+  // Stabilize listener handlers with refs to avoid re-attaching on each game update
+  const handlePointerMoveRef = useRef(handlePointerMove);
+  handlePointerMoveRef.current = handlePointerMove;
+  const handlePointerUpRef = useRef(handlePointerUp);
+  handlePointerUpRef.current = handlePointerUp;
+
+  // Global window listeners for drag tracking - registered once
   useEffect(() => {
     const onWindowMouseMove = (e: MouseEvent) => {
       if (pointerStartPosRef.current.square) {
-        handlePointerMove(e.clientX, e.clientY);
+        handlePointerMoveRef.current(e.clientX, e.clientY);
       }
     };
 
     const onWindowMouseUp = (e: MouseEvent) => {
       if (pointerStartPosRef.current.square) {
-        handlePointerUp(e.clientX, e.clientY);
+        handlePointerUpRef.current(e.clientX, e.clientY);
       }
     };
 
@@ -835,7 +884,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
         if (isActivelyDraggingRef.current && e.cancelable) {
           e.preventDefault();
         }
-        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+        handlePointerMoveRef.current(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
 
@@ -844,7 +893,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
         const lastTouch = e.changedTouches[0];
         const clientX = lastTouch ? lastTouch.clientX : dragPosRef.current.x;
         const clientY = lastTouch ? lastTouch.clientY : dragPosRef.current.y;
-        handlePointerUp(clientX, clientY);
+        handlePointerUpRef.current(clientX, clientY);
       }
     };
 
@@ -862,7 +911,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [handlePointerMove, handlePointerUp]);
+  }, []);
 
   return (
     <div className="relative block w-full flex-1 min-w-[240px] max-w-[min(600px,88svh)] select-none touch-none mx-auto p-2 sm:p-4 board-3d-frame rounded-2xl" dir="ltr">
@@ -888,10 +937,10 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
           displayFiles.map((file, fileIdx) => {
             const square = (file + rank) as Square;
             const isLight = (fileIdx + rankIdx) % 2 === 0;
-            const piece = game.get(square);
+            const piece = boardPiecesMap.get(square);
 
             const isSelected = selectedSquare === square;
-            const isLegalTarget = legalTargets.find(t => t.square === square);
+            const isLegalTarget = legalTargetsMap.get(square);
             const isLastMoveSquare =
               highlightLastMove &&
               lastMove &&
@@ -1057,8 +1106,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
             {activePieces.map(p => {
               const file = p.square[0];
               const rank = p.square[1];
-              const colIdx = displayFiles.indexOf(file);
-              const rankIdx = displayRanks.indexOf(rank);
+              const colIdx = fileIndexMap[file] ?? -1;
+              const rankIdx = rankIndexMap[rank] ?? -1;
 
               if (colIdx === -1 || rankIdx === -1) return null;
 

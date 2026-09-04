@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlassFloat } from '../hooks/useGlassFloat';
 import { LanguageSelector } from './LanguageSelector';
+import Landscape from './landscape-tw';
 import { 
   Lock, 
   Mail, 
@@ -67,8 +68,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   // Developer / Master Access
   const [showMasterAccess, setShowMasterAccess] = useState(false);
-  const [masterKeyInput, setMasterKeyInput] = useState('');
-  const [isSkyPasskeyInput, setIsSkyPasskeyInput] = useState(false);
+  const [devPasswordInput, setDevPasswordInput] = useState('');
+  const [skyPasswordInput, setSkyPasswordInput] = useState('');
 
   // States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -233,55 +234,68 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
-  const handleDeveloperUnlock = (e: React.FormEvent) => {
+  const handleDevLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!masterKeyInput.trim()) return;
+    if (!devPasswordInput.trim()) return;
 
-    if (isSkyPasskeyInput) {
-      signInAsSky(masterKeyInput.trim())
-        .then(success => {
-          if (success) {
-            setSuccessMessage('Celestial Sky Account activated!');
-            if (onSuccess) onSuccess();
-            else if (onNavigateHome) onNavigateHome();
-          } else {
-            setErrorMessage('Invalid Celestial Passkey.');
-          }
-        })
-        .catch(err => setErrorMessage(err.message));
-    } else {
-      const unlocked = signInWithDeveloperPasskey(masterKeyInput.trim());
-      if (unlocked) {
-        setSuccessMessage('Developer & Founder privileges unlocked (👑 Founder #0).');
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      if (devPasswordInput === 'q.brz') {
+        await signInWithEmail('dev', devPasswordInput);
+        setSuccessMessage('Developer [dev] Account activated!');
         if (onSuccess) onSuccess();
         else if (onNavigateHome) onNavigateHome();
       } else {
-        setErrorMessage('Invalid Developer Key. Access Denied.');
+        setErrorMessage('Invalid Developer Passkey. Access Denied.');
       }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Login failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSkyLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!skyPasswordInput.trim()) return;
+
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      if (skyPasswordInput === 'BLURBERRY') {
+        await signInWithEmail('sky', skyPasswordInput);
+        setSuccessMessage('Celestial [sky] Account activated!');
+        if (onSuccess) onSuccess();
+        else if (onNavigateHome) onNavigateHome();
+      } else {
+        setErrorMessage('Invalid Celestial Passkey. Access Denied.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Login failed.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-3 sm:p-6 lg:p-10 font-ui text-slate-100">
-      {/* Dynamic Chessboard Grid Pattern Background */}
-      <div className="absolute inset-0 bg-[#090d14] overflow-hidden pointer-events-none">
-        {/* Subtle geometric chessboard tiles */}
-        <div 
-          className="absolute inset-0 opacity-[0.035]"
-          style={{
-            backgroundImage: `
-              linear-gradient(45deg, #ffffff 25%, transparent 25%), 
-              linear-gradient(-45deg, #ffffff 25%, transparent 25%), 
-              linear-gradient(45deg, transparent 75%, #ffffff 75%), 
-              linear-gradient(-45deg, transparent 75%, #ffffff 75%)
-            `,
-            backgroundSize: '48px 48px',
-            backgroundPosition: '0 0, 0 24px, 24px -24px, -24px 0px'
-          }}
+    <div className="relative min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-3 sm:p-6 lg:p-10 font-ui text-slate-100 z-[1]">
+      {/* React Bits Pro Landscape Background */}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0, pointerEvents: 'none' }}>
+        <Landscape 
+          color="#2e1065" 
+          midColor="#0a0a0a" 
+          farColor="#d946ef" 
+          backgroundColor="#0a0a0a"
+          speed={0.5} 
+          altitude={4} 
+          focal={1.5} 
+          elevation={2.5} 
+          scale={0.2} 
+          detail={1.2}
         />
-        {/* Radial ambient glow orbs */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-gradient-to-tr from-amber-500/10 via-emerald-500/10 to-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-gradient-to-br from-emerald-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* Main Glassmorphic Authentication Card */}
@@ -641,7 +655,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               className="text-slate-500 hover:text-[#F5C453] flex items-center gap-1.5 transition-colors cursor-pointer font-mono"
             >
               <KeyRound className="w-3.5 h-3.5" />
-              <span>{showMasterAccess ? 'Hide Master Passkey' : 'Developer & Master Passkey'}</span>
+              <span>{showMasterAccess ? 'Hide Dev Tools' : 'Developer Quick Login'}</span>
             </button>
             
             {onCancel && (
@@ -657,71 +671,54 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
           {/* Master Key Input Accordion Drawer */}
           {showMasterAccess && (
-            <form onSubmit={handleDeveloperUnlock} className="mt-3 p-3 rounded-2xl bg-black/60 border border-amber-500/30 space-y-2.5 animate-in fade-in">
+            <div className="mt-3 p-3 rounded-2xl bg-black/60 border border-amber-500/30 space-y-2.5 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-[#F5C453] uppercase tracking-wider flex items-center gap-1">
                   <Crown className="w-3 h-3" />
-                  <span>Master Access Passkey</span>
+                  <span>Dev Accounts</span>
                 </span>
-                <label className="flex items-center gap-1.5 text-[10px] text-sky-400 cursor-pointer select-none">
+                <span className="text-[10px] text-rose-400">WARNING: PRODUCTION</span>
+              </div>
+
+              {/* Developer / Master Access Panels */}
+              <div className="flex flex-col gap-2 pt-1">
+                <form onSubmit={handleDevLogin} className="flex gap-1.5">
                   <input
-                    type="checkbox"
-                    checked={isSkyPasskeyInput}
-                    onChange={e => setIsSkyPasskeyInput(e.target.checked)}
-                    className="w-3 h-3 rounded"
+                    type="password"
+                    placeholder="enter the passkey..."
+                    value={devPasswordInput}
+                    onChange={e => setDevPasswordInput(e.target.value)}
+                    disabled={isSubmitting}
+                    className="flex-1 px-3 py-1.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-100 text-xs font-mono focus:border-amber-400 outline-none disabled:opacity-50 placeholder:text-amber-500/50"
                   />
-                  <span>Target: {isSkyPasskeyInput ? 'Celestial [sky]' : 'Developer [dev]'}</span>
-                </label>
-              </div>
-
-              <div className="flex gap-1.5">
-                <input
-                  type="password"
-                  placeholder="Enter [q.brz]+[BLUEBERRY]"
-                  value={masterKeyInput}
-                  onChange={e => setMasterKeyInput(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono focus:border-[#F5C453] outline-none"
-                  autoComplete="off"
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-xl bg-[#F5C453] hover:bg-[#e0b042] text-black text-xs font-black transition-all cursor-pointer"
-                >
-                  Unlock
-                </button>
-              </div>
-
-              {/* Quick Fill / Direct Login Shortcuts */}
-              <div className="flex items-center justify-between pt-1 text-[10px]">
-                <span className="text-slate-500 font-mono">Special: [q.brz]+[BLUEBERRY]</span>
-                <div className="flex gap-1.5">
                   <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('dev');
-                      setPassword('[q.brz]+[BLUEBERRY]');
-                      setMasterKeyInput('[q.brz]+[BLUEBERRY]');
-                      setIsSkyPasskeyInput(false);
-                    }}
-                    className="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold border border-amber-500/40 cursor-pointer"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black transition-all cursor-pointer border border-amber-500/40 disabled:opacity-50"
                   >
-                    Set Dev
+                    Login as dev
                   </button>
+                </form>
+
+                <form onSubmit={handleSkyLogin} className="flex gap-1.5">
+                  <input
+                    type="password"
+                    placeholder="enter the passkey..."
+                    value={skyPasswordInput}
+                    onChange={e => setSkyPasswordInput(e.target.value)}
+                    disabled={isSubmitting}
+                    className="flex-1 px-3 py-1.5 rounded-xl bg-sky-950/40 border border-sky-500/40 text-sky-100 text-xs font-mono focus:border-sky-400 outline-none disabled:opacity-50 placeholder:text-sky-500/50"
+                  />
                   <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('sky');
-                      setPassword('[q.brz]+[BLUEBERRY]');
-                      setMasterKeyInput('[q.brz]+[BLUEBERRY]');
-                      setIsSkyPasskeyInput(true);
-                    }}
-                    className="px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-semibold border border-sky-500/40 cursor-pointer"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-black transition-all cursor-pointer border border-sky-500/40 disabled:opacity-50"
                   >
-                    Set Sky
+                    Login as sky
                   </button>
-                </div>
+                </form>
               </div>
-            </form>
+            </div>
           )}
         </div>
       </motion.div>

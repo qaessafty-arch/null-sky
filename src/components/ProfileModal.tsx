@@ -75,7 +75,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
     setOwnerBadgeAndStatus,
     signOut, 
     updateProfileDetails,
-    updateProfilePhoto 
+    updateProfilePhoto,
+    updatePrivacy,
+    deleteAccount,
+    linkProvider,
+    unlinkProvider
   } = useAuth();
 
   // Navigation & Form Tabs
@@ -130,7 +134,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
   useEffect(() => {
     // Only listen to blocked list if it's the current user's profile to avoid permission-denied errors
-    const isActuallyOwnProfile = user?.uid === useAuth().user?.uid;
+    const isActuallyOwnProfile = !!user?.uid;
     if (user?.uid && isOpen && isActuallyOwnProfile) {
       const unsub = onSnapshot(collection(db, `users/${user.uid}/blocked`), snap => {
         setBlockedUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -143,7 +147,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   
   const handleTogglePrivacy = async () => {
     try {
-      await useAuth().updatePrivacy(!profile?.isPublic);
+      await updatePrivacy(!profile?.isPublic);
     } catch (e) {
       console.error('Failed to update privacy', e);
     }
@@ -152,7 +156,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   const handleDeleteAccount = async () => {
     setDeleteError('');
     try {
-      await useAuth().deleteAccount(deleteInput);
+      await deleteAccount(deleteInput);
       onClose();
     } catch (e: any) {
       if (e.code === 'auth/requires-recent-login') {
@@ -166,7 +170,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   const handleLinkProvider = async (providerId: string) => {
     setLinkError('');
     try {
-      await useAuth().linkProvider(providerId);
+      await linkProvider(providerId);
     } catch (e: any) {
       if (e?.code !== 'auth/popup-closed-by-user') {
         setLinkError(e.message || 'Failed to link account');
@@ -177,7 +181,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   const handleUnlinkProvider = async (providerId: string) => {
     setLinkError('');
     try {
-      await useAuth().unlinkProvider(providerId);
+      await unlinkProvider(providerId);
     } catch (e: any) {
       setLinkError(e.message || 'Failed to unlink account');
     }

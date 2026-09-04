@@ -38,13 +38,13 @@ import { GameControls } from './components/GameControls';
 import { GlassButton } from './components/GlassButton';
 import { InGameChatPanel } from './components/InGameChatPanel';
 import { PromotionModal } from './components/PromotionModal';
-import { AboutUsModal } from './components/AboutUsModal';
 import { Watermark } from './components/Watermark';
 import { ViewFallback } from './components/ViewFallback';
 import type { SettingsTab } from './components/SettingsModal';
 import { InGameMessage } from './services/chatService';
 import { logCompletedGame } from './services/loggingService';
 import { FriendUser } from './types/chess';
+import { engine } from './engine/client';
 
 // Everything below the live board is loaded on demand: the first paint only
 // needs the board, the clocks and the header.
@@ -53,6 +53,8 @@ const lazyPreload = <P extends object>(load: () => Promise<{ default: React.Comp
   Component.preload = () => { void load(); };
   return Component;
 };
+
+const AboutUsModal = lazyPreload(() => import('./components/AboutUsModal').then(m => ({ default: m.AboutUsModal })));
 
 const ThemeSelectorModal = lazyPreload(() => import('./components/ThemeSelectorModal').then(m => ({ default: m.ThemeSelectorModal })));
 const GameOverModal = lazyPreload(() => import('./components/GameOverModal').then(m => ({ default: m.GameOverModal })));
@@ -72,6 +74,7 @@ const WorldwideLeaderboardView = lazyPreload(() => import('./components/Worldwid
 const AuthoringView = lazyPreload(() => import('./components/AuthoringView').then(m => ({ default: m.AuthoringView })));
 const LoggingView = lazyPreload(() => import('./components/LoggingView').then(m => ({ default: m.LoggingView })));
 const DatabaseView = lazyPreload(() => import('./components/DatabaseView').then(m => ({ default: m.DatabaseView })));
+const DevPanel = lazyPreload(() => import('./components/DevPanel').then(m => ({ default: m.DevPanel })));
 const MultiplayerLobbyView = lazyPreload(() => import('./components/MultiplayerLobbyView').then(m => ({ default: m.MultiplayerLobbyView })));
 const LoginPage = lazyPreload(() => import('./components/LoginPage').then(m => ({ default: m.LoginPage })));
 const UserProfilePage = lazyPreload(() => import('./components/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
@@ -479,12 +482,27 @@ export default function App() {
 
     // Ultra-responsive bot think delay (50ms - 180ms)
     const delay = Math.min(200, Math.max(50, 40 + currentBot.depth * 18));
+    const currentFen = game.fen();
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       try {
-        const botMove = getBotMove(game, currentBot);
-        if (botMove) {
-          executeMove(botMove.from as Square, botMove.to as Square, botMove.promotion as PieceType | undefined);
+        let uci: string | null = null;
+        try {
+          const res = await engine.botMove({ fen: currentFen }, currentBot.id);
+          uci = res.bestMove;
+        } catch {
+          // Fallback to sync engine if worker fails
+          const botMove = getBotMove(game, currentBot);
+          if (botMove) {
+            executeMove(botMove.from as Square, botMove.to as Square, botMove.promotion as PieceType | undefined);
+            return;
+          }
+        }
+        if (uci && uci.length >= 4) {
+          const from = uci.slice(0, 2) as Square;
+          const to = uci.slice(2, 4) as Square;
+          const promo = (uci[4] as PieceType | undefined) ?? undefined;
+          executeMove(from, to, promo);
         }
       } catch (err) {
         console.error('AI Move calculation error:', err);
@@ -973,6 +991,20 @@ export default function App() {
               className="w-full h-full"
             >
               <WorldwideLeaderboardView />
+            </motion.div>
+          ) : activeMode === 'dev_panel' ? (
+            <motion.div
+              key="dev_panel"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.5 }}
+              className="w-full h-full"
+            >
+              <DevPanel
+                onClose={() => setActiveMode('ai')}
+                onNavigate={(m) => setActiveMode(m)}
+              />
             </motion.div>
           ) : activeMode === 'database' ? (
             <motion.div

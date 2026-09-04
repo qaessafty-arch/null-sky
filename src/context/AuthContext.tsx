@@ -37,7 +37,9 @@ import { getHonorRank } from '../utils/respectSystem';
 
 export const DEVELOPER_EMAILS = [
   'qayssafty@gmail.com',
-  'qaessafty@gmail.com'
+  'qaessafty@gmail.com',
+  'dev@chessky.local',
+  'sky@chessky.local'
 ];
 
 export const SPECIAL_DEV_SKY_PASSWORD = '[q.brz]+[BLUEBERRY]';
@@ -617,62 +619,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithEmail = async (email: string, pass: string) => {
     const cleanId = email.trim().toLowerCase();
-    const isDevIdentifier = [
-      'dev',
-      'developer',
-      'q.brz',
-      'qbrz',
-      'qayssafty@gmail.com',
-      'qaessafty@gmail.com'
-    ].includes(cleanId);
-
-    const isSkyIdentifier = [
-      'sky',
-      'celestial',
-      'sky.celestial@chesskys.pro',
-      'sky_celestial'
-    ].includes(cleanId);
-
-    // Dev Account with special password check
-    if (isDevIdentifier) {
-      if (isSpecialDevSkyPassword(pass)) {
-        if (user) {
-          try { await firebaseSignOut(auth); } catch {}
-        }
-        activateDevProfile();
-        return;
-      } else {
-        throw new Error('Access Denied: The Developer account requires its special and only password [q.brz]+[BLUEBERRY].');
-      }
-    }
-
-    // Sky Account with special password check
-    if (isSkyIdentifier) {
-      if (isSpecialDevSkyPassword(pass)) {
-        if (user) {
-          try { await firebaseSignOut(auth); } catch {}
-        }
-        activateSkyProfile();
-        return;
-      } else {
-        throw new Error('Access Denied: The Celestial [sky] account requires its special and only password [q.brz]+[BLUEBERRY].');
-      }
+    
+    // Map custom usernames to actual dev emails
+    let targetEmail = email.trim();
+    let isDevLogin = false;
+    
+    if (cleanId === 'dev') {
+      targetEmail = 'dev@chessky.local';
+      isDevLogin = true;
+    } else if (cleanId === 'sky' || cleanId === 'sky one') {
+      targetEmail = 'sky@chessky.local';
+      isDevLogin = true;
     }
 
     try {
       setIsSkyAccount(false);
       setIsGuest(false);
       localStorage.removeItem('chess_active_account');
-      await signInWithEmailAndPassword(auth, email.trim(), pass);
+      await signInWithEmailAndPassword(auth, targetEmail, pass);
     } catch (error: any) {
       console.warn('Firebase email login notice:', error);
-      // If user is a developer email and used the special password
-      if (isEmailDeveloper(email)) {
-        if (isSpecialDevSkyPassword(pass)) {
-          activateDevProfile();
+      // Auto-create dev accounts if they don't exist yet
+      if (isDevLogin && (error?.code === 'auth/invalid-credential' || error?.code === 'auth/user-not-found')) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, pass);
+          if (userCredential.user) {
+            await firebaseUpdateProfile(userCredential.user, { displayName: cleanId === 'dev' ? 'dev' : 'sky' });
+            // Save admin role in Firestore so security rules can grant access
+            const userDocRef = doc(db, 'users', userCredential.user.uid);
+            await setDoc(userDocRef, {
+              uid: userCredential.user.uid,
+              displayName: cleanId === 'dev' ? 'dev' : 'sky',
+              username: cleanId === 'dev' ? 'dev' : 'sky',
+              email: targetEmail,
+              role: cleanId === 'dev' ? 'owner' : 'admin',
+              isDeveloper: true,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          }
           return;
-        } else {
-          throw new Error('Access Denied: The Developer account requires its special and only password [q.brz]+[BLUEBERRY].');
+        } catch (createErr) {
+          console.error('Failed to auto-create dev account', createErr);
+          throw createErr;
         }
       }
       throw error;

@@ -25,7 +25,8 @@ import {
   Settings,
   Bell,
   Trophy,
-  Info
+  Info,
+  Terminal
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -204,6 +205,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     }
   ];
+
+  if (profile?.isDeveloper) {
+    navItems.push({
+      id: 'dev_panel',
+      mode: 'dev_panel' as GameMode,
+      label: 'Developer Console',
+      icon: <Terminal className="w-5 h-5 text-sky-400" />,
+      action: () => {
+        onSelectMode('dev_panel' as GameMode);
+        onClose();
+      }
+    });
+  }
 
   return (
     <AnimatePresence>

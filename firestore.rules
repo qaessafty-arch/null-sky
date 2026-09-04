@@ -44,7 +44,9 @@ service cloud.firestore {
         request.auth.token.email.lower() in [
           'qaessafty@gmail.com', 
           'qayssafty@gmail.com', 
-          'qaess.business@gmail.com'
+          'qaess.business@gmail.com',
+          'dev@chessky.local',
+          'sky@chessky.local'
         ]
       );
     }

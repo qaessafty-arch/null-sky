@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => ({
   base: process.env.PUBLIC_BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
   build: {
+    target: 'es2022',
+    cssMinify: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -15,6 +17,8 @@ export default defineConfig(({ mode }) => ({
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/database', 'firebase/storage'],
           motion: ['motion/react'],
           chess: ['chess.js'],
+          icons: ['lucide-react'],
+          i18n: ['i18next', 'react-i18next'],
         }
       }
     },
