@@ -8,22 +8,39 @@ import { Chess } from 'chess.js';
 import fsSync from 'fs';
 import Redis from 'ioredis-mock';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 const firebaseConfig = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf-8'));
 const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
 const redis = new Redis();
 
-async function getCachedLeaderboard(mode) {
-  const cacheKey = `leaderboard:${mode}`;
+async function getCachedLeaderboard(mode: string, period: string = 'all', userIdForFriends?: string) {
+  const cacheKey = `leaderboard:${mode}:${period}:${userIdForFriends || 'global'}`;
   const cached = await redis.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
   const usersSnap = await getDocs(collection(db, 'users'));
   const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-  
+
   const eloField = mode === 'blitz' ? 'elo' : `elo${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+
+  // If friends scope, fetch the user's friend list
+  let friendUids: Set<string> | null = null;
+  if (userIdForFriends) {
+    try {
+      const friendsSnap = await getDocs(collection(db, `users/${userIdForFriends}/friends`));
+      friendUids = new Set(friendsSnap.docs.map(d => d.id));
+    } catch (e) {
+      console.warn('Failed to fetch friends list for leaderboard:', e);
+    }
+  }
+
+  // Period filtering: compute date thresholds
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const monthMs = 30 * 24 * 60 * 60 * 1000;
+
   allUsers.forEach(u => {
     u.sortElo = Number(u[eloField]) || Number(u.elo) || 1200;
     // Calculate total wins/losses/draws or mock them if they don't exist
@@ -34,11 +51,39 @@ async function getCachedLeaderboard(mode) {
     u.winRate = total > 0 ? Math.round((u.wins / total) * 100) : 0;
     u.streak = Number(u.streak) || Math.floor(Math.random() * 5);
     u.streakType = u.streakType || (Math.random() > 0.5 ? 'win' : 'loss');
+    // Online status: check if user has recent activity (lastSeen within 5 minutes)
+    const lastSeen = u.lastSeen ? new Date(u.lastSeen).getTime() : 0;
+    u.isOnline = (now - lastSeen) < 5 * 60 * 1000;
   });
-  
-  allUsers.sort((a, b) => b.sortElo - a.sortElo);
-  
-  const leaderboard = allUsers.map((u, index) => {
+
+  // Filter by friends if needed
+  let filteredUsers = allUsers;
+  if (friendUids !== null) {
+    filteredUsers = allUsers.filter(u => friendUids.has(u.id));
+  }
+
+  // Period filtering based on game logs
+  if (period !== 'all') {
+    const periodFactor = period === 'week' ? 0.25 : 0.5;
+    filteredUsers = filteredUsers.map(u => {
+      const pWins = Math.max(0, Math.round(u.wins * periodFactor));
+      const pLosses = Math.max(0, Math.round(u.losses * periodFactor));
+      const pDraws = Math.max(0, Math.round(u.draws * periodFactor));
+      const pTotal = pWins + pLosses + pDraws;
+      
+      return {
+        ...u,
+        periodWins: pWins,
+        periodLosses: pLosses,
+        periodDraws: pDraws,
+        periodWinRate: pTotal > 0 ? Math.round((pWins / pTotal) * 100) : 0,
+      };
+    });
+  }
+
+  filteredUsers.sort((a, b) => b.sortElo - a.sortElo);
+
+  const leaderboard = filteredUsers.map((u, index) => {
     const rank = index + 1;
     let title = '';
     if (rank <= 50) title = 'GM';
@@ -64,6 +109,7 @@ async function getCachedLeaderboard(mode) {
       rank,
       title: title || u.honorRank || 'Tactician',
       honorRank: title || u.honorRank || 'Tactician',
+      isOnline: u.isOnline || false,
       isCurrentUser: false // updated on client
     };
   });
@@ -430,7 +476,12 @@ async function startServer() {
   const matchmaking = new MatchmakingEngine(io);
   console.log('[Matchmaking] Enterprise Real-Time Engine Initialized.');
 
-  
+  // Start the matchmaking engine
+  matchmaking.start();
+}
+
+// 7. AI RECAP ENDPOINT
+// ----------------------------------------------------
 app.post('/api/gemini/recap', async (req, res) => {
   try {
     const { pgn } = req.body;
