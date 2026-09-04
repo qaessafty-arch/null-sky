@@ -4,14 +4,16 @@ class SocketService {
   private socket: Socket | null = null;
   private uid: string | null = null;
   
-  public connect(uid?: string) {
+  public connect(uid?: string, token?: string) {
     if (uid) this.uid = uid;
+    const authToken = token || localStorage.getItem('token') || localStorage.getItem('chess_jwt') || undefined;
     
     if (!this.socket) {
       this.socket = io({
+        auth: { token: authToken },
         autoConnect: true,
         reconnection: true,
-        reconnectionAttempts: 10,
+        reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       });
       

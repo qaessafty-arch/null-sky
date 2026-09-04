@@ -671,168 +671,42 @@
 }
 
 /* ========================================================================= */
-/* DYNAMIC CONTRAST & DROP SHADOW ENGINE FOR CHESS PIECES                    */
-/* Ensures high contrast against complex textures (Wall Maria, Haki, etc.)   */
+/* 100% SHARP VECTOR PIECES (NO BLUR, NO GLOW, NO DROP-SHADOW HAZE)         */
 /* ========================================================================= */
 
 .chess-board-piece {
-  /* High-contrast multi-layer drop shadow for crisp piece silhouettes */
-  filter: 
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.75))
-    drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.95));
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
-  transition: filter 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease-out;
-  will-change: filter, transform;
+  /* Zero blur, zero glow, pure razor-sharp SVG vector rendering */
+  filter: none !important;
+  text-shadow: none !important;
+  transition: transform 0.2s ease-out;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-/* White Pieces Dynamic Silhouette Boost */
+/* GPU Acceleration & Performance Optimizations */
+.hardware-accelerated,
+.chess-board-container,
+[id^="piece-"] {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Smooth layout containment to prevent unnecessary reflows */
+.contain-paint {
+  contain: paint layout style;
+}
+
 .chess-board-piece[data-piece-color="w"],
-.chess-board-piece.piece-white {
-  filter: 
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.85))
-    drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 3.5px rgba(0, 0, 0, 0.65));
-}
-
-/* Black Pieces Dynamic Silhouette Boost (Light ambient rim for dark background contrast) */
+.chess-board-piece.piece-white,
 .chess-board-piece[data-piece-color="b"],
-.chess-board-piece.piece-black {
-  filter: 
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.38))
-    drop-shadow(0 0 1px rgba(0, 0, 0, 1));
-}
-
-/* 🧱 Wall Maria (AoT) Textured Stone Board: Enhanced Silhouette & Rim against stone micro-textures */
-[data-board-theme="wall-maria"] .chess-board-piece,
-[data-board-theme="aot"] .chess-board-piece,
-.wall-maria-stone-dark .chess-board-piece,
-.wall-maria-stone-light .chess-board-piece {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 6px rgba(34, 197, 94, 0.3));
-}
-
-[data-board-theme="wall-maria"] .chess-board-piece[data-piece-color="w"],
-[data-board-theme="aot"] .chess-board-piece[data-piece-color="w"],
-.wall-maria-stone-dark .chess-board-piece[data-piece-color="w"],
-.wall-maria-stone-light .chess-board-piece[data-piece-color="w"] {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.98))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
-}
-
-[data-board-theme="wall-maria"] .chess-board-piece[data-piece-color="b"],
-[data-board-theme="aot"] .chess-board-piece[data-piece-color="b"],
-.wall-maria-stone-dark .chess-board-piece[data-piece-color="b"],
-.wall-maria-stone-light .chess-board-piece[data-piece-color="b"] {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 2.5px rgba(255, 255, 255, 0.55))
-    drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
-}
-
-/* ⚡ One Piece & Conqueror's Haki Textured Board Aura Contrast */
-[data-board-theme="one-piece"] .chess-board-piece,
-.haki-aura-active .chess-board-piece {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 2px rgba(11, 29, 58, 0.95))
-    drop-shadow(0 0 7px rgba(168, 85, 247, 0.45));
-}
-
-[data-board-theme="one-piece"] .chess-board-piece[data-piece-color="w"] {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 8px rgba(212, 163, 89, 0.55));
-}
-
-[data-board-theme="one-piece"] .chess-board-piece[data-piece-color="b"],
-.haki-aura-active .chess-board-piece[data-piece-color="b"] {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 2.5px rgba(233, 213, 255, 0.7))
-    drop-shadow(0 0 9px rgba(168, 85, 247, 0.65));
-}
-
-/* 🦇 Batman & Gotham City Theme Contrast */
-[data-board-theme="batman"] .chess-board-piece,
-[data-board-theme="gotham-city"] .chess-board-piece {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.98))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 6px rgba(250, 204, 21, 0.4));
-}
-
-[data-board-theme="batman"] .chess-board-piece[data-piece-color="w"],
-[data-board-theme="gotham-city"] .chess-board-piece[data-piece-color="w"] {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.98))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));
-}
-
-[data-board-theme="batman"] .chess-board-piece[data-piece-color="b"],
-[data-board-theme="gotham-city"] .chess-board-piece[data-piece-color="b"] {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 2px rgba(250, 204, 21, 0.75))
-    drop-shadow(0 0 7px rgba(0, 0, 0, 0.95));
-}
-
-/* ☀️ Peshmerga Royal Tactical Theme Contrast */
-[data-board-theme="peshmerga"] .chess-board-piece {
-  filter: 
-    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.9))
-    drop-shadow(0 0 2px rgba(30, 40, 24, 0.95))
-    drop-shadow(0 0 6px rgba(245, 196, 83, 0.35));
-}
-
-[data-board-theme="peshmerga"] .chess-board-piece[data-piece-color="w"] {
-  filter: 
-    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.9))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 1))
-    drop-shadow(0 0 6px rgba(245, 196, 83, 0.45));
-}
-
-[data-board-theme="peshmerga"] .chess-board-piece[data-piece-color="b"] {
-  filter: 
-    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.98))
-    drop-shadow(0 0 2px rgba(245, 196, 83, 0.65))
-    drop-shadow(0 0 7px rgba(0, 0, 0, 0.9));
-}
-
-/* 🎓 UKH University Theme Contrast */
-[data-board-theme="ukh"] .chess-board-piece {
-  filter: 
-    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.9))
-    drop-shadow(0 0 2px rgba(15, 43, 72, 0.95))
-    drop-shadow(0 0 6px rgba(229, 169, 59, 0.35));
-}
-
-/* 💎 Obsidian / Dark Canvas Contrast */
-[data-board-theme="obsidian"] .chess-board-piece,
-[data-board-theme="midnight"] .chess-board-piece,
-[data-board-theme="premium"] .chess-board-piece {
-  filter: 
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 2px rgba(0, 0, 0, 0.9))
-    drop-shadow(0 0 5px rgba(245, 158, 11, 0.25));
-}
-
-/* Dynamic Interactive Hover & Floating Drag Elevation */
-.chess-board-piece:hover {
-  filter: 
-    drop-shadow(0 6px 12px rgba(0, 0, 0, 0.85))
-    drop-shadow(0 0 3px rgba(245, 196, 83, 0.45));
-}
-
+.chess-board-piece.piece-black,
+.chess-board-piece:hover,
 .chess-drag-piece.chess-board-piece,
 .chess-drag-piece .chess-board-piece {
-  filter: 
-    drop-shadow(0 14px 28px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 8px rgba(245, 196, 83, 0.7)) !important;
+  filter: none !important;
+  text-shadow: none !important;
 }
+
+

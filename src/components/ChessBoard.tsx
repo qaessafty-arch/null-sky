@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chess, Square, Move } from 'chess.js';
+import confetti from 'canvas-confetti';
 import { ChessPiece } from './ChessPiece';
 import { PieceThemeId, BoardThemeId, PieceColor, PieceType } from '../types/chess';
 import { UkhLogo } from './UkhLogo';
@@ -21,6 +22,7 @@ interface ChessBoardProps {
   evalScore?: number | null;
   showWeather?: boolean;
   showTerritory?: boolean;
+  is3dPerspective?: boolean;
 }
 
 const PIECE_NAMES: Record<PieceType, string> = {
@@ -336,10 +338,25 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   disabled = false,
   evalScore,
   showWeather = false,
-  showTerritory = false
+  showTerritory = false,
+  is3dPerspective = false
 }) => {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [draggingSquare, setDraggingSquare] = useState<Square | null>(null);
+
+  // Checkmate celebration confetti
+  useEffect(() => {
+    if (game.isCheckmate()) {
+      try {
+        confetti({
+          particleCount: 75,
+          spread: 80,
+          origin: { y: 0.5 },
+          colors: ['#F5C453', '#6C63FF', '#4ECDC4', '#FF6B6B']
+        });
+      } catch {}
+    }
+  }, [game.isGameOver()]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const dragPieceRef = useRef<HTMLDivElement>(null);
@@ -769,7 +786,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
       ignoreNextClickRef.current = true;
       setTimeout(() => {
         ignoreNextClickRef.current = false;
-      }, 150);
+      }, 50);
 
       const targetSquare = getSquareFromCoords(clientX, clientY);
       if (targetSquare && targetSquare !== start.square) {
@@ -860,7 +877,12 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
         role="grid"
         aria-label="Chess board"
         className={`relative aspect-square w-full rounded-xl overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] border border-white/5 ${theme.glow} bg-[#111827] grid grid-cols-8 grid-rows-8 touch-none will-change-transform`}
-        style={{ willChange: 'transform' }}
+        style={{ 
+          willChange: 'transform',
+          transform: is3dPerspective ? 'perspective(1000px) rotateX(15deg) rotateZ(-0.5deg) scale(0.96)' : 'none',
+          boxShadow: is3dPerspective ? '0 30px 60px -12px rgba(0,0,0,0.85), 0 0 30px rgba(108,99,255,0.15)' : undefined,
+          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease'
+        }}
       >
         {displayRanks.map((rank, rankIdx) =>
           displayFiles.map((file, fileIdx) => {
@@ -1045,6 +1067,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                 p.color === 'w'
                   ? (whitePieceTheme || pieceTheme)
                   : (blackPieceTheme || pieceTheme);
+              const isKingInCheck = p.type === 'k' && kingInCheckSquare === p.square;
 
               return (
                 <motion.div
@@ -1055,21 +1078,26 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
                     x: `${colIdx * 100}%`,
                     y: `${rankIdx * 100}%`,
                     opacity: isHiddenByDrag ? 0 : 1,
-                    scale: isHiddenByDrag ? 0.9 : 1
+                    scale: isHiddenByDrag ? 0.9 : (isKingInCheck ? [1, 1.15, 0.95, 1.08, 1] : 1),
+                    rotate: isKingInCheck ? [-5, 5, -4, 4, 0] : 0
                   }}
                   exit={{
                     opacity: 0,
-                    scale: 0.35,
-                    transition: { duration: 0.15, ease: 'easeOut' }
+                    scale: 0.15,
+                    y: -35,
+                    rotate: 35,
+                    transition: { duration: 0.35, ease: 'easeOut' }
                   }}
                   transition={
                     isRotating
                       ? { duration: 0 }
+                      : isKingInCheck
+                      ? { duration: 0.5, repeat: Infinity, repeatDelay: 1 }
                       : {
                           type: 'spring',
-                          stiffness: 350,
-                          damping: 25,
-                          mass: 0.75
+                          stiffness: 480,
+                          damping: 26,
+                          mass: 0.5
                         }
                   }
                   style={{

@@ -7,7 +7,8 @@ import {
   sendOnlineMove, 
   resignOnlineMatch, 
   offerDrawOnlineMatch, 
-  acceptDrawOnlineMatch 
+  acceptDrawOnlineMatch,
+  finalizeOnlineMatch 
 } from '../services/onlineMatchService';
 import { 
   sendInGameMessage, 
@@ -40,13 +41,16 @@ import {
   Crown, 
   Shield, 
   Sun,
-  AlertTriangle
+  AlertTriangle,
+  Users
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 import { GameRoom } from './GameRoom';
 import { ConnectionStatus } from './multiplayer/ConnectionStatus';
 import { InGameChatPanel } from './InGameChatPanel';
+import { ModernFloatingControls } from './multiplayer/ModernFloatingControls';
+import { ModernSpectatorWidget } from './multiplayer/ModernSpectatorWidget';
 
 interface FloatingEmote {
   id: string;
@@ -94,6 +98,9 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [evalScore, setEvalScore] = useState<number>(0);
   const [showWeather, setShowWeather] = useState(false);
   const [showTerritory, setShowTerritory] = useState(false);
+  const [is3dPerspective, setIs3dPerspective] = useState(false);
+  const [manualFlipped, setManualFlipped] = useState<boolean | null>(null);
+  const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
 
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [moveIndex, setMoveIndex] = useState(0);
@@ -118,6 +125,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       }
       setLoadState('ready');
       setSession(newSession);
+      socketService.getSocket()?.emit('join_match', { matchId, uid: myUid, session: newSession });
 
       // Synchronize chess game instance
       try {
@@ -138,7 +146,11 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     
     setSocketStatus(socket.connected ? 'connected' : 'connecting');
 
-    const onConnect = () => setSocketStatus('connected');
+    const onConnect = () => {
+      setSocketStatus('connected');
+      socket.emit('identify', { uid: myUid });
+      socket.emit('join_match', { matchId, uid: myUid });
+    };
     const onDisconnect = () => setSocketStatus('reconnecting');
     const onConnectError = () => setSocketStatus('error');
 
@@ -188,15 +200,23 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       setBlackTime(data.blackSecondsRemaining);
       setMoveIndex(g.history().length);
     };
-    
-    socket.on('move_made', onMoveMade);
-    socket.on('move_rejected', (data: any) => {
-      console.error('[Socket] Move rejected:', data.error);
+
+    const onMoveRejected = (data: any) => {
+      console.warn('[Socket] Move rejected notice:', data?.error);
       setIsPendingMove(false);
-      if (data.currentFen) {
+      if (data?.error && data.error.includes('not found')) {
+        // Attempt room synchronization
+        socket.emit('join_match', { matchId, uid: myUid });
+      }
+      if (data?.currentFen) {
         setGame(new Chess(data.currentFen));
       }
-    });
+    };
+    
+    socket.on('move_made', onMoveMade);
+    socket.on('moveMade', onMoveMade);
+    socket.on('move_rejected', onMoveRejected);
+    socket.on('moveRejected', onMoveRejected);
     socket.on('clock_sync', onClockSync);
     socket.on('game_over', onGameOver);
     socket.on('match_aborted', onMatchAborted);
@@ -205,12 +225,16 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
 
-    // Initial identify
+    // Initial identify and join match room
     socket.emit('identify', { uid: myUid });
+    socket.emit('join_match', { matchId, uid: myUid });
 
     return () => {
       if (unsub) unsub();
       socket.off('move_made', onMoveMade);
+      socket.off('moveMade', onMoveMade);
+      socket.off('move_rejected', onMoveRejected);
+      socket.off('moveRejected', onMoveRejected);
       socket.off('clock_sync', onClockSync);
       socket.off('game_over', onGameOver);
       socket.off('match_aborted', onMatchAborted);
@@ -366,7 +390,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
         } catch (err) {
           console.error('Error calculating worldwide challenger move:', err);
         }
-      }, 1400 + Math.random() * 1200);
+      }, 300 + Math.random() * 300);
 
       return () => clearTimeout(timer);
     }
@@ -377,22 +401,181 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     (from: Square, to: Square) => {
       if (!isMyTurn || session?.status !== 'in_progress' || isPendingMove) return;
 
-      const socket = socketService.getSocket();
-      if (!socket) return;
+      // Check if this is a pawn promotion move
+      const piece = game.get(from);
+      const isPawn = piece?.type === 'p';
+      const isPromotion = isPawn && (
+        (piece?.color === 'w' && to[1] === '8') ||
+        (piece?.color === 'b' && to[1] === '1')
+      );
+
+      if (isPromotion) {
+        setPendingPromotion({ from, to });
+        return;
+      }
+
+      // Test move locally
+      const tempGame = new Chess(game.fen());
+      const moveResult = tempGame.move({
+        from,
+        to,
+        promotion: 'q'
+      });
+      if (!moveResult) return;
 
       setIsPendingMove(true);
-      // Send move to server
+      setLastMove({ from, to });
+
+      const newFen = tempGame.fen();
+      const newPgn = tempGame.pgn();
+      const nextTurn = tempGame.turn();
+      const isCheckmate = tempGame.isCheckmate();
+      const isDraw = tempGame.isDraw();
+
+      let nextStatus: 'in_progress' | 'checkmate' | 'draw' = 'in_progress';
+      let nextWinner: 'w' | 'b' | 'draw' | null = null;
+      let nextReason: string | undefined = undefined;
+
+      if (isCheckmate) {
+        nextStatus = 'checkmate';
+        nextWinner = myColor;
+        nextReason = `Checkmate! ${me?.displayName || 'Player'} wins the match.`;
+      } else if (isDraw) {
+        nextStatus = 'draw';
+        nextWinner = 'draw';
+        nextReason = 'Game drawn.';
+      }
+
+      const inc = session.timeControl?.incrementSeconds || 0;
+      const newWhiteTime = myColor === 'w' ? whiteTime + inc : whiteTime;
+      const newBlackTime = myColor === 'b' ? blackTime + inc : blackTime;
+
+      // 1. Sync to Firestore (guarantees persistence, worldwide bot reactivity, observer view)
+      sendOnlineMove(
+        matchId,
+        newFen,
+        newPgn,
+        nextTurn,
+        from,
+        to,
+        newWhiteTime,
+        newBlackTime,
+        nextStatus,
+        nextWinner,
+        nextReason
+      ).catch(err => console.error('Error updating move in Firestore:', err));
+
+      // 2. Emit to WebSocket
+      const socket = socketService.getSocket();
+      if (socket) {
+        socket.emit('make_move', {
+          matchId,
+          gameId: matchId,
+          uid: myUid,
+          from,
+          to,
+          promotion: 'q',
+          moveIndex,
+          fen: game.fen(),
+          session: {
+            ...session,
+            fen: newFen,
+            pgn: newPgn,
+            turn: nextTurn,
+            whiteSecondsRemaining: newWhiteTime,
+            blackSecondsRemaining: newBlackTime
+          }
+        });
+      }
+    },
+    [isMyTurn, session, myUid, matchId, moveIndex, isPendingMove, game, myColor, me, whiteTime, blackTime]
+  );
+
+  const handleConfirmPromotion = (promoPiece: 'q' | 'r' | 'b' | 'n') => {
+    if (!pendingPromotion || !session) return;
+    const { from, to } = pendingPromotion;
+    setPendingPromotion(null);
+
+    const tempGame = new Chess(game.fen());
+    const moveResult = tempGame.move({
+      from,
+      to,
+      promotion: promoPiece
+    });
+    if (!moveResult) return;
+
+    setIsPendingMove(true);
+    setLastMove({ from, to });
+
+    const newFen = tempGame.fen();
+    const newPgn = tempGame.pgn();
+    const nextTurn = tempGame.turn();
+    const isCheckmate = tempGame.isCheckmate();
+    const isDraw = tempGame.isDraw();
+
+    let nextStatus: 'in_progress' | 'checkmate' | 'draw' = 'in_progress';
+    let nextWinner: 'w' | 'b' | 'draw' | null = null;
+    let nextReason: string | undefined = undefined;
+
+    if (isCheckmate) {
+      nextStatus = 'checkmate';
+      nextWinner = myColor;
+      nextReason = `Checkmate! ${me?.displayName || 'Player'} wins the match.`;
+    } else if (isDraw) {
+      nextStatus = 'draw';
+      nextWinner = 'draw';
+      nextReason = 'Game drawn.';
+    }
+
+    const inc = session.timeControl?.incrementSeconds || 0;
+    const newWhiteTime = myColor === 'w' ? whiteTime + inc : whiteTime;
+    const newBlackTime = myColor === 'b' ? blackTime + inc : blackTime;
+
+    sendOnlineMove(
+      matchId,
+      newFen,
+      newPgn,
+      nextTurn,
+      from,
+      to,
+      newWhiteTime,
+      newBlackTime,
+      nextStatus,
+      nextWinner,
+      nextReason
+    ).catch(err => console.error('Error updating move in Firestore:', err));
+
+    const socket = socketService.getSocket();
+    if (socket) {
       socket.emit('make_move', {
         matchId,
+        gameId: matchId,
         uid: myUid,
         from,
         to,
-        promotion: 'q',
-        moveIndex
+        promotion: promoPiece,
+        moveIndex,
+        fen: game.fen(),
+        session: {
+          ...session,
+          fen: newFen,
+          pgn: newPgn,
+          turn: nextTurn,
+          whiteSecondsRemaining: newWhiteTime,
+          blackSecondsRemaining: newBlackTime
+        }
       });
-    },
-    [isMyTurn, session, myUid, matchId, moveIndex, isPendingMove]
+    }
+  };
+
+  const canClaimDraw = session?.status === 'in_progress' && (
+    game.isThreefoldRepetition() || game.isDraw()
   );
+
+  const handleClaimDraw = async () => {
+    if (!session || !canClaimDraw) return;
+    await finalizeOnlineMatch(matchId, 'draw', 'Game drawn by 50-move rule or threefold repetition.');
+  };
 
   const handleResign = async () => {
     if (!session || session.status !== 'in_progress') return;
@@ -577,6 +760,14 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT / CENTER: Chess Board and Clocks */}
         <div className="lg:col-span-8 flex flex-col items-center relative">
+          {/* Live Spectator Widget */}
+          <div className="w-full max-w-[560px] mb-2.5">
+            <ModernSpectatorWidget
+              playerName={me?.displayName || 'Player'}
+              onOpenSpectatorChat={() => setActiveTab('chat')}
+            />
+          </div>
+
           {/* Top Player Status / Clock Bar (Opponent) */}
           <div className="w-full max-w-[560px] mb-2 flex flex-col gap-1.5 relative">
             <ChessClock
@@ -647,21 +838,44 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-[60] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-3xl"
+                  className="absolute inset-0 z-[60] bg-black/85 backdrop-blur-md flex flex-col items-center justify-center gap-4 p-6 rounded-3xl text-center shadow-2xl"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#F5C453]/20 flex items-center justify-center">
-                    <span className="w-3 h-3 rounded-full bg-[#F5C453] animate-ping" />
+                  <div className="relative w-16 h-16 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full bg-[#F5C453]/25 animate-ping" />
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#52673A] to-[#F5C453] p-0.5 shadow-xl">
+                      <div className="w-full h-full bg-[#161c12] rounded-full flex items-center justify-center text-[#F5C453]">
+                        <Users className="w-7 h-7 animate-pulse" />
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-white font-black uppercase tracking-widest text-xs">
-                    Waiting for Opponent...
-                  </span>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-[#F5C453] tracking-widest block">
+                      Game Room Code
+                    </span>
+                    <span className="font-mono text-3xl font-black text-white tracking-[0.25em] select-all">
+                      {session.code || matchId}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-[#DFD0B0]/80 max-w-xs">
+                    Waiting for opponent to connect. Both players will enter the board automatically once joined!
+                  </p>
+
+                  <button
+                    onClick={handleCopyMatchId}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#52673A] to-[#8C2425] hover:brightness-110 text-white text-xs font-black flex items-center gap-1.5 shadow-lg border border-[#F5C453]/40 cursor-pointer transition-all"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedLink ? 'Copied to Clipboard' : 'Copy Room Code'}</span>
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
 
             <ChessBoard
               game={game}
-              isFlipped={!isWhitePlayer}
+              isFlipped={manualFlipped !== null ? manualFlipped : !isWhitePlayer}
               boardTheme={settings.boardTheme}
               pieceTheme={settings.pieceTheme}
               whitePieceTheme={settings.whitePieceTheme}
@@ -675,6 +889,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
               evalScore={evalScore}
               showWeather={showWeather}
               showTerritory={showTerritory}
+              is3dPerspective={is3dPerspective}
             />
 
             {/* Turn Indicator Banner */}
@@ -693,6 +908,20 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
                 You play as {isWhitePlayer ? 'White ⚪' : 'Black ⚫'}
               </span>
             </div>
+          </div>
+
+          {/* Floating Action Controls (FAB) */}
+          <div className="w-full max-w-[560px] my-2">
+            <ModernFloatingControls
+              onResign={handleResign}
+              onOfferDraw={handleOfferDraw}
+              onClaimDraw={handleClaimDraw}
+              canClaimDraw={canClaimDraw}
+              is3dPerspective={is3dPerspective}
+              onToggle3dPerspective={() => setIs3dPerspective(!is3dPerspective)}
+              onFlipBoard={() => setManualFlipped(prev => prev === null ? isWhitePlayer : !prev)}
+              disabled={session?.status !== 'in_progress'}
+            />
           </div>
 
           {/* Bottom Player Status / Clock Bar (You) */}
@@ -930,6 +1159,19 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
               </label>
             </div>
 
+            {canClaimDraw && (
+              <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between gap-2 animate-pulse">
+                <span>Draw condition met (Repetition / 50-move)!</span>
+                <button
+                  type="button"
+                  onClick={handleClaimDraw}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-black text-xs transition-colors cursor-pointer"
+                >
+                  Claim Draw
+                </button>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -954,6 +1196,58 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Pawn Promotion Modal */}
+      {pendingPromotion && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-panel p-6 rounded-3xl border-2 border-[#F5C453] shadow-2xl max-w-xs w-full text-center space-y-4 animate-in zoom-in-95">
+            <h3 className="text-lg font-black text-white">Promote Pawn</h3>
+            <p className="text-xs text-[#DFD0B0]/70">
+              Select piece for promotion:
+            </p>
+            <div className="grid grid-cols-4 gap-2 pt-1">
+              <button
+                onClick={() => handleConfirmPromotion('q')}
+                className="p-3 rounded-2xl bg-white/10 hover:bg-[#52673A] border border-[#F5C453]/40 text-white hover:text-[#F5C453] flex flex-col items-center gap-1 transition-all cursor-pointer group"
+                title="Queen"
+              >
+                <span className="text-3xl group-hover:scale-110 transition-transform">♛</span>
+                <span className="text-[10px] font-black uppercase">Queen</span>
+              </button>
+              <button
+                onClick={() => handleConfirmPromotion('r')}
+                className="p-3 rounded-2xl bg-white/10 hover:bg-[#52673A] border border-[#F5C453]/40 text-white hover:text-[#F5C453] flex flex-col items-center gap-1 transition-all cursor-pointer group"
+                title="Rook"
+              >
+                <span className="text-3xl group-hover:scale-110 transition-transform">♜</span>
+                <span className="text-[10px] font-black uppercase">Rook</span>
+              </button>
+              <button
+                onClick={() => handleConfirmPromotion('b')}
+                className="p-3 rounded-2xl bg-white/10 hover:bg-[#52673A] border border-[#F5C453]/40 text-white hover:text-[#F5C453] flex flex-col items-center gap-1 transition-all cursor-pointer group"
+                title="Bishop"
+              >
+                <span className="text-3xl group-hover:scale-110 transition-transform">♝</span>
+                <span className="text-[10px] font-black uppercase">Bishop</span>
+              </button>
+              <button
+                onClick={() => handleConfirmPromotion('n')}
+                className="p-3 rounded-2xl bg-white/10 hover:bg-[#52673A] border border-[#F5C453]/40 text-white hover:text-[#F5C453] flex flex-col items-center gap-1 transition-all cursor-pointer group"
+                title="Knight"
+              >
+                <span className="text-3xl group-hover:scale-110 transition-transform">♞</span>
+                <span className="text-[10px] font-black uppercase">Knight</span>
+              </button>
+            </div>
+            <button
+              onClick={() => setPendingPromotion(null)}
+              className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs font-bold transition-all cursor-pointer"
+            >
+              Cancel Move
+            </button>
+          </div>
+        </div>
+      )}
 
       </div>
     </PanelContainer>

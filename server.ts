@@ -476,12 +476,7 @@ async function startServer() {
   const matchmaking = new MatchmakingEngine(io);
   console.log('[Matchmaking] Enterprise Real-Time Engine Initialized.');
 
-  // Start the matchmaking engine
-  matchmaking.start();
-}
-
-// 7. AI RECAP ENDPOINT
-// ----------------------------------------------------
+  
 app.post('/api/gemini/recap', async (req, res) => {
   try {
     const { pgn } = req.body;
