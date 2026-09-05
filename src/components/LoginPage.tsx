@@ -1,30 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../utils/firebase';
-import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
-import { useGlassFloat } from '../hooks/useGlassFloat';
-import { LanguageSelector } from './LanguageSelector';
-import Landscape from './landscape-tw';
 import { 
-  Lock, 
-  Mail, 
-  Eye, 
-  EyeOff, 
-  Sparkles, 
-  ArrowRight, 
-  CheckCircle2, 
-  AlertCircle, 
-  ShieldCheck, 
-  UserCheck, 
-  Flame, 
-  Zap, 
-  RefreshCw,
-  X,
-  ChevronLeft,
-  KeyRound,
-  Crown
+  Lock, Mail, Eye, EyeOff, UserPlus, ArrowRight, User, X,
+  ShieldCheck, Zap, ChevronLeft, KeyRound, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import { useGlassFloat } from '../hooks/useGlassFloat';
+import { useTranslation } from 'react-i18next';
 
 interface LoginPageProps {
   onSuccess?: () => void;
@@ -32,694 +15,320 @@ interface LoginPageProps {
   onNavigateHome?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({
-  onSuccess,
-  onCancel,
-  onNavigateHome
-}) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onCancel, onNavigateHome }) => {
   const { 
-    user, 
-    profile, 
-    signInWithGoogle, 
-    signInWithApple, 
-    signInWithEmail, 
-    signUpWithEmail, 
-    signInAsGuest, 
-    sendPasswordReset,
-    signInWithDeveloperPasskey,
-    signInAsSky,
-    signOut
+    user, profile, signInWithGoogle, signInWithApple, signInWithEmail, 
+    signUpWithEmail, signInAsGuest, sendPasswordReset, signOut 
   } = useAuth();
+  
   const { t } = useTranslation();
-  const floatVariants = useGlassFloat(1.3);
-
-  // Mode: Sign In vs Sign Up vs Forgot Password
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
-
-  // Form Inputs
-  const [displayName, setDisplayName] = useState('');
+  const floatVariants = useGlassFloat(1.1);
+  
+  const [screen, setScreen] = useState<'landing' | 'auth'>('landing');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot'>('login');
+  
+  // Inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(() => {
-    return localStorage.getItem('chess_remember_me') === 'true';
-  });
+  const [rememberMe, setRememberMe] = useState(true);
+  
+  // Dev
+  const [showDev, setShowDev] = useState(false);
+  const [devPassword, setDevPassword] = useState('');
+  
+  // State
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  // Developer / Master Access
-  const [showMasterAccess, setShowMasterAccess] = useState(false);
-  const [devPasswordInput, setDevPasswordInput] = useState('');
-  const [skyPasswordInput, setSkyPasswordInput] = useState('');
-
-  // States
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Remembered email
   useEffect(() => {
-    const rememberedEmail = localStorage.getItem('chess_saved_email');
-    if (rememberedEmail) {
-      setEmail(rememberedEmail);
+    const savedEmail = localStorage.getItem('chess_saved_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setScreen('auth');
+      setAuthMode('login');
     }
   }, []);
 
-  const handleRememberMeChange = (checked: boolean) => {
-    setRememberMe(checked);
-    localStorage.setItem('chess_remember_me', checked ? 'true' : 'false');
-    if (!checked) {
-      localStorage.removeItem('chess_saved_email');
-    }
-  };
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
-    }
-
-    if (authMode === 'forgot') {
-      setIsSubmitting(true);
+  const handleSuccess = async (message: string) => {
+    setSuccess(message);
+    const currentUser = auth.currentUser;
+    if (currentUser) {
       try {
-        await sendPasswordReset(email.trim());
-        setSuccessMessage('Password reset link has been dispatched to your email.');
-        setTimeout(() => {
-          setAuthMode('signin');
-          setSuccessMessage(null);
-        }, 4000);
-      } catch (err: any) {
-        setErrorMessage(err?.message || 'Failed to dispatch password reset. Please verify the email address.');
-      } finally {
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    if (!password || password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters.');
-      return;
-    }
-
-    if (authMode === 'signup' && password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      if (rememberMe) {
-        localStorage.setItem('chess_saved_email', email.trim());
-      } else {
-        localStorage.removeItem('chess_saved_email');
-      }
-
-      if (authMode === 'signup') {
-        await signUpWithEmail(email.trim(), password, displayName.trim() || undefined);
-        setSuccessMessage('Account successfully created! Welcome to ChessApp.');
-      } else {
-        await signInWithEmail(email.trim(), password);
-        const cleanId = email.trim().toLowerCase();
-        if (cleanId === 'sky' || cleanId === 'celestial' || cleanId === 'sky.celestial@chesskys.pro') {
-          setSuccessMessage('Celestial Sky Account activated! 🦋');
-        } else if (cleanId === 'dev' || cleanId === 'developer' || cleanId === 'q.brz' || cleanId === 'qbrz' || cleanId.includes('qayssafty') || cleanId.includes('qaessafty')) {
-          setSuccessMessage('Developer & Founder privileges unlocked (👑 Founder #0).');
-        } else {
-          setSuccessMessage('Successfully signed in.');
-        }
-      }
-
-      const currentUser = user || auth.currentUser;
-      if (currentUser) {
         const idToken = await currentUser.getIdToken();
         await fetch('/api/auth/session-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idToken })
         });
+      } catch (e) {
+        console.error('Session login failed', e);
       }
-
+    }
+    setTimeout(() => {
       if (onSuccess) onSuccess();
       else if (onNavigateHome) onNavigateHome();
-    } catch (err: any) {
-      const code = err?.code;
-      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setErrorMessage('Invalid email or password combination.');
-      } else if (code === 'auth/user-not-found') {
-        setErrorMessage('No user found with this email. Would you like to Create an Account?');
-      } else if (code === 'auth/email-already-in-use') {
-        setErrorMessage('This email is already registered. Please sign in instead.');
-      } else {
-        setErrorMessage(err?.message || 'Authentication failed. Please try again.');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    }, 1000);
   };
 
-  const handleGoogleLogin = async () => {
-    setErrorMessage(null);
-    setIsSubmitting(true);
-    try {
-      await signInWithGoogle();
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const idToken = await currentUser.getIdToken();
-        await fetch('/api/auth/session-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
-      }
-      setSuccessMessage('Signed in with Google successfully.');
-      if (onSuccess) onSuccess();
-      else if (onNavigateHome) onNavigateHome();
-    } catch (err: any) {
-      if (err?.code !== 'auth/popup-closed-by-user') {
-        setErrorMessage(err?.message || 'Google sign-in could not be completed.');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    setErrorMessage(null);
-    setIsSubmitting(true);
-    try {
-      await signInWithApple();
-      setSuccessMessage('Signed in with Apple ID.');
-      if (onSuccess) onSuccess();
-      else if (onNavigateHome) onNavigateHome();
-    } catch (err: any) {
-      if (err?.code !== 'auth/popup-closed-by-user') {
-        setErrorMessage(err?.message || 'Apple Sign-In could not be completed.');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleGuestLogin = async () => {
-    setErrorMessage(null);
-    setIsSubmitting(true);
+  const handleGuest = async () => {
+    setError(null); setLoading(true);
     try {
       await signInAsGuest();
-      setSuccessMessage('Welcome! Entering battlefield as Guest Warrior.');
-      if (onSuccess) onSuccess();
-      else if (onNavigateHome) onNavigateHome();
+      await handleSuccess('Welcome, Guest Warrior!');
     } catch (err: any) {
-      setErrorMessage('Could not initialize guest session.');
-    } finally {
-      setIsSubmitting(false);
+      setError(err.message); setLoading(false);
     }
   };
 
-  const handleDevLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!devPasswordInput.trim()) return;
-
-    setErrorMessage(null);
-    setIsSubmitting(true);
-
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    setError(null); setLoading(true);
     try {
-      if (devPasswordInput === 'q.brz') {
-        await signInWithEmail('dev', devPasswordInput);
-        setSuccessMessage('Developer [dev] Account activated!');
-        if (onSuccess) onSuccess();
-        else if (onNavigateHome) onNavigateHome();
-      } else {
-        setErrorMessage('Invalid Developer Passkey. Access Denied.');
-      }
+      if (provider === 'google') await signInWithGoogle();
+      if (provider === 'apple') await signInWithApple();
+      await handleSuccess(`Signed in with ${provider === 'google' ? 'Google' : 'Apple'}`);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Login failed.');
-    } finally {
-      setIsSubmitting(false);
+      if (err?.code !== 'auth/popup-closed-by-user') setError(err.message);
+      setLoading(false);
     }
   };
 
-  const handleSkyLogin = async (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!skyPasswordInput.trim()) return;
-
-    setErrorMessage(null);
-    setIsSubmitting(true);
-
+    setError(null); setLoading(true);
+    
     try {
-      if (skyPasswordInput === 'BLURBERRY') {
-        await signInWithEmail('sky', skyPasswordInput);
-        setSuccessMessage('Celestial [sky] Account activated!');
-        if (onSuccess) onSuccess();
-        else if (onNavigateHome) onNavigateHome();
+      if (authMode === 'forgot') {
+        await sendPasswordReset(email);
+        setSuccess('Password reset link sent.');
+        setTimeout(() => setAuthMode('login'), 3000);
+        setLoading(false);
+        return;
+      }
+
+      if (authMode === 'signup') {
+        if (password !== confirmPassword) throw new Error('Passwords do not match');
+        if (password.length < 8) throw new Error('Password must be at least 8 characters');
+        await signUpWithEmail(email, password, displayName || undefined);
+        if (rememberMe) localStorage.setItem('chess_saved_email', email);
+        await handleSuccess('Account created successfully!');
       } else {
-        setErrorMessage('Invalid Celestial Passkey. Access Denied.');
+        await signInWithEmail(email, password);
+        if (rememberMe) localStorage.setItem('chess_saved_email', email);
+        else localStorage.removeItem('chess_saved_email');
+        await handleSuccess('Successfully signed in.');
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Login failed.');
-    } finally {
-      setIsSubmitting(false);
+      setError(err.message || 'Authentication failed');
+      setLoading(false);
+    }
+  };
+
+  const handleDevAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!devPassword) return;
+    setError(null); setLoading(true);
+    try {
+      if (devPassword === 'q.brz') {
+        await signInWithEmail('dev', devPassword);
+        await handleSuccess('Developer Account activated.');
+      } else if (devPassword === 'BLURBERRY') {
+        await signInWithEmail('sky', devPassword);
+        await handleSuccess('Celestial Account activated.');
+      } else {
+        throw new Error('Invalid passkey');
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-3 sm:p-6 lg:p-10 font-ui text-slate-100 z-[1]">
-      {/* React Bits Pro Landscape Background */}
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0, pointerEvents: 'none' }}>
-        <Landscape 
-          color="#2e1065" 
-          midColor="#0a0a0a" 
-          farColor="#d946ef" 
-          backgroundColor="#0a0a0a"
-          speed={0.5} 
-          altitude={4} 
-          focal={1.5} 
-          elevation={2.5} 
-          scale={0.2} 
-          detail={1.2}
-        />
-      </div>
+    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 bg-slate-950 text-slate-100 overflow-hidden relative">
+      {/* Background Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Main Glassmorphic Authentication Card */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={["visible", "float"]}
         variants={{
-          visible: { opacity: 1, scale: 1, y: 0 },
+          visible: { opacity: 1, scale: 1 },
           ...floatVariants
         }}
-        transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md bg-slate-900/85 backdrop-blur-2xl rounded-3xl border border-slate-700/60 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10 transition-all duration-300"
+        className="w-full max-w-md bg-slate-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative z-10"
       >
-        {/* Top Accent Strip */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-[#F5C453] to-[#8C2425]" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500" />
+        
+        {onCancel && (
+          <button onClick={onCancel} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
-        <div className="p-6 sm:p-8">
-          {/* Header Section */}
-          <div className="text-center space-y-2 mb-6">
-            {/* Logo Emblem */}
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-slate-600 shadow-xl shadow-black/40 text-2xl relative group">
-              <span className="select-none filter drop-shadow">♟️</span>
-              <span className="absolute -bottom-1 -right-1 text-xs select-none">☀️</span>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">
-                  ChessApp
-                </h1>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#8C2425] text-white border border-[#F5C453]/40 tracking-wider">
-                  PRO
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-                Master the 64 squares. Forge your legacy with precision and honor.
-              </p>
-            </div>
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-14 h-14 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 flex items-center justify-center mb-4 shadow-inner">
+            <span className="text-2xl filter drop-shadow">♟️</span>
           </div>
+          <h1 className="text-2xl font-black text-white tracking-tight">
+            Chesskys <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-sky-400">PRO</span>
+          </h1>
+        </div>
 
-          {/* If already logged in, show current profile status & switch option */}
-          {profile && (
-            <div className="mb-5 p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={profile.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'}
-                  alt={profile.displayName}
-                  className="w-10 h-10 rounded-xl object-cover border border-[#F5C453]/50 shrink-0"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="truncate">
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span className="truncate">{profile.displayName}</span>
-                    <span>{profile.flag}</span>
+        
+        {profile && (
+          <div className="mb-6 p-4 rounded-2xl bg-slate-800/50 border border-white/10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <img src={profile.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60'} alt="Profile" className="w-10 h-10 rounded-xl object-cover border border-emerald-500/30" referrerPolicy="no-referrer" />
+              <div className="truncate">
+                <div className="text-sm font-bold text-white truncate">{profile.displayName} {profile.flag}</div>
+                <div className="text-[10px] text-emerald-400 font-mono">Rating: {profile.elo}</div>
+              </div>
+            </div>
+            <button onClick={async () => { await signOut(); if (onNavigateHome) onNavigateHome(); }} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">
+              Sign Out
+            </button>
+          </div>
+        )}
+        {error && (
+          <div className="mb-6 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> {success}
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {screen === 'landing' ? (
+            <motion.div key="landing" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex flex-col gap-4">
+              <button
+                onClick={handleGuest}
+                disabled={loading}
+                className="w-full py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                <Zap className="w-5 h-5 text-emerald-400" /> Play as Guest
+              </button>
+
+              <div className="flex items-center gap-4 py-2">
+                <div className="h-px bg-white/10 flex-1" />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Or</span>
+                <div className="h-px bg-white/10 flex-1" />
+              </div>
+
+              <button
+                onClick={() => setScreen('auth')}
+                disabled={loading}
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 rounded-xl text-white font-bold shadow-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                <ShieldCheck className="w-5 h-5" /> Sign In / Register
+              </button>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  onClick={() => handleOAuth('google')}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
+                >
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-4 h-4" alt="Google" /> Google
+                </button>
+                <button
+                  onClick={() => handleOAuth('apple')}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                  </svg> Apple
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key="auth" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <div className="flex items-center mb-6">
+                <button onClick={() => setScreen('landing')} className="text-slate-400 hover:text-white mr-3">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className="flex flex-1 bg-black/40 rounded-lg p-1">
+                  <button onClick={() => {setAuthMode('login'); setError(null);}} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${authMode === 'login' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>Log In</button>
+                  <button onClick={() => {setAuthMode('signup'); setError(null);}} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${authMode === 'signup' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>Sign Up</button>
+                </div>
+              </div>
+
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                {authMode === 'signup' && (
+                  <div className="relative">
+                    <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50" placeholder="Display Name" required />
                   </div>
-                  <div className="text-[10px] text-[#F5C453] font-mono">
-                    Rating: {profile.elo} • {profile.role?.toUpperCase()}
+                )}
+                
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50" placeholder="Email Address" required />
+                </div>
+
+                {authMode !== 'forgot' && (
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50" placeholder="Password" required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={signOut}
-                className="px-2.5 py-1 text-[11px] font-bold text-rose-300 hover:text-rose-200 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-lg transition-all cursor-pointer whitespace-nowrap"
-              >
-                Sign Out
-              </button>
-            </div>
+                )}
+
+                {authMode === 'signup' && (
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50" placeholder="Confirm Password" required />
+                  </div>
+                )}
+
+                {authMode === 'login' && (
+                  <div className="flex justify-between items-center px-1">
+                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                      <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-emerald-500/50" />
+                      Remember me
+                    </label>
+                    <button type="button" onClick={() => setAuthMode('forgot')} className="text-xs font-bold text-emerald-400 hover:text-emerald-300">
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                  {loading ? 'Processing...' : authMode === 'login' ? 'Sign In' : authMode === 'signup' ? 'Create Account' : 'Reset Password'}
+                  {!loading && <ArrowRight className="w-4 h-4" />}
+                </button>
+              </form>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* Feedback & Alert Messages */}
-          {errorMessage && (
-            <div className="mb-4 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-medium flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-lg">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="mb-4 p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-medium flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-lg">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* Mode Switcher Tabs (Sign In / Create Account) */}
-          <div className="flex p-1 bg-slate-950/70 rounded-2xl border border-slate-800 mb-5">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('signin');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                authMode === 'signin'
-                  ? 'bg-slate-800 text-white shadow-md border border-slate-700'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {t('login.login')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('signup');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                authMode === 'signup'
-                  ? 'bg-slate-800 text-white shadow-md border border-slate-700'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {t('login.register')}
-            </button>
-          </div>
-
-          {/* Social OAuth Buttons */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {/* Google OAuth Button */}
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isSubmitting}
-              className="w-full py-2.5 px-3 rounded-2xl bg-slate-800/80 hover:bg-slate-750 text-white text-xs font-bold border border-slate-700 hover:border-slate-600 flex items-center justify-center gap-2.5 shadow-sm transition-all cursor-pointer disabled:opacity-50 group hover:shadow-lg hover:shadow-black/30"
-              title="Sign in with Google"
-            >
-              <svg className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-              <span>Google</span>
-            </button>
-
-            {/* Apple OAuth Button */}
-            <button
-              type="button"
-              onClick={handleAppleLogin}
-              disabled={isSubmitting}
-              className="w-full py-2.5 px-3 rounded-2xl bg-slate-800/80 hover:bg-slate-750 text-white text-xs font-bold border border-slate-700 hover:border-slate-600 flex items-center justify-center gap-2.5 shadow-sm transition-all cursor-pointer disabled:opacity-50 group hover:shadow-lg hover:shadow-black/30"
-              title="Sign in with Apple ID"
-            >
-              <svg className="w-4 h-4 fill-current shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 170 170">
-                <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.59-7.71-11.71-14-6.3-9.58-11.14-20.45-14.51-32.61-3.37-12.16-5.06-23.49-5.06-34 0-14.79 3.65-27.13 10.96-37.03 7.31-9.9 16.42-14.93 27.34-15.09 4.35 0 9.17 1.13 14.46 3.39 5.29 2.26 9.13 3.39 11.53 3.39 2.07 0 6.07-1.2 12.01-3.6 5.94-2.4 11.02-3.47 15.24-3.21 11.53.65 20.85 4.97 27.97 12.96-10.23 6.19-15.24 14.89-15.03 26.09.22 8.91 3.58 16.36 10.08 22.34 6.5 5.98 14.3 9.4 23.4 10.27-2.17 6.42-4.78 12.72-7.83 18.9zm-29.43-107.82c0-7.39 2.67-14.24 8.01-20.55 5.34-6.31 11.85-10.12 19.53-11.43.98 7.39-1.31 14.13-6.86 20.22-5.55 6.09-12.44 9.92-20.68 11.76z" />
-              </svg>
-              <span>Apple ID</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="relative flex items-center justify-center mb-5">
-            <div className="border-t border-slate-800 w-full" />
-            <span className="bg-slate-900 px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
-              Or with email
-            </span>
-            <div className="border-t border-slate-800 w-full" />
-          </div>
-
-          {/* Email & Password Form */}
-          <form onSubmit={handleEmailSubmit} className="space-y-3.5">
-            {/* Display Name (Only in Sign Up Mode) */}
-            {authMode === 'signup' && (
-              <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                  Warrior Nickname / Display Name
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Peshmerga Knight"
-                    value={displayName}
-                    onChange={e => setDisplayName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
-                  />
-                  <ShieldCheck className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-            )}
-
-            {/* Email / Username Field */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                {authMode === 'signup' ? t('login.email') : 'Account / Email / Dev ID'}
-              </label>
-              <div className="relative">
-                <input
-                  type={authMode === 'signup' ? 'email' : 'text'}
-                  required
-                  placeholder={authMode === 'signup' ? 'warrior@chesskys.pro' : 'dev, sky, q.brz, or email'}
-                  autoComplete="username"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-9 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
-                />
-                <Mail className="w-4 h-4 text-slate-500 absolute start-3 top-1/2 -translate-y-1/2" />
-              </div>
-            </div>
-
-            {/* Password Field (Only for Sign In and Sign Up) */}
-            {authMode !== 'forgot' && (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    {t('login.password')}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('forgot');
-                      setErrorMessage(null);
-                      setSuccessMessage(null);
-                    }}
-                    className="text-[11px] font-semibold text-[#F5C453] hover:underline cursor-pointer"
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••••••"
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="w-full px-9 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
-                  />
-                  <Lock className="w-4 h-4 text-slate-500 absolute start-3 top-1/2 -translate-y-1/2" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1 cursor-pointer"
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-            {authMode === 'signup' && (
-              <div className="relative mt-3">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="Confirm Password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  className="w-full px-9 py-2.5 rounded-2xl bg-[#0B0F19] border border-[#1F293D] focus:border-[#F59E0B] text-white text-xs placeholder-slate-500 focus:ring-1 focus:ring-[#F59E0B] outline-none transition-all"
-                />
-                <Lock className="w-4 h-4 text-slate-500 absolute start-3 top-1/2 -translate-y-1/2" />
-              </div>
-            )}
-              </div>
-            )}
-
-            {/* Remember Me Checkbox */}
-            {authMode !== 'forgot' && (
-              <div className="flex items-center justify-between pt-0.5">
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={e => handleRememberMeChange(e.target.checked)}
-                    className="rounded bg-slate-950 border-slate-700 text-[#F5C453] focus:ring-0 w-3.5 h-3.5 cursor-pointer"
-                  />
-                  <span>Remember me on this device</span>
-                </label>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-[#F59E0B] text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 border border-emerald-400/40 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : authMode === 'signup' ? (
-                <>
-                  <UserCheck className="w-4 h-4" />
-                  <span>Enlist & Create Account</span>
-                </>
-              ) : authMode === 'forgot' ? (
-                <>
-                  <Mail className="w-4 h-4" />
-                  <span>Send Reset Email</span>
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="w-4 h-4 rtl-flip" />
-                  <span>Enter Battlefield</span>
-                </>
-              )}
-            </button>
-
-            {/* Return to Sign In if on Forgot Password */}
-            {authMode === 'forgot' && (
-              <button
-                type="button"
-                onClick={() => setAuthMode('signin')}
-                className="w-full text-center text-xs text-slate-400 hover:text-white py-1 flex items-center justify-center gap-1 cursor-pointer font-bold"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 rtl-flip" />
-                <span>Return to Sign In</span>
-              </button>
-            )}
-          </form>
-
-          {/* =========================================================
-              GUEST ACCESS (Prominent 1-Click Entry)
-              ========================================================= */}
-          <div className="mt-5 pt-4 border-t border-slate-800/80">
-            <button
-              type="button"
-              onClick={handleGuestLogin}
-              disabled={isSubmitting}
-              className="w-full py-3 px-4 rounded-2xl bg-slate-800/90 hover:bg-slate-750 text-[#F5C453] font-bold text-xs border border-[#F5C453]/40 hover:border-[#F5C453] flex items-center justify-center gap-2.5 shadow-md transition-all cursor-pointer group"
-            >
-              <Zap className="w-4 h-4 group-hover:scale-110 transition-transform text-[#F5C453]" />
-              <span>{t('login.playAsGuest')}</span>
-            </button>
-            <p className="text-[10px] text-center text-slate-500 mt-1.5 mb-3">
-              Jump straight into games without registration. Progress is stored locally on this device.
-            </p>
-            <div className="flex justify-center">
-              <LanguageSelector />
-            </div>
-          </div>
-
-          {/* Master / Developer Passkey Accordion */}
-          <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
-            <button
-              type="button"
-              onClick={() => setShowMasterAccess(!showMasterAccess)}
-              className="text-slate-500 hover:text-[#F5C453] flex items-center gap-1.5 transition-colors cursor-pointer font-mono"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>{showMasterAccess ? 'Hide Dev Tools' : 'Developer Quick Login'}</span>
-            </button>
-            
-            {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-slate-500 hover:text-slate-300 text-xs font-semibold cursor-pointer"
-              >
-                Close
-              </button>
-            )}
-          </div>
-
-          {/* Master Key Input Accordion Drawer */}
-          {showMasterAccess && (
-            <div className="mt-3 p-3 rounded-2xl bg-black/60 border border-amber-500/30 space-y-2.5 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#F5C453] uppercase tracking-wider flex items-center gap-1">
-                  <Crown className="w-3 h-3" />
-                  <span>Dev Accounts</span>
-                </span>
-                <span className="text-[10px] text-rose-400">WARNING: PRODUCTION</span>
-              </div>
-
-              {/* Developer / Master Access Panels */}
-              <div className="flex flex-col gap-2 pt-1">
-                <form onSubmit={handleDevLogin} className="flex gap-1.5">
-                  <input
-                    type="password"
-                    placeholder="enter the passkey..."
-                    value={devPasswordInput}
-                    onChange={e => setDevPasswordInput(e.target.value)}
-                    disabled={isSubmitting}
-                    className="flex-1 px-3 py-1.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-100 text-xs font-mono focus:border-amber-400 outline-none disabled:opacity-50 placeholder:text-amber-500/50"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black transition-all cursor-pointer border border-amber-500/40 disabled:opacity-50"
-                  >
-                    Login as dev
+        {/* Master Access */}
+        <div className="mt-6 pt-4 border-t border-white/10 flex flex-col items-center">
+          <button onClick={() => setShowDev(!showDev)} className="text-[10px] font-bold text-slate-500 hover:text-slate-300 uppercase tracking-widest flex items-center gap-1 transition-colors">
+            <KeyRound className="w-3 h-3" /> Developer Access
+          </button>
+          
+          <AnimatePresence>
+            {showDev && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full overflow-hidden mt-3">
+                <form onSubmit={handleDevAuth} className="flex gap-2">
+                  <input type="password" value={devPassword} onChange={e => setDevPassword(e.target.value)} placeholder="Passkey..." className="flex-1 bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-amber-500/50" />
+                  <button type="submit" disabled={loading} className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold transition-colors disabled:opacity-50">
+                    Unlock
                   </button>
                 </form>
-
-                <form onSubmit={handleSkyLogin} className="flex gap-1.5">
-                  <input
-                    type="password"
-                    placeholder="enter the passkey..."
-                    value={skyPasswordInput}
-                    onChange={e => setSkyPasswordInput(e.target.value)}
-                    disabled={isSubmitting}
-                    className="flex-1 px-3 py-1.5 rounded-xl bg-sky-950/40 border border-sky-500/40 text-sky-100 text-xs font-mono focus:border-sky-400 outline-none disabled:opacity-50 placeholder:text-sky-500/50"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-black transition-all cursor-pointer border border-sky-500/40 disabled:opacity-50"
-                  >
-                    Login as sky
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>

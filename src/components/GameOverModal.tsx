@@ -10,6 +10,7 @@ interface GameOverModalProps {
   onRematch: () => void;
   onNewGame: () => void;
   onAnalyze: () => void;
+  onPracticePuzzles?: () => void;
   onClose: () => void;
   pgn?: string;
 }
@@ -19,6 +20,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   onRematch,
   onNewGame,
   onAnalyze,
+  onPracticePuzzles,
   onClose,
   pgn
 }) => {
@@ -95,6 +97,15 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <span>Change Opponent</span>
           </button>
 
+          {onPracticePuzzles && (
+            <button
+              onClick={onPracticePuzzles}
+              className="w-full flex-1 min-w-[120px] glass-button border-white/5 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-300 interactive-btn shadow-lg group py-3 rounded-xl transition-all"
+            >
+              <Award className="w-4 h-4 mx-auto mb-1 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] uppercase font-black tracking-widest block text-center">Practice Puzzles</span>
+            </button>
+          )}
           <button
             onClick={onAnalyze}
             className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#0B0F19] text-[#94A3B8] font-black text-[11px] hover:text-[#F59E0B] hover:border-[#F59E0B]/30 border border-[#1F293D] transition-all uppercase tracking-widest active:scale-95 cursor-pointer"

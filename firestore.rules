@@ -82,12 +82,15 @@ service cloud.firestore {
      * Collections
      * ---------------------------------------------------------------- */
 
+    match /guests/{guestId} {
+      allow read, write: if request.auth == null || request.auth.uid == guestId;
+    }
+
     match /users/{userId} {
-      allow get: if true;
-      allow list: if true;
-      
+      allow read: if isOwnerOf(userId);
       allow create: if isOwnerOf(userId) && isValidUserProfile(incoming());
       allow update: if isOwnerOf(userId) && isValidUserProfile(incoming());
+      allow delete: if false;
 
       match /friends/{friendId} {
         allow read: if isOwnerOf(userId) || isOwnerOf(friendId);
@@ -183,10 +186,10 @@ service cloud.firestore {
     }
 
     match /game_logs/{logId} {
-      allow read: if isOwnerOf(resource.data.userId) || isDeveloper();
+      allow read: if isOwnerOf(resource.data.userId);
       allow create: if isOwnerOf(incoming().userId);
-      allow update: if isDeveloper();
-      allow delete: if isOwnerOf(resource.data.userId) || isDeveloper();
+      allow update: if false;
+      allow delete: if isOwnerOf(resource.data.userId);
     }
 
     match /feedbacks/{feedbackId} {

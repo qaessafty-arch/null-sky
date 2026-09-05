@@ -60,6 +60,7 @@ const ThemeSelectorModal = lazyPreload(() => import('./components/ThemeSelectorM
 const GameOverModal = lazyPreload(() => import('./components/GameOverModal').then(m => ({ default: m.GameOverModal })));
 const NewGameModal = lazyPreload(() => import('./components/NewGameModal').then(m => ({ default: m.NewGameModal })));
 const SettingsModal = lazyPreload(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const PuzzlePractice = lazyPreload(() => import('./components/PuzzlePractice').then(m => ({ default: m.PuzzlePractice })));
 const PuzzleMode = lazyPreload(() => import('./components/PuzzleMode').then(m => ({ default: m.PuzzleMode })));
 const DailyPuzzleView = lazyPreload(() => import('./components/DailyPuzzleView').then(m => ({ default: m.DailyPuzzleView })));
 const AnalysisPanel = lazyPreload(() => import('./components/AnalysisPanel').then(m => ({ default: m.AnalysisPanel })));
@@ -1044,6 +1045,17 @@ export default function App() {
             >
               <PuzzleMode settings={settings} />
             </motion.div>
+          ) : activeMode === 'puzzle_practice' ? (
+            <motion.div
+              key="puzzle-practice"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.4 }}
+              className="w-full h-full"
+            >
+              <PuzzlePractice settings={settings} onNavigateHome={() => setActiveMode('ai')} />
+            </motion.div>
           ) : activeMode === 'analysis' ? (
             <motion.div
               key="analysis-panel"
@@ -1405,6 +1417,7 @@ export default function App() {
             setGameResult(null);
             setIsNewGameModalOpen(true);
           }}
+          onPracticePuzzles={() => { setGameResult(null); setActiveMode("puzzle_practice"); }}
           onAnalyze={() => {
             setGameResult(null);
             setActiveMode('analysis');

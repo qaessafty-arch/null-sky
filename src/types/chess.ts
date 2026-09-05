@@ -4,7 +4,7 @@ export type PieceColor = 'w' | 'b';
 export type BoardThemeId = 'obsidian' | 'one-piece' | 'aot' | 'wall-maria' | 'batman' | 'gotham-city' | 'classic' | 'peshmerga' | 'ukh' | 'emerald' | 'wood' | 'ocean' | 'midnight' | 'marble' | 'custom' | 'premium';
 export type PieceThemeId = 'one-piece' | 'aot' | 'batman' | 'classic' | 'peshmerga' | 'ukh' | 'crystal_neon' | 'fide_3d' | 'neo' | 'alpha' | 'vintage';
 
-export type GameMode = 'ai' | 'pass_and_play' | 'daily_puzzle' | 'puzzle' | 'analysis' | 'online_match' | 'multiplayer' | 'authoring' | 'logging' | 'database' | 'dev_panel' | 'login' | 'profile_page' | 'leaderboard' | 'tournament';
+export type GameMode = 'puzzle_practice' | 'ai' | 'pass_and_play' | 'daily_puzzle' | 'puzzle' | 'analysis' | 'online_match' | 'multiplayer' | 'authoring' | 'logging' | 'database' | 'dev_panel' | 'login' | 'profile_page' | 'leaderboard' | 'tournament';
 
 export interface AuthoredPuzzle {
   id: string;

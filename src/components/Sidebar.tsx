@@ -144,6 +144,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     },
     {
+      id: 'puzzle_practice',
+      label: 'Tactics Trainer',
+      icon: <Sparkles className="w-4 h-4 text-emerald-400" />,
+      description: 'Practice specific tactical motifs',
+      isActive: activeMode === 'puzzle_practice',
+      onClick: () => {
+        onSelectMode('puzzle_practice');
+        onClose();
+      }
+    },
+
+    {
       id: 'analysis',
       mode: 'analysis' as GameMode,
       label: t('sidebar.analysis'),
