@@ -481,8 +481,8 @@ export default function App() {
 
     setIsAiThinking(true);
 
-    // Ultra-responsive bot think delay (50ms - 180ms)
-    const delay = Math.min(200, Math.max(50, 40 + currentBot.depth * 18));
+    // Natural human-like bot think delay (400ms - 1500ms)
+    const delay = Math.min(1500, Math.max(400, 300 + currentBot.depth * 80));
     const currentFen = game.fen();
 
     const timeoutId = setTimeout(async () => {
