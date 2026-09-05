@@ -618,16 +618,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
-    const cleanId = email.trim().toLowerCase();
+    let targetEmail = email.trim().toLowerCase();
     
-    // Map custom usernames to actual dev emails
-    let targetEmail = email.trim();
+    // Auto-map quick usernames back to emails if they somehow bypassed UI mapping
     let isDevLogin = false;
-    
-    if (cleanId === 'dev') {
+    if (targetEmail === 'dev' || targetEmail === 'dev@chessky.local') {
       targetEmail = 'dev@chessky.local';
       isDevLogin = true;
-    } else if (cleanId === 'sky' || cleanId === 'sky one') {
+    } else if (targetEmail === 'sky' || targetEmail === 'sky one' || targetEmail === 'sky@chessky.local') {
       targetEmail = 'sky@chessky.local';
       isDevLogin = true;
     }
@@ -639,28 +637,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithEmailAndPassword(auth, targetEmail, pass);
     } catch (error: any) {
       console.warn('Firebase email login notice:', error);
+      
+      if (error?.code === 'auth/operation-not-allowed') {
+        throw new Error('Email/Password Sign-In is not enabled in your Firebase Project. Please enable it in Firebase Console -> Authentication -> Sign-in method.');
+      }
+
       // Auto-create dev accounts if they don't exist yet
       if (isDevLogin && (error?.code === 'auth/invalid-credential' || error?.code === 'auth/user-not-found')) {
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, pass);
           if (userCredential.user) {
-            await firebaseUpdateProfile(userCredential.user, { displayName: cleanId === 'dev' ? 'dev' : 'sky' });
+            await firebaseUpdateProfile(userCredential.user, { displayName: targetEmail === 'dev@chessky.local' ? 'q.brz' : 'sky' });
             // Save admin role in Firestore so security rules can grant access
             const userDocRef = doc(db, 'users', userCredential.user.uid);
             await setDoc(userDocRef, {
               uid: userCredential.user.uid,
-              displayName: cleanId === 'dev' ? 'dev' : 'sky',
-              username: cleanId === 'dev' ? 'dev' : 'sky',
+              displayName: targetEmail === 'dev@chessky.local' ? 'q.brz' : 'sky',
+              username: targetEmail === 'dev@chessky.local' ? 'q.brz' : 'sky',
               email: targetEmail,
-              role: cleanId === 'dev' ? 'owner' : 'admin',
+              role: targetEmail === 'dev@chessky.local' ? 'owner' : 'admin',
               isDeveloper: true,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
             }, { merge: true });
           }
           return;
-        } catch (createErr) {
+        } catch (createErr: any) {
           console.error('Failed to auto-create dev account', createErr);
+          if (createErr?.code === 'auth/operation-not-allowed') {
+            throw new Error('Email/Password Sign-In is not enabled in your Firebase Project. Please enable it in Firebase Console -> Authentication -> Sign-in method.');
+          }
           throw createErr;
         }
       }

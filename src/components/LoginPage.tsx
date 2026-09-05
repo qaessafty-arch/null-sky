@@ -38,6 +38,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onCancel, onNav
   // Dev
   const [showDev, setShowDev] = useState(false);
   const [devPassword, setDevPassword] = useState('');
+  const [skyPassword, setSkyPassword] = useState('');
   
   // State
   const [loading, setLoading] = useState(false);
@@ -133,10 +134,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onCancel, onNav
     setError(null); setLoading(true);
     try {
       if (devPassword === 'q.brz') {
-        await signInWithEmail('dev', devPassword);
+        await signInWithEmail('dev@chessky.local', 'q.brz1234');
         await handleSuccess('Developer Account activated.');
-      } else if (devPassword === 'BLURBERRY') {
-        await signInWithEmail('sky', devPassword);
+      } else {
+        throw new Error('Invalid passkey');
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const handleSkyAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!skyPassword) return;
+    setError(null); setLoading(true);
+    try {
+      if (skyPassword === 'BLUEBERRY') {
+        await signInWithEmail('sky@chessky.local', 'BLUEBERRY1234');
         await handleSuccess('Celestial Account activated.');
       } else {
         throw new Error('Invalid passkey');
@@ -320,12 +335,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onCancel, onNav
           <AnimatePresence>
             {showDev && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full overflow-hidden mt-3">
-                <form onSubmit={handleDevAuth} className="flex gap-2">
-                  <input type="password" value={devPassword} onChange={e => setDevPassword(e.target.value)} placeholder="Passkey..." className="flex-1 bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-amber-500/50" />
-                  <button type="submit" disabled={loading} className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold transition-colors disabled:opacity-50">
-                    Unlock
-                  </button>
-                </form>
+                <div className="flex flex-col gap-2">
+                  <form onSubmit={handleDevAuth} className="flex gap-2">
+                    <input type="password" value={devPassword} onChange={e => setDevPassword(e.target.value)} placeholder="Dev Passkey..." autoComplete="off" className="flex-1 bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-amber-500/50" />
+                    <button type="submit" disabled={loading} className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold transition-colors disabled:opacity-50">
+                      Unlock Dev
+                    </button>
+                  </form>
+                  <form onSubmit={handleSkyAuth} className="flex gap-2">
+                    <input type="password" value={skyPassword} onChange={e => setSkyPassword(e.target.value)} placeholder="Sky Passkey..." autoComplete="off" className="flex-1 bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-sky-500/50" />
+                    <button type="submit" disabled={loading} className="px-3 py-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 border border-sky-500/30 rounded-lg text-xs font-bold transition-colors disabled:opacity-50">
+                      Unlock Sky
+                    </button>
+                  </form>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

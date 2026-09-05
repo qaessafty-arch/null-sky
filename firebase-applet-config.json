@@ -1,12 +1,12 @@
 {
-  "projectId": "gen-lang-client-0398037098",
-  "appId": "1:433680279797:web:a28de73a475bfe3958bdbc",
-  "apiKey": "AIzaSyDITx_Kwuq1kmE6iJ8BW9PbdPfRjAcVn-w",
-  "authDomain": "gen-lang-client-0398037098.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-chesskyspro-81bf19f6-839d-4d8e-8c71-e9af0de56150",
-  "storageBucket": "gen-lang-client-0398037098.firebasestorage.app",
-  "messagingSenderId": "433680279797",
+  "projectId": "cheskys-14",
+  "appId": "1:715803490858:web:e9f6df4fe45f7aa42ba153",
+  "apiKey": "AIzaSyAZhE5Q7qe4X0yH8kVZMpMf1TmvqU1r6-U",
+  "authDomain": "cheskys-14.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-chesskys-81bf19f6-839d-4d8e-8c71-e9af0de56150",
+  "storageBucket": "cheskys-14.firebasestorage.app",
+  "messagingSenderId": "715803490858",
   "measurementId": "",
-  "oAuthClientId": "433680279797-63gmmg6o3i1gdlrcrttpc1fcrdrp3daq.apps.googleusercontent.com",
+  "oAuthClientId": "715803490858-e505p9j6c2i5hhg3vrobfhoakooujsh4.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

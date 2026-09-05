@@ -908,7 +908,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
             </div>
 
             {/* Developer Control Center Entry (Super-Admin Locked) */}
-            {(isSuperAdmin || isDeveloper) && (
+            {isDeveloper && (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-red-500/10 border border-amber-500/30 flex items-center justify-between shadow-xl animate-in zoom-in-95 duration-200">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#0B0F19] border border-amber-500 flex items-center justify-center text-amber-500 shadow-inner">
@@ -1101,7 +1101,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
             {/* ========================================================
                 OWNER & DEVELOPER BADGES & STATUSES WORKSHOP
                 ======================================================== */}
-            {(isOwner || isDeveloper || devModeUnlocked) && (
+            {isDeveloper && (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-black/50 to-slate-900/60 border-2 border-[#F5C453]/60 space-y-3 shadow-xl">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">

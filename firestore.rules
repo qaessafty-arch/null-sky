@@ -40,14 +40,14 @@ service cloud.firestore {
 
     function isDeveloper() {
       return isSignedIn() && (
-        request.auth.token.get('role', '') == 'admin' ||
-        request.auth.token.email.lower() in [
+        ('role' in request.auth.token && request.auth.token.role == 'admin') ||
+        ('email' in request.auth.token && request.auth.token.email.lower() in [
           'qaessafty@gmail.com', 
           'qayssafty@gmail.com', 
           'qaess.business@gmail.com',
           'dev@chessky.local',
           'sky@chessky.local'
-        ]
+        ])
       );
     }
 
