@@ -29,6 +29,19 @@
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+  
+<script>
+  window.addEventListener('error', function(e) {
+    if (e.message && e.message.includes('ResizeObserver')) return;
+    const div = document.createElement('div');
+    div.style.position = 'fixed';
+    div.style.top = '0'; div.style.left = '0'; div.style.width = '100vw'; div.style.height = '100vh';
+    div.style.backgroundColor = 'rgba(255,0,0,0.9)'; div.style.color = 'white'; div.style.zIndex = '999999';
+    div.style.padding = '20px'; div.style.fontSize = '20px'; div.style.whiteSpace = 'pre-wrap';
+    div.innerText = 'Global Error: ' + e.message + '\n' + (e.error ? e.error.stack : '');
+    document.body.appendChild(div);
+  });
+</script>
+</body>
 </html>
 

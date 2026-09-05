@@ -6,6 +6,13 @@ import ckbTranslations from './locales/ckb.json';
 import kmrTranslations from './locales/kmr.json';
 import arTranslations from './locales/ar.json';
 
+let initialLang = 'en';
+try {
+  initialLang = localStorage.getItem('app_language') || 'en';
+} catch (e) {
+  console.warn('localStorage blocked', e);
+}
+
 i18n
   .use(initReactI18next)
   .init({
@@ -15,7 +22,7 @@ i18n
       kmr: { translation: kmrTranslations },
       ar: { translation: arTranslations }
     },
-    lng: localStorage.getItem('app_language') || 'en',
+    lng: initialLang,
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false

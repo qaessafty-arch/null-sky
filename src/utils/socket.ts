@@ -6,7 +6,7 @@ class SocketService {
   
   public connect(uid?: string, token?: string) {
     if (uid) this.uid = uid;
-    const authToken = token || localStorage.getItem('token') || localStorage.getItem('chess_jwt') || undefined;
+    let authToken = token; try { authToken = authToken || localStorage.getItem('token') || localStorage.getItem('chess_jwt') || undefined; } catch (e) {}
     
     if (!this.socket) {
       this.socket = io({

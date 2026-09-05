@@ -604,7 +604,11 @@ export function deleteCustomTheme(themeId: string): UITheme[] {
 
 export function getActiveThemeId(): string {
   if (typeof window === 'undefined') return 'peshmerga';
-  return localStorage.getItem(LOCAL_STORAGE_KEY_THEME) || 'peshmerga';
+  try {
+    return localStorage.getItem(LOCAL_STORAGE_KEY_THEME) || 'peshmerga';
+  } catch (e) {
+    return 'peshmerga';
+  }
 }
 
 export function getActiveTheme(): UITheme {
@@ -617,7 +621,11 @@ export function getActiveTheme(): UITheme {
 
 export function setActiveThemeId(themeId: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LOCAL_STORAGE_KEY_THEME, themeId);
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY_THEME, themeId);
+  } catch (e) {
+    console.warn('Could not save theme:', e);
+  }
 }
 
 // Random Palette Generator for instant creative inspiration
