@@ -5,7 +5,7 @@ import { useRoom } from '../context/RoomContext';
 import { RoomInvite } from '../context/RoomContext';
 
 export function useRoomInvites() {
-  const { currentRoom } = useRoom();
+  const { currentRoom, acceptInvite, declineInvite } = useRoom();
   const [invites, setInvites] = useState<RoomInvite[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -40,18 +40,16 @@ export function useRoomInvites() {
 
   const accept = useCallback(
     async (inviteId: string) => {
-      const { acceptInvite } = useRoom();
       await acceptInvite(inviteId);
     },
-    [],
+    [acceptInvite],
   );
 
   const decline = useCallback(
     async (inviteId: string) => {
-      const { declineInvite } = useRoom();
       await declineInvite(inviteId);
     },
-    [],
+    [declineInvite],
   );
 
   return { invites, loading, accept, decline };

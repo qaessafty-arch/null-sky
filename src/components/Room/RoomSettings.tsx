@@ -1,30 +1,26 @@
-import React, { useState } from 'react';
-import { Clock, Gauge, Gamepad2 } from 'lucide-react';
+import React from 'react';
+import { Clock, Shield, Sparkles } from 'lucide-react';
 
-export const TIME_CONTROLS: { id: string; name: string; initial: number; increment: number; category: 'bullet' | 'blitz' | 'rapid' | 'classical' }[] = [
-  { id: 'bullet', name: 'Bullet', initial: 60, increment: 0, category: 'bullet' },
-  { id: 'blitz', name: 'Blitz', initial: 180, increment: 0, category: 'blitz' },
-  { id: 'rapid', name: 'Rapid', initial: 600, increment: 0, category: 'rapid' },
-  { id: 'classical', name: 'Classical', initial: 1800, increment: 0, category: 'classical' },
+export const TIME_CONTROLS = [
+  { id: 'bullet', name: 'Bullet 1+0', initial: 60, increment: 0, category: 'bullet' as const },
+  { id: 'blitz_3', name: 'Blitz 3+0', initial: 180, increment: 0, category: 'blitz' as const },
+  { id: 'blitz_5', name: 'Blitz 5+0', initial: 300, increment: 0, category: 'blitz' as const },
+  { id: 'rapid', name: 'Rapid 10+0', initial: 600, increment: 0, category: 'rapid' as const },
+  { id: 'classical', name: 'Classical 15+10', initial: 900, increment: 10, category: 'classical' as const },
 ];
 
+export interface RoomSettingsData {
+  timeControlId: string;
+  timeControlName: string;
+  initialSeconds: number;
+  incrementSeconds: number;
+  color: 'white' | 'black' | 'random';
+  rated: boolean;
+}
+
 interface RoomSettingsProps {
-  value: {
-    timeControlId: string;
-    timeControlName: string;
-    initialSeconds: number;
-    incrementSeconds: number;
-    color: 'white' | 'black' | 'random';
-    rated: boolean;
-  };
-  onChange: (next: {
-    timeControlId: string;
-    timeControlName: string;
-    initialSeconds: number;
-    incrementSeconds: number;
-    color: 'white' | 'black' | 'random';
-    rated: boolean;
-  }) => void;
+  value: RoomSettingsData;
+  onChange: (next: RoomSettingsData) => void;
 }
 
 export const RoomSettings: React.FC<RoomSettingsProps> = ({ value, onChange }) => {
@@ -38,84 +34,100 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ value, onChange }) =
     });
   };
 
-  const toggleColor = () => {
-    const order: Array<'white' | 'black' | 'random'> = ['white', 'black', 'random'];
-    const idx = order.indexOf(value.color);
-    onChange({ ...value, color: order[(idx + 1) % order.length] });
-  };
-
-  const toggleRated = () => onChange({ ...value, rated: !value.rated });
-
   return (
-    <div className="grid grid-cols-1 gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-black uppercase tracking-widest text-white/50">
-          <Clock className="inline w-3 h-3 mr-1" /> Time Control
+    <div className="flex flex-col gap-5">
+      {/* Time Control */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-[#F5C453]" />
+          <span>Time Control</span>
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          {TIME_CONTROLS.map((tc) => (
-            <button
-              key={tc.id}
-              type="button"
-              onClick={() => setTimeControl(tc)}
-              className={`px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest border transition-all cursor-pointer ${
-                value.timeControlId === tc.id
-                  ? 'border-[#F5C453] bg-[#F5C453]/10 text-white shadow-lg shadow-[#F5C453]/20'
-                  : 'border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white/80'
-              }`}
-            >
-              <span className="block">{tc.name}</span>
-              <span className="block text-[10px] text-white/40 mt-0.5">
-                {tc.initial / 60}:{String(tc.initial % 60).padStart(2, '0')}
-                {tc.increment > 0 ? `+${tc.increment}` : ''}
-              </span>
-            </button>
-          ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {TIME_CONTROLS.map((tc) => {
+            const isSelected = value.timeControlId === tc.id;
+            return (
+              <button
+                key={tc.id}
+                type="button"
+                onClick={() => setTimeControl(tc)}
+                className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-[#F5C453] bg-[#F5C453]/15 text-white shadow-lg shadow-[#F5C453]/15'
+                    : 'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                <span className="block text-xs font-bold">{tc.name}</span>
+                <span className="block text-[11px] text-white/40 mt-0.5 font-mono">
+                  {Math.floor(tc.initial / 60)} min {tc.increment > 0 ? `+${tc.increment}s` : ''}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-black uppercase tracking-widest text-white/50">
-          <Gamepad2 className="inline w-3 h-3 mr-1" /> My Color
+      {/* Choose Color */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-[#F5C453]" />
+          <span>Preferred Color</span>
         </label>
-        <div className="flex gap-2">
-          {(
-            [
-              { key: 'white', label: 'White', color: 'text-emerald-300 border-emerald-500/40' },
-              { key: 'black', label: 'Black', color: 'text-rose-300 border-rose-500/40' },
-              { key: 'random', label: 'Random', color: 'text-amber-300 border-amber-500/40' },
-            ] as const
-          ).map(({ key, label, color }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={toggleColor}
-              className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border transition-all cursor-pointer ${
-                value.color === key
-                  ? `border-white/30 bg-white/10 text-white shadow-md`
-                  : `border-white/10 bg-white/[0.04] text-white/50 hover:bg-white/[0.08]`
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { key: 'white' as const, label: 'White', icon: '♔' },
+            { key: 'random' as const, label: 'Random', icon: '⚖' },
+            { key: 'black' as const, label: 'Black', icon: '♚' },
+          ].map(({ key, label, icon }) => {
+            const isSelected = value.color === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onChange({ ...value, color: key })}
+                className={`py-3 px-2 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                  isSelected
+                    ? 'border-[#F5C453] bg-[#F5C453]/15 text-white shadow-lg shadow-[#F5C453]/15'
+                    : 'border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]'
+                }`}
+              >
+                <span className="text-lg leading-none">{icon}</span>
+                <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-black uppercase tracking-widest text-white/50">
-          <Gauge className="inline w-3 h-3 mr-1" /> Rated Match
+      {/* Rated vs Casual Toggle */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5">
+          <Shield className="w-3.5 h-3.5 text-[#F5C453]" />
+          <span>Match Rating</span>
         </label>
         <button
           type="button"
-          onClick={toggleRated}
-          className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest border transition-all cursor-pointer ${
+          onClick={() => onChange({ ...value, rated: !value.rated })}
+          className={`w-full py-3 px-4 rounded-xl text-left border flex items-center justify-between transition-all cursor-pointer ${
             value.rated
-              ? 'border-amber-400/50 bg-amber-400/10 text-amber-300 shadow-md shadow-amber-400/20'
-              : 'border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white/80'
+              ? 'border-amber-400/50 bg-amber-400/10 text-amber-300'
+              : 'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.08]'
           }`}
         >
-          {value.rated ? 'Rated · ELO will change' : 'Unrated · Casual battle'}
+          <div>
+            <div className="text-xs font-black uppercase tracking-wider">
+              {value.rated ? 'Rated Battle' : 'Casual / Friendly'}
+            </div>
+            <div className="text-[11px] text-white/40 mt-0.5">
+              {value.rated ? 'Affects Grandmaster ELO rating' : 'Practice match without ELO stakes'}
+            </div>
+          </div>
+          <div
+            className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs ${
+              value.rated ? 'bg-amber-400 text-black border-amber-400 font-bold' : 'border-white/30 text-transparent'
+            }`}
+          >
+            ✓
+          </div>
         </button>
       </div>
     </div>

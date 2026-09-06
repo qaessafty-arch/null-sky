@@ -5,13 +5,10 @@ import {
   orderBy,
   limit,
   onSnapshot,
-  addDoc,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
-import { useRoom } from '../context/RoomContext';
-import { RoomChatMessage } from '../context/RoomContext';
+import { useRoom, RoomChatMessage } from '../context/RoomContext';
 
 const RECENT_LIMIT = 50;
 
@@ -24,40 +21,50 @@ export function useRoomChat() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  // Real-time chat messages from the rooms/{code}/chat subcollection
+  // Real-time chat messages from the rooms/{code}/chat subcollection OR room.chat array
   useEffect(() => {
-    if (!currentRoom || authLoading) return;
+    if (!currentRoom?.roomCode || authLoading) return;
+
+    // First use denormalized chat array if available
+    if (currentRoom.chat && currentRoom.chat.length > 0) {
+      setMessages(currentRoom.chat);
+    }
 
     const chatColl = collection(db, `rooms/${currentRoom.roomCode}/chat`);
-    const q = query(chatColl, orderBy('timestamp', 'desc'), limit(RECENT_LIMIT));
+    const q = query(chatColl, orderBy('timestamp', 'asc'), limit(RECENT_LIMIT));
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const msgs = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() } as RoomChatMessage))
-          .sort(
-            (a, b) =>
-              new Date(a.timestamp as Date).getTime() -
-              new Date(b.timestamp as Date).getTime(),
-          );
-        setMessages(msgs);
+        if (!snap.empty) {
+          const msgs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RoomChatMessage));
+          setMessages(msgs);
+        } else if (currentRoom.chat && currentRoom.chat.length > 0) {
+          setMessages(currentRoom.chat);
+        }
       },
       (err) => {
-        handleFirestoreError(err, OperationType.LIST, `rooms/${currentRoom.roomCode}/chat`);
-      },
+        // If subcollection read fails or doesn't exist, fall back to denormalized array
+        if (currentRoom.chat) {
+          setMessages(currentRoom.chat);
+        }
+      }
     );
 
-    return unsub;
-  }, [currentRoom, authLoading]);
+    return () => unsub();
+  }, [currentRoom?.roomCode, currentRoom?.chat, authLoading]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const msg = pending.trim();
-    if (!msg) return;
+    if (!msg || sending) return;
     setPending('');
     setSending(true);
-    sendChatMessage(msg).finally(() => setSending(false));
-  }, [pending, sendChatMessage]);
+    try {
+      await sendChatMessage(msg);
+    } finally {
+      setSending(false);
+    }
+  }, [pending, sending, sendChatMessage]);
 
   const handleTyping = useCallback(
     (uid: string, name: string) => {
@@ -77,7 +84,7 @@ export function useRoomChat() {
       }, 2500);
       typingTimers.current.set(uid, t);
     },
-    [currentRoom, profile?.uid],
+    [currentRoom, profile?.uid]
   );
 
   return {
@@ -88,6 +95,6 @@ export function useRoomChat() {
     handleSend,
     handleTyping,
     typingUsers,
-    canChat: !!currentRoom && currentRoom.status === 'waiting',
+    canChat: !!currentRoom && currentRoom.status !== 'ended' && currentRoom.status !== 'expired',
   };
 }

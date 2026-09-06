@@ -1,0 +1,79 @@
+/* ==========================================================================
+   Notifications - Toast & Room Invite Alert Styles
+   ========================================================================== */
+
+.toast-container {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: 380px;
+  width: calc(100% - 40px);
+}
+
+.toast-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(13, 19, 33, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #F8FAFC;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-card.invite {
+  border-color: rgba(245, 196, 83, 0.4);
+  background: linear-gradient(135deg, rgba(20, 28, 48, 0.95) 0%, rgba(13, 19, 33, 0.95) 100%);
+}
+
+.toast-card.success {
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.toast-card.error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.toast-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toast-icon-badge.invite {
+  background: rgba(245, 196, 83, 0.15);
+  color: #F5C453;
+  border: 1px solid rgba(245, 196, 83, 0.3);
+}
+
+.toast-icon-badge.success {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ADE80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.toast-icon-badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.toast-icon-badge.info {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}

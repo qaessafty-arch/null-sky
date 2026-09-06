@@ -37,8 +37,6 @@ import {
   ShieldAlert,
   Sparkles
 } from 'lucide-react';
-import '../../styles/friends-panel.css';
-import '../../styles/friends-animations.css';
 
 interface FriendPanelProps {
   isOpen: boolean;
@@ -570,3 +568,6 @@ export const FriendPanel: React.FC<FriendPanelProps> = ({
     </div>
   );
 };
+
+export default FriendPanel;
+

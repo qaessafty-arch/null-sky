@@ -127,7 +127,7 @@ service cloud.firestore {
 
       allow read: if true; // Allow spectators
       allow create: if isSignedIn() && isValidOnlineMatch(incoming());
-      allow update: if (isPlayer() || isDeveloper()) && isValidOnlineMatch(incoming());
+      allow update: if (isPlayer() || resource.data.status == 'waiting' || isDeveloper()) && isValidOnlineMatch(incoming());
       allow delete: if isDeveloper();
 
       match /chat/{messageId} {
@@ -213,6 +213,40 @@ service cloud.firestore {
       allow read: if configId in ['aboutUs', 'stickers'] || isDeveloper();
       // Only developers can write system configurations
       allow write: if isDeveloper();
+    }
+
+    // Private Rooms - accessible to authenticated users
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.creatorId == uid() ||
+        resource.data.opponentId == uid() ||
+        resource.data.status == 'waiting' ||
+        isDeveloper()
+      );
+      allow delete: if isSignedIn() && (
+        (resource.data.creatorId == uid() && resource.data.status == 'waiting') ||
+        isDeveloper()
+      );
+
+      match /invites/{inviteId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /chat/{chatId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // User invites - for notifications and direct room invites
+    match /user_invites/{inviteId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == uid() ||
+        resource.data.invitedBy == uid() ||
+        isDeveloper()
+      );
+      allow write: if isSignedIn();
     }
   }
 }

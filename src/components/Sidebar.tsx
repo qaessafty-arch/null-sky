@@ -121,6 +121,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     },
     {
+      id: 'private_room',
+      mode: 'private_room' as GameMode,
+      label: 'Private Room',
+      icon: <Users className="w-5 h-5 text-[#F5C453]" />,
+      action: () => {
+        onSelectMode('private_room');
+        onClose();
+      }
+    },
+    {
       id: 'notifications',
       label: 'Notifications',
       badge: unreadCount > 0 ? `${unreadCount}` : undefined,

@@ -609,6 +609,19 @@ export const createOnlineMatch = async (
   const matchId = cleanCode;
   const matchDocRef = doc(db, 'online_matches', matchId);
 
+  // If match already exists and is in_progress, don't overwrite it
+  try {
+    const existingSnap = await getDoc(matchDocRef);
+    if (existingSnap.exists()) {
+      const existing = existingSnap.data() as OnlineMatchSession;
+      if (existing.status === 'in_progress') {
+        return matchId;
+      }
+    }
+  } catch (e) {
+    // ignore read error
+  }
+
   const resolvedSide = side === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : side;
   const isHostWhite = resolvedSide === 'w';
 
@@ -679,10 +692,212 @@ export const joinOnlineMatch = async (
       snap = await getDoc(legacyRef);
       if (snap.exists()) {
         matchDocRef = legacyRef;
-      } else {
-        throw new Error(`Match room "${cleanCode}" not found. Please verify the code.`);
       }
     }
+  }
+
+  // If still not found in online_matches, search the rooms collection (Private Rooms)
+  if (!snap.exists()) {
+    const roomDocRef = doc(db, 'rooms', cleanCode);
+    const roomSnap = await getDoc(roomDocRef);
+    if (roomSnap.exists()) {
+      const roomData = roomSnap.data() as any;
+      if (roomData.status !== 'waiting' && roomData.opponentId && roomData.opponentId !== guestPlayer.uid) {
+        throw new Error('Match room is already full or in progress.');
+      }
+
+      const hostPlayer: OnlineMatchPlayer = {
+        uid: roomData.creatorId,
+        displayName: roomData.creatorName || 'Host',
+        avatar: roomData.creatorPhotoURL || undefined,
+        elo: Number(roomData.creatorElo) || 1200,
+      };
+
+      const preferredSide = roomData.settings?.color || roomData.creatorColor || 'random';
+      const isHostWhite = preferredSide === 'white' ? true : preferredSide === 'black' ? false : Math.random() < 0.5;
+
+      const tc: TimeControl = {
+        id: roomData.settings?.timeControlId || 'rapid',
+        name: roomData.settings?.timeControlName || 'Rapid 10+0',
+        initialSeconds: Number(roomData.settings?.initialSeconds) || 600,
+        incrementSeconds: Number(roomData.settings?.incrementSeconds) || 0,
+        category: (Number(roomData.settings?.initialSeconds) || 600) < 180 ? 'bullet' : (Number(roomData.settings?.initialSeconds) || 600) < 600 ? 'blitz' : 'rapid',
+      };
+
+      const whitePlayer = isHostWhite ? hostPlayer : guestPlayer;
+      const blackPlayer = isHostWhite ? guestPlayer : hostPlayer;
+
+      const newSession: OnlineMatchSession = {
+        id: cleanCode,
+        code: cleanCode,
+        hostId: roomData.creatorId,
+        guestId: guestPlayer.uid,
+        whitePlayer,
+        blackPlayer,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        pgn: '',
+        moves: [],
+        turn: 'w',
+        status: 'in_progress',
+        winner: null,
+        timeControl: tc,
+        whiteSecondsRemaining: tc.initialSeconds,
+        blackSecondsRemaining: tc.initialSeconds,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Create the live match in online_matches
+      await setDoc(matchDocRef, newSession);
+
+      // Also update the private room to let the host know someone joined
+      try {
+        await updateDoc(roomDocRef, {
+          opponentId: guestPlayer.uid,
+          opponentName: guestPlayer.displayName || 'Challenger',
+          opponentPhotoURL: guestPlayer.avatar || guestPlayer.photoURL || undefined,
+          opponentElo: guestPlayer.elo || 1200,
+          status: 'in_progress',
+          gameId: cleanCode,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn('Could not update private room state:', err);
+      }
+
+      // Also notify server REST endpoint
+      try {
+        fetch(`/api/games/${encodeURIComponent(cleanCode)}/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerInfo: guestPlayer })
+        }).catch(() => {});
+      } catch {}
+
+      return newSession;
+    }
+
+    // Also check query on rooms where roomCode == cleanCode
+    const roomQuery = query(
+      collection(db, 'rooms'),
+      where('roomCode', '==', cleanCode),
+      limit(1)
+    );
+    const roomQuerySnap = await getDocs(roomQuery);
+    if (!roomQuerySnap.empty) {
+      const roomDoc = roomQuerySnap.docs[0];
+      const roomData = roomDoc.data() as any;
+      if (roomData.status !== 'waiting' && roomData.opponentId && roomData.opponentId !== guestPlayer.uid) {
+        throw new Error('Match room is already full or in progress.');
+      }
+
+      const hostPlayer: OnlineMatchPlayer = {
+        uid: roomData.creatorId,
+        displayName: roomData.creatorName || 'Host',
+        avatar: roomData.creatorPhotoURL || undefined,
+        elo: Number(roomData.creatorElo) || 1200,
+      };
+
+      const preferredSide = roomData.settings?.color || roomData.creatorColor || 'random';
+      const isHostWhite = preferredSide === 'white' ? true : preferredSide === 'black' ? false : Math.random() < 0.5;
+
+      const tc: TimeControl = {
+        id: roomData.settings?.timeControlId || 'rapid',
+        name: roomData.settings?.timeControlName || 'Rapid 10+0',
+        initialSeconds: Number(roomData.settings?.initialSeconds) || 600,
+        incrementSeconds: Number(roomData.settings?.incrementSeconds) || 0,
+        category: (Number(roomData.settings?.initialSeconds) || 600) < 180 ? 'bullet' : (Number(roomData.settings?.initialSeconds) || 600) < 600 ? 'blitz' : 'rapid',
+      };
+
+      const whitePlayer = isHostWhite ? hostPlayer : guestPlayer;
+      const blackPlayer = isHostWhite ? guestPlayer : hostPlayer;
+
+      const newSession: OnlineMatchSession = {
+        id: cleanCode,
+        code: cleanCode,
+        hostId: roomData.creatorId,
+        guestId: guestPlayer.uid,
+        whitePlayer,
+        blackPlayer,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        pgn: '',
+        moves: [],
+        turn: 'w',
+        status: 'in_progress',
+        winner: null,
+        timeControl: tc,
+        whiteSecondsRemaining: tc.initialSeconds,
+        blackSecondsRemaining: tc.initialSeconds,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(matchDocRef, newSession);
+
+      try {
+        await updateDoc(roomDoc.ref, {
+          opponentId: guestPlayer.uid,
+          opponentName: guestPlayer.displayName || 'Challenger',
+          opponentPhotoURL: guestPlayer.avatar || guestPlayer.photoURL || undefined,
+          opponentElo: guestPlayer.elo || 1200,
+          status: 'in_progress',
+          gameId: cleanCode,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn('Could not update private room state:', err);
+      }
+
+      return newSession;
+    }
+
+    // Check if room exists in server in-memory matchmaking API
+    try {
+      const serverRes = await fetch(`/api/games/${encodeURIComponent(cleanCode)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerInfo: guestPlayer })
+      });
+      if (serverRes.ok) {
+        const data = await serverRes.json();
+        if (data && data.success) {
+          const tc: TimeControl = {
+            id: 'rapid',
+            name: 'Rapid 10+0',
+            initialSeconds: 600,
+            incrementSeconds: 0,
+            category: 'rapid'
+          };
+          const serverSession: OnlineMatchSession = {
+            id: data.gameId || cleanCode,
+            code: data.gameCode || cleanCode,
+            hostId: 'host_server',
+            guestId: guestPlayer.uid,
+            whitePlayer: data.playerColor === 'white' ? guestPlayer : { uid: 'host_server', displayName: 'Host', elo: 1200 },
+            blackPlayer: data.playerColor === 'black' ? guestPlayer : { uid: 'host_server', displayName: 'Host', elo: 1200 },
+            fen: data.game?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            pgn: data.game?.pgn || '',
+            moves: data.game?.moves || [],
+            turn: 'w',
+            status: 'in_progress',
+            winner: null,
+            timeControl: tc,
+            whiteSecondsRemaining: tc.initialSeconds,
+            blackSecondsRemaining: tc.initialSeconds,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          await setDoc(doc(db, 'online_matches', cleanCode), serverSession).catch(() => {});
+          return serverSession;
+        }
+      }
+    } catch {
+      // Ignore server fallback error and throw user-friendly error below
+    }
+
+    throw new Error(`Match room "${cleanCode}" not found. Please verify the code.`);
   }
 
   const session = snap.data() as OnlineMatchSession;
@@ -702,6 +917,25 @@ export const joinOnlineMatch = async (
   };
 
   await updateDoc(matchDocRef, updateData);
+
+  // If this match is also in rooms, update the room as well
+  try {
+    const rRef = doc(db, 'rooms', cleanCode);
+    const rSnap = await getDoc(rRef);
+    if (rSnap.exists()) {
+      await updateDoc(rRef, {
+        opponentId: guestPlayer.uid,
+        opponentName: guestPlayer.displayName || 'Challenger',
+        opponentPhotoURL: guestPlayer.avatar || guestPlayer.photoURL || undefined,
+        opponentElo: guestPlayer.elo || 1200,
+        status: 'in_progress',
+        gameId: cleanCode,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    // Non-fatal
+  }
 
   // Also notify server REST endpoint
   try {

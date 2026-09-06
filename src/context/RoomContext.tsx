@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import {
   addDoc,
@@ -8,11 +8,16 @@ import {
   updateDoc,
   getDoc,
   deleteDoc,
+  onSnapshot,
+  query,
+  where,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../utils/firebase';
-import { TimeControl } from '../types/chess';
+import { soundManager } from '../utils/audio';
+import { createOnlineMatch, joinOnlineMatch } from '../services/onlineMatchService';
+import { OnlineMatchPlayer, TimeControl } from '../types/chess';
 
 export type RoomStatus = 'waiting' | 'ready' | 'in_progress' | 'ended' | 'expired';
 
@@ -31,8 +36,21 @@ export interface RoomInvite {
   userName: string;
   userPhotoURL?: string;
   status: 'pending' | 'accepted' | 'declined';
-  invitedAt: Timestamp | Date | null;
+  invitedAt: any;
   settings: RoomSettings;
+}
+
+export interface UserInvite {
+  id: string;
+  userId: string;
+  roomId: string;
+  roomCode: string;
+  invitedBy: string;
+  invitedByName: string;
+  invitedByPhoto?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  settings: RoomSettings;
+  createdAt: any;
 }
 
 export interface RoomChatMessage {
@@ -41,38 +59,46 @@ export interface RoomChatMessage {
   userName: string;
   userPhotoURL?: string;
   message: string;
-  timestamp: Timestamp | Date | null;
+  timestamp: any;
+  isSystem?: boolean;
 }
 
 export interface PrivateRoom {
+  roomId?: string;
   roomCode: string;
   creatorId: string;
   creatorName: string;
   creatorPhotoURL?: string;
   creatorElo: number;
-  opponentId?: string;
-  opponentName?: string;
+  creatorColor?: 'white' | 'black' | 'random';
+  opponentId?: string | null;
+  opponentName?: string | null;
   opponentPhotoURL?: string;
-  opponentElo?: number;
+  opponentElo?: number | null;
+  opponentColor?: 'white' | 'black';
   status: RoomStatus;
   settings: RoomSettings;
-  createdAt: Timestamp | Date | null;
-  expiresAt: Timestamp | Date | null;
-  gameId?: string;
+  createdAt: any;
+  expiresAt: any;
+  startedAt?: any;
+  gameId?: string | null;
+  chat?: RoomChatMessage[];
+  invites?: Record<string, RoomInvite>;
 }
 
 interface RoomContextType {
   currentRoom: PrivateRoom | null;
-  setCurrentRoom: (room: PrivateRoom | null) => void;
+  incomingInvites: UserInvite[];
   loading: boolean;
-  setLoading: (v: boolean) => void;
   joinError: string | null;
+  countdown: number | null;
+  activeGameId: string | null;
+  setCurrentRoom: (room: PrivateRoom | null) => void;
   setJoinError: (v: string | null) => void;
-  createRoom: (
-    code: string,
-    settings: RoomSettings,
-  ) => Promise<PrivateRoom>;
+  createRoom: (code: string, settings: RoomSettings) => Promise<PrivateRoom>;
   joinRoom: (code: string) => Promise<PrivateRoom>;
+  cancelRoom: (code?: string) => Promise<void>;
+  leaveRoom: () => void;
   updateRoomStatus: (status: RoomStatus) => Promise<void>;
   addOpponent: (
     uid: string,
@@ -81,19 +107,192 @@ interface RoomContextType {
     elo?: number,
   ) => Promise<void>;
   inviteFriend: (friendUid: string, friendName: string, friendPhotoURL?: string) => Promise<void>;
-  acceptInvite: (inviteId: string) => Promise<void>;
+  acceptInvite: (inviteId: string, roomCode?: string) => Promise<void>;
   declineInvite: (inviteId: string) => Promise<void>;
   sendChatMessage: (message: string) => Promise<void>;
   markRoomExpiredIfDue: () => Promise<boolean>;
+  dismissActiveGame: () => void;
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
 
 export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [currentRoom, setCurrentRoom] = useState<PrivateRoom | null>(null);
+  const [incomingInvites, setIncomingInvites] = useState<UserInvite[]>([]);
   const [loading, setLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [activeGameId, setActiveGameId] = useState<string | null>(null);
+
+  const countdownTimerRef = useRef<any>(null);
+  const currentRoomRef = useRef<PrivateRoom | null>(null);
+  currentRoomRef.current = currentRoom;
+
+  // Real-time listener for current room
+  useEffect(() => {
+    if (!currentRoom?.roomCode) return;
+
+    const roomRef = doc(db, 'rooms', currentRoom.roomCode);
+    const unsub = onSnapshot(
+      roomRef,
+      (docSnap) => {
+        if (!docSnap.exists()) {
+          // Room was canceled or deleted
+          if (currentRoomRef.current?.status === 'waiting') {
+            setCurrentRoom(null);
+          }
+          return;
+        }
+
+        const data = docSnap.data() as PrivateRoom;
+        const prevStatus = currentRoomRef.current?.status;
+        const prevOpponent = currentRoomRef.current?.opponentId;
+
+        setCurrentRoom(data);
+
+        // Opponent just joined
+        if (!prevOpponent && data.opponentId && (data.status === 'ready' || data.status === 'waiting')) {
+          soundManager.playMatchFound();
+        }
+
+        // Handle game start countdown if ready
+        if (data.status === 'ready' && prevStatus !== 'ready' && prevStatus !== 'in_progress') {
+          startCountdownFlow(data);
+        }
+
+        // If gameId is set and status in_progress, transition to active match
+        if (data.status === 'in_progress' && data.gameId) {
+          setActiveGameId(data.gameId);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, `rooms/${currentRoom.roomCode}`);
+      }
+    );
+
+    return () => unsub();
+  }, [currentRoom?.roomCode]);
+
+  // Real-time listener for incoming user invites
+  useEffect(() => {
+    if (!user) {
+      setIncomingInvites([]);
+      return;
+    }
+
+    const invitesQuery = query(
+      collection(db, 'user_invites'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsub = onSnapshot(
+      invitesQuery,
+      (snapshot) => {
+        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as UserInvite));
+        setIncomingInvites(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'user_invites');
+      }
+    );
+
+    return () => unsub();
+  }, [user]);
+
+  // 3-second automatic countdown when status is 'ready'
+  const startCountdownFlow = (room: PrivateRoom) => {
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+
+    let count = 3;
+    setCountdown(count);
+    soundManager.playCountdownTick(false);
+
+    countdownTimerRef.current = setInterval(async () => {
+      count -= 1;
+      if (count > 0) {
+        setCountdown(count);
+        soundManager.playCountdownTick(false);
+      } else {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+        setCountdown(null);
+        soundManager.playCountdownTick(true);
+
+        // If creator, create or link the online match session and update status to in_progress
+        if (profile?.uid === room.creatorId) {
+          try {
+            const hostPlayer: OnlineMatchPlayer = {
+              uid: room.creatorId,
+              displayName: room.creatorName,
+              avatar: room.creatorPhotoURL,
+              elo: room.creatorElo,
+            };
+
+            const category: 'bullet' | 'blitz' | 'rapid' | 'classical' =
+              room.settings.initialSeconds < 180
+                ? 'bullet'
+                : room.settings.initialSeconds < 600
+                ? 'blitz'
+                : room.settings.initialSeconds < 1800
+                ? 'rapid'
+                : 'classical';
+
+            const tc: TimeControl = {
+              id: room.settings.timeControlId || 'tc_custom',
+              name: room.settings.timeControlName,
+              initialSeconds: room.settings.initialSeconds,
+              incrementSeconds: room.settings.incrementSeconds,
+              category,
+            };
+
+            const preferredSide =
+              room.settings.color === 'random'
+                ? Math.random() < 0.5
+                  ? 'w'
+                  : 'b'
+                : room.settings.color === 'black'
+                ? 'b'
+                : 'w';
+
+            const gameSessionId = await createOnlineMatch(hostPlayer, tc, preferredSide, room.roomCode);
+
+            // Add opponent to match session
+            if (room.opponentId) {
+              const opponentPlayer: OnlineMatchPlayer = {
+                uid: room.opponentId,
+                displayName: room.opponentName || 'Challenger',
+                avatar: room.opponentPhotoURL,
+                elo: room.opponentElo || 1200,
+              };
+
+              const matchDocRef = doc(db, 'online_matches', gameSessionId);
+              const isHostWhite = preferredSide === 'w';
+              await updateDoc(matchDocRef, {
+                [isHostWhite ? 'blackPlayer' : 'whitePlayer']: opponentPlayer,
+                guestId: room.opponentId,
+                status: 'in_progress',
+                updatedAt: new Date().toISOString(),
+              });
+            }
+
+            // Update room to in_progress with gameId
+            const roomDoc = doc(db, 'rooms', room.roomCode);
+            await updateDoc(roomDoc, {
+              status: 'in_progress',
+              gameId: gameSessionId,
+              startedAt: serverTimestamp(),
+            });
+
+            setActiveGameId(gameSessionId);
+          } catch (err: any) {
+            console.error('Failed to launch room game session:', err);
+          }
+        }
+      }
+    }, 1000);
+  };
 
   const createRoom = useCallback(
     async (code: string, settings: RoomSettings): Promise<PrivateRoom> => {
@@ -103,24 +302,41 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
       const roomDoc = doc(db, 'rooms', cleanCode);
-
-      // Verify the code is not already active (wait for the doc to settle).
       const existing = await getDoc(roomDoc);
       if (existing.exists()) {
-        throw new Error('This room code is already in use. Choose another.');
+        throw new Error('This room code is already active. Please generate a different code.');
       }
 
+      const creatorColor = settings.color;
+      const opponentColor = creatorColor === 'white' ? 'black' : creatorColor === 'black' ? 'white' : 'black';
+
+      const initialChatMessage: RoomChatMessage = {
+        id: 'sys_' + Date.now(),
+        userId: 'system',
+        userName: 'System',
+        message: `Battle room created! Code: ${cleanCode}. Waiting for challenger.`,
+        timestamp: now,
+        isSystem: true,
+      };
+
       const room: PrivateRoom = {
+        roomId: cleanCode,
         roomCode: cleanCode,
         creatorId: profile.uid,
         creatorName: profile.displayName || 'You',
         creatorPhotoURL: profile.photoURL || undefined,
-        creatorElo:
-          typeof profile.elo === 'number' ? profile.elo : 1200,
+        creatorElo: typeof profile.elo === 'number' ? profile.elo : 1200,
+        creatorColor,
+        opponentColor,
+        opponentId: null,
+        opponentName: null,
+        opponentElo: null,
         status: 'waiting',
         settings,
         createdAt: now,
         expiresAt,
+        chat: [initialChatMessage],
+        invites: {},
       };
 
       await setDoc(roomDoc, {
@@ -129,11 +345,42 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         expiresAt: Timestamp.fromDate(expiresAt),
       });
 
+      // Mirror into online_matches collection so the room is instantly discoverable and joinable
+      try {
+        const hostPlayer: OnlineMatchPlayer = {
+          uid: profile.uid,
+          displayName: profile.displayName || 'Host',
+          avatar: profile.photoURL || undefined,
+          elo: typeof profile.elo === 'number' ? profile.elo : 1200,
+        };
+        const preferredSide = settings.color === 'white' ? 'w' : settings.color === 'black' ? 'b' : 'random';
+        const category =
+          settings.initialSeconds < 180
+            ? 'bullet'
+            : settings.initialSeconds < 600
+            ? 'blitz'
+            : settings.initialSeconds < 1800
+            ? 'rapid'
+            : 'classical';
+
+        const tc: TimeControl = {
+          id: settings.timeControlId || 'tc_custom',
+          name: settings.timeControlName,
+          initialSeconds: settings.initialSeconds,
+          incrementSeconds: settings.incrementSeconds,
+          category,
+        };
+        await createOnlineMatch(hostPlayer, tc, preferredSide, cleanCode);
+      } catch (err) {
+        console.warn('Could not mirror room to online_matches:', err);
+      }
+
       setCurrentRoom(room);
       setJoinError(null);
+      soundManager.playNotification();
       return room;
     },
-    [profile],
+    [profile]
   );
 
   const joinRoom = useCallback(
@@ -144,29 +391,82 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const snap = await getDoc(roomDoc);
       if (!snap.exists()) {
-        throw new Error(
-          'No room found with that code. Check it and try again.',
-        );
+        // Fallback: check online_matches collection
+        const matchDocRef = doc(db, 'online_matches', cleanCode);
+        const matchSnap = await getDoc(matchDocRef);
+        if (matchSnap.exists()) {
+          const matchSession = matchSnap.data() as any;
+          if (matchSession.status !== 'waiting' && matchSession.guestId && matchSession.guestId !== profile.uid) {
+            throw new Error('This match is already in progress or completed.');
+          }
+          if (matchSession.hostId === profile.uid) {
+            throw new Error('You are the creator of this match. Share your code with a friend!');
+          }
+
+          const guestPlayer: OnlineMatchPlayer = {
+            uid: profile.uid,
+            displayName: profile.displayName || 'Opponent',
+            avatar: profile.photoURL || undefined,
+            elo: typeof profile.elo === 'number' ? profile.elo : 1200,
+          };
+          await joinOnlineMatch(cleanCode, guestPlayer);
+          setActiveGameId(cleanCode);
+
+          const synthRoom: PrivateRoom = {
+            roomId: cleanCode,
+            roomCode: cleanCode,
+            creatorId: matchSession.hostId,
+            creatorName: matchSession.whitePlayer?.displayName || 'Host',
+            creatorElo: matchSession.whitePlayer?.elo || 1200,
+            creatorColor: matchSession.whitePlayer?.uid === matchSession.hostId ? 'white' : 'black',
+            opponentColor: matchSession.whitePlayer?.uid === matchSession.hostId ? 'black' : 'white',
+            opponentId: profile.uid,
+            opponentName: profile.displayName || 'Opponent',
+            opponentElo: typeof profile.elo === 'number' ? profile.elo : 1200,
+            status: 'in_progress',
+            settings: {
+              timeControlId: matchSession.timeControl?.id || 'rapid',
+              timeControlName: matchSession.timeControl?.name || 'Rapid 10+0',
+              initialSeconds: matchSession.timeControl?.initialSeconds || 600,
+              incrementSeconds: matchSession.timeControl?.incrementSeconds || 0,
+              color: 'random',
+              rated: true,
+            },
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 600000),
+            gameId: cleanCode,
+          };
+          setCurrentRoom(synthRoom);
+          soundManager.playMatchFound();
+          return synthRoom;
+        }
+
+        throw new Error('No room found with that code. Please check and try again.');
       }
 
       const data = snap.data() as PrivateRoom;
       if (data.status !== 'waiting') {
-        throw new Error(
-          'This room is no longer waiting for a challenger.',
-        );
-      }
-      if (data.creatorId === profile.uid) {
-        throw new Error(
-          "You can't join your own room as the opponent.",
-        );
+        throw new Error('This room is already in progress or no longer available.');
       }
 
-      const opponentDoc = await getDoc(doc(db, 'users', profile.uid));
-      const opponentName =
-        profile.displayName || opponentDoc.data()?.displayName || 'Opponent';
+      if (data.creatorId === profile.uid) {
+        throw new Error("You are the creator of this room. Share your code with a friend!");
+      }
+
+      const opponentName = profile.displayName || 'Opponent';
       const opponentPhotoURL = profile.photoURL || undefined;
-      const opponentElo =
-        typeof profile.elo === 'number' ? profile.elo : undefined;
+      const opponentElo = typeof profile.elo === 'number' ? profile.elo : 1200;
+
+      const systemMessage: RoomChatMessage = {
+        id: 'sys_' + Date.now(),
+        userId: 'system',
+        userName: 'System',
+        message: `${opponentName} joined the room! 🎉`,
+        timestamp: new Date(),
+        isSystem: true,
+      };
+
+      const updatedChat = [...(data.chat || []), systemMessage].slice(-50);
 
       await updateDoc(roomDoc, {
         opponentId: profile.uid,
@@ -174,24 +474,88 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         opponentPhotoURL,
         opponentElo,
         status: 'ready',
+        chat: updatedChat,
         updatedAt: serverTimestamp(),
       });
 
-      const joined: PrivateRoom = {
+      // Also sync into online_matches
+      try {
+        const guestPlayer: OnlineMatchPlayer = {
+          uid: profile.uid,
+          displayName: opponentName,
+          avatar: opponentPhotoURL,
+          elo: opponentElo,
+        };
+        await joinOnlineMatch(cleanCode, guestPlayer);
+      } catch (e) {
+        console.warn('Could not sync online match on private room join:', e);
+      }
+
+      const joinedRoom: PrivateRoom = {
         ...data,
         opponentId: profile.uid,
         opponentName,
         opponentPhotoURL,
         opponentElo,
         status: 'ready',
+        chat: updatedChat,
       };
 
-      setCurrentRoom(joined);
+      setCurrentRoom(joinedRoom);
       setJoinError(null);
-      return joined;
+      soundManager.playMatchFound();
+      return joinedRoom;
     },
-    [profile],
+    [profile]
   );
+
+  const cancelRoom = useCallback(
+    async (code?: string) => {
+      const targetCode = code || currentRoom?.roomCode;
+      if (!targetCode) return;
+
+      try {
+        const roomDoc = doc(db, 'rooms', targetCode);
+        const snap = await getDoc(roomDoc);
+        if (snap.exists()) {
+          const data = snap.data() as PrivateRoom;
+          if (data.status === 'waiting' && (!profile || data.creatorId === profile.uid)) {
+            await deleteDoc(roomDoc);
+          }
+        }
+      } catch (e) {
+        console.warn('Error deleting room during cancel:', e);
+      }
+
+      // Also clean up online_matches mirror if waiting
+      try {
+        const matchRef = doc(db, 'online_matches', targetCode);
+        const mSnap = await getDoc(matchRef);
+        if (mSnap.exists()) {
+          const mData = mSnap.data();
+          if (mData.status === 'waiting' && (!profile || mData.hostId === profile.uid)) {
+            await deleteDoc(matchRef).catch(() => {});
+          }
+        }
+      } catch (err) {} finally {
+        if (currentRoom?.roomCode === targetCode) {
+          setCurrentRoom(null);
+          setCountdown(null);
+        }
+      }
+    },
+    [currentRoom, profile]
+  );
+
+  const leaveRoom = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setCountdown(null);
+    setCurrentRoom(null);
+    setJoinError(null);
+  }, []);
 
   const updateRoomStatus = useCallback(
     async (status: RoomStatus) => {
@@ -201,20 +565,13 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status,
         updatedAt: serverTimestamp(),
       });
-      setCurrentRoom((prev) =>
-        prev ? { ...prev, status } : null,
-      );
+      setCurrentRoom((prev) => (prev ? { ...prev, status } : null));
     },
-    [currentRoom],
+    [currentRoom]
   );
 
   const addOpponent = useCallback(
-    async (
-      uid: string,
-      name: string,
-      photoURL?: string,
-      elo?: number,
-    ) => {
+    async (uid: string, name: string, photoURL?: string, elo?: number) => {
       if (!currentRoom) return;
       const roomDoc = doc(db, 'rooms', currentRoom.roomCode);
       await updateDoc(roomDoc, {
@@ -225,30 +582,16 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status: 'ready',
         updatedAt: serverTimestamp(),
       });
-      setCurrentRoom((prev) =>
-        prev
-          ? {
-              ...prev,
-              opponentId: uid,
-              opponentName: name,
-              opponentPhotoURL: photoURL,
-              opponentElo: elo,
-              status: 'ready',
-            }
-          : null,
-      );
     },
-    [currentRoom],
+    [currentRoom]
   );
 
   const inviteFriend = useCallback(
-    async (
-      friendUid: string,
-      friendName: string,
-      friendPhotoURL?: string,
-    ) => {
+    async (friendUid: string, friendName: string, friendPhotoURL?: string) => {
       if (!currentRoom || !profile) return;
       const roomDoc = doc(db, 'rooms', currentRoom.roomCode);
+
+      // Create invite in subcollection
       const invitesColl = collection(roomDoc, 'invites');
       const inviteRef = await addDoc(invitesColl, {
         userId: friendUid,
@@ -260,7 +603,22 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         invitedBy: profile.uid,
       });
 
-      // Denormalized list on the room doc for quick reads.
+      // Also create document in user_invites for direct notification targeting
+      const userInviteDoc = doc(db, 'user_invites', inviteRef.id);
+      await setDoc(userInviteDoc, {
+        id: inviteRef.id,
+        userId: friendUid,
+        roomId: currentRoom.roomCode,
+        roomCode: currentRoom.roomCode,
+        invitedBy: profile.uid,
+        invitedByName: profile.displayName || 'You',
+        invitedByPhoto: profile.photoURL || undefined,
+        status: 'pending',
+        settings: currentRoom.settings,
+        createdAt: serverTimestamp(),
+      });
+
+      // Denormalize on room doc
       await updateDoc(roomDoc, {
         [`invites.${inviteRef.id}`]: {
           id: inviteRef.id,
@@ -272,69 +630,76 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           settings: currentRoom.settings,
         },
       });
+
+      soundManager.playChat();
     },
-    [currentRoom, profile],
+    [currentRoom, profile]
   );
 
   const acceptInvite = useCallback(
-    async (inviteId: string) => {
-      if (!currentRoom) return;
-      const inviteRef = doc(collection(doc(db, 'rooms', currentRoom.roomCode), 'invites'), inviteId);
-      await updateDoc(inviteRef, { status: 'accepted' });
+    async (inviteId: string, roomCode?: string) => {
+      const code = roomCode || currentRoom?.roomCode;
+      if (!code) return;
 
-      // Remove from denormalized list.
-      await updateDoc(doc(db, 'rooms', currentRoom.roomCode), {
-        [`invites.${inviteId}`]: null,
-      });
+      try {
+        // Update user_invites status
+        const userInviteRef = doc(db, 'user_invites', inviteId);
+        await updateDoc(userInviteRef, { status: 'accepted' });
+
+        // Update room subcollection invite if possible
+        try {
+          const roomInviteRef = doc(db, 'rooms', code, 'invites', inviteId);
+          await updateDoc(roomInviteRef, { status: 'accepted' });
+        } catch {}
+
+        // Join room as opponent
+        await joinRoom(code);
+      } catch (err: any) {
+        setJoinError(err?.message || 'Could not join invited room.');
+      }
     },
-    [currentRoom],
+    [currentRoom, joinRoom]
   );
 
   const declineInvite = useCallback(
     async (inviteId: string) => {
-      if (!currentRoom) return;
-      const inviteRef = doc(collection(doc(db, 'rooms', currentRoom.roomCode), 'invites'), inviteId);
-      await updateDoc(inviteRef, { status: 'declined' });
-
-      await updateDoc(doc(db, 'rooms', currentRoom.roomCode), {
-        [`invites.${inviteId}`]: null,
-      });
+      try {
+        const userInviteRef = doc(db, 'user_invites', inviteId);
+        await updateDoc(userInviteRef, { status: 'declined' });
+      } catch (err) {
+        console.warn('Error declining invite:', err);
+      }
     },
-    [currentRoom],
+    []
   );
 
   const sendChatMessage = useCallback(
     async (message: string) => {
       if (!currentRoom || !profile) return;
-      if (!message.trim()) return;
-      const chatColl = collection(doc(db, 'rooms', currentRoom.roomCode), 'chat');
-      const msgRef = await addDoc(chatColl, {
-        userId: profile.uid,
-        userName: profile.displayName || 'You',
-        userPhotoURL: profile.photoURL || undefined,
-        message: message.trim(),
-        timestamp: serverTimestamp(),
-      });
+      const text = message.trim();
+      if (!text) return;
 
-      // Denormalize last 50 messages onto the room doc for quick history reads.
-      const roomDoc = doc(db, 'rooms', currentRoom.roomCode);
-      const existing = await getDoc(roomDoc);
-      const existingChat: RoomChatMessage[] = (existing.data()?.chat || []) as RoomChatMessage[];
       const newMsg: RoomChatMessage = {
-        id: msgRef.id,
+        id: 'msg_' + Date.now(),
         userId: profile.uid,
         userName: profile.displayName || 'You',
         userPhotoURL: profile.photoURL || undefined,
-        message: message.trim(),
-        timestamp: null,
+        message: text,
+        timestamp: new Date().toISOString(),
       };
-      const merged = [newMsg, ...existingChat].slice(0, 50);
+
+      const roomDoc = doc(db, 'rooms', currentRoom.roomCode);
+      const existingChat = currentRoom.chat || [];
+      const merged = [...existingChat, newMsg].slice(-50);
+
       await updateDoc(roomDoc, {
         chat: merged,
         updatedAt: serverTimestamp(),
       });
+
+      soundManager.playChat();
     },
-    [currentRoom, profile],
+    [currentRoom, profile]
   );
 
   const markRoomExpiredIfDue = useCallback(async (): Promise<boolean> => {
@@ -344,25 +709,35 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const expMs =
       expiresAt instanceof Timestamp
         ? expiresAt.toDate().getTime()
-        : new Date(expiresAt as Date).getTime();
-    if (Date.now() >= expMs) {
+        : new Date(expiresAt).getTime();
+
+    if (Date.now() >= expMs && currentRoom.status === 'waiting') {
       await updateRoomStatus('expired');
       return true;
     }
     return false;
   }, [currentRoom, updateRoomStatus]);
 
+  const dismissActiveGame = useCallback(() => {
+    setActiveGameId(null);
+    setCurrentRoom(null);
+  }, []);
+
   return (
     <RoomContext.Provider
       value={{
         currentRoom,
-        setCurrentRoom,
+        incomingInvites,
         loading,
-        setLoading,
         joinError,
+        countdown,
+        activeGameId,
+        setCurrentRoom,
         setJoinError,
         createRoom,
         joinRoom,
+        cancelRoom,
+        leaveRoom,
         updateRoomStatus,
         addOpponent,
         inviteFriend,
@@ -370,6 +745,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         declineInvite,
         sendChatMessage,
         markRoomExpiredIfDue,
+        dismissActiveGame,
       }}
     >
       {children}

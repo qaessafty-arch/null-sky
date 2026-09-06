@@ -77,6 +77,7 @@ const LoggingView = lazyPreload(() => import('./components/LoggingView').then(m 
 const DatabaseView = lazyPreload(() => import('./components/DatabaseView').then(m => ({ default: m.DatabaseView })));
 const DevPanel = lazyPreload(() => import('./components/DevPanel').then(m => ({ default: m.DevPanel })));
 const MultiplayerLobbyView = lazyPreload(() => import('./components/MultiplayerLobbyView').then(m => ({ default: m.MultiplayerLobbyView })));
+const PrivateRoom = lazyPreload(() => import('./components/PrivateRoom').then(m => ({ default: m.PrivateRoom })));
 const LoginPage = lazyPreload(() => import('./components/LoginPage').then(m => ({ default: m.LoginPage })));
 const UserProfilePage = lazyPreload(() => import('./components/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 
@@ -940,6 +941,23 @@ export default function App() {
                   setActiveMode('online_match');
                 }}
                 onOpenWorldwideModal={() => setIsWorldwideMatchModalOpen(true)}
+              />
+            </motion.div>
+          ) : activeMode === 'private_room' ? (
+            <motion.div
+              key="private-room-view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full h-full"
+            >
+              <PrivateRoom
+                onStartMatch={matchId => {
+                  setActiveOnlineMatchId(matchId);
+                  setActiveMode('online_match');
+                }}
+                onNavigateHome={() => setActiveMode('ai')}
               />
             </motion.div>
           ) : activeMode === 'authoring' ? (

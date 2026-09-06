@@ -3,6 +3,11 @@
 @import "./styles/multiplayer.css";
 @import "./styles/watermark.css";
 @import "./styles/room-theme.css";
+@import "./styles/room.css";
+@import "./styles/chat.css";
+@import "./styles/notifications.css";
+@import "./styles/friends-panel.css";
+@import "./styles/friends-animations.css";
 
 :root {
   --app-bg: #05070a;

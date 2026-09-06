@@ -1,335 +1,241 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { Users, LogIn, Copy, Share2, Check, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
-import { useRoom } from '../hooks/useRoom';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Swords,
+  LogIn,
+  Plus,
+  Shield,
+  Clock,
+  Sparkles,
+  Users,
+  Copy,
+  Check,
+  Crown,
+  ChevronRight,
+  AlertCircle,
+  Gamepad2,
+} from 'lucide-react';
+import { useRoom } from '../context/RoomContext';
+import { useAuth } from '../context/AuthContext';
 import { WaitingRoom } from './Room/WaitingRoom';
-import { GlassCard } from './GlassUI';
-import { TIME_CONTROLS, RoomSettings } from './Room/RoomSettings';
+import { CreateRoomModal } from './Room/CreateRoomModal';
+import { JoinRoomModal } from './Room/JoinRoomModal';
+import { InviteNotification } from './Notifications/InviteNotification';
+import { listenToFriendsList } from '../services/friendService';
 
-const createDefaultSettings = () => ({
-  timeControlId: 'rapid',
-  timeControlName: 'Rapid',
-  initialSeconds: 600,
-  incrementSeconds: 0,
-  color: 'white' as const,
-  rated: false,
-});
+interface PrivateRoomProps {
+  onStartMatch?: (matchId: string) => void;
+  onNavigateHome?: () => void;
+}
 
-export const PrivateRoom: React.FC = () => {
-  const room = useRoom();
-  const [phase, setPhase] = React.useState<'choose' | 'create' | 'join' | 'waiting'>('choose');
-  const [inputCode, setInputCode] = React.useState('');
-  const [copyCopied, setCopyCopied] = React.useState(false);
-  const [shareDone, setShareDone] = React.useState(false);
-  const [settings, setSettings] = React.useState<{
-    timeControlId: string;
-    timeControlName: string;
-    initialSeconds: number;
-    incrementSeconds: number;
-    color: 'white' | 'black' | 'random';
-    rated: boolean;
-  }>({
-    ...createDefaultSettings(),
-    color: 'white',
-  });
-  const [creating, setCreating] = React.useState(false);
-  const [joining, setJoining] = React.useState(false);
-  const [showInvitePicker, setShowInvitePicker] = React.useState(false);
-  const codeInputRef = React.useRef<HTMLInputElement>(null);
+export const PrivateRoom: React.FC<PrivateRoomProps> = ({
+  onStartMatch,
+  onNavigateHome,
+}) => {
+  const {
+    currentRoom,
+    incomingInvites,
+    acceptInvite,
+    declineInvite,
+    joinError,
+    activeGameId,
+    dismissActiveGame,
+  } = useRoom();
+  const { profile } = useAuth();
 
-  const generateRoomCode = (): string => {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
+
+  // When match starts and activeGameId is set, launch online match!
+  useEffect(() => {
+    if (activeGameId) {
+      onStartMatch?.(activeGameId);
     }
-    return code;
-  };
+  }, [activeGameId, onStartMatch]);
 
-  const handleCreate = async () => {
-    setCreating(true);
-    room.setJoinError(null);
-    try {
-      await room.hostRoom(generateRoomCode(), settings);
-      setPhase('waiting');
-    } catch (e: any) {
-      room.setJoinError(e?.message || 'Could not create room.');
-    } finally {
-      setCreating(false);
-    }
-  };
+  // Listen to friends for quick allies list
+  useEffect(() => {
+    if (!profile?.uid) return;
+    const unsub = listenToFriendsList(profile.uid, (list) => {
+      if (Array.isArray(list)) {
+        setFriends(list);
+      }
+    });
+    return () => unsub?.();
+  }, [profile?.uid]);
 
-  const handleJoin = async () => {
-    const code = inputCode.trim().toUpperCase();
-    if (code.length !== 6) {
-      room.setJoinError('Enter the 6-character room code.');
-      return;
-    }
-    setJoining(true);
-    room.setJoinError(null);
-    const ok = await room.joinAsOpponent(code);
-    if (ok) setPhase('waiting');
-    setJoining(false);
-  };
-
-  const sharedCode = room.currentRoom?.roomCode;
+  // If in an active room, display the Waiting Room interface!
+  if (currentRoom) {
+    return (
+      <div className="w-full min-h-screen py-6 px-3 sm:px-6">
+        <WaitingRoom onLeave={() => dismissActiveGame()} />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      {phase === 'choose' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <GlassCard intensity="medium" className="flex flex-col gap-6 p-8">
-            <div className="p-3 w-12 h-12 rounded-2xl bg-[#FFD700]/10 flex items-center justify-center">
-              <Users className="text-[#FFD700]" />
+    <div className="w-full max-w-5xl mx-auto py-8 px-4 flex flex-col gap-8">
+      {/* 1. Header Banner */}
+      <div className="room-glass-card p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#F5C453]/20 to-[#E5B543]/40 border border-[#F5C453]/40 flex items-center justify-center text-[#F5C453] shadow-lg shadow-[#F5C453]/10">
+            <Swords className="w-7 h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white">
+                Private Arena
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#F5C453]/20 text-[#F5C453] border border-[#F5C453]/30">
+                1v1 Duel
+              </span>
             </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black uppercase text-white">Create Arena</h3>
-              <p className="text-xs text-white/50 font-bold">HOST A PRIVATE BATTLE WITH A FRIEND</p>
-            </div>
+            <p className="text-xs sm:text-sm text-white/50 mt-1">
+              Host custom battles with room codes or challenge allies directly.
+            </p>
+          </div>
+        </div>
 
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => setPhase('create')}
-                className="w-full py-4 glass-button-gold rounded-xl font-black uppercase tracking-widest text-xs"
-              >
-                Generate Room Code
-              </button>
-              <button
-                onClick={() => setPhase('join')}
-                className="w-full py-4 rounded-xl font-black uppercase tracking-widest text-xs border border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white transition-all cursor-pointer"
-              >
-                Or join a friend's room
-              </button>
-            </div>
-          </GlassCard>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsJoinOpen(true)}
+            className="flex-1 sm:flex-initial px-5 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Join Room</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-gradient-to-r from-[#F5C453] via-[#E5B543] to-[#D4A843] text-black text-xs font-black uppercase tracking-widest shadow-lg shadow-[#F5C453]/20 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Room</span>
+          </button>
+        </div>
+      </div>
 
-          <GlassCard intensity="medium" className="flex flex-col gap-6 p-8">
-            <div className="p-3 w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
-              <LogIn className="text-white" />
+      {/* 2. Incoming Challenges / Invites */}
+      <AnimatePresence>
+        {incomingInvites.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex flex-col gap-3"
+          >
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#F5C453]">
+              <Sparkles className="w-4 h-4" />
+              <span>Pending Direct Challenges ({incomingInvites.length})</span>
             </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black uppercase text-white">Join Arena</h3>
-              <p className="text-xs text-white/50 font-bold">ENTER CODE TO CHALLENGE HOST</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {incomingInvites.map((invite) => (
+                <InviteNotification
+                  key={invite.id}
+                  inviteId={invite.id}
+                  roomCode={invite.roomCode}
+                  invitedByName={invite.invitedByName}
+                  invitedByPhoto={invite.invitedByPhoto}
+                  timeControlName={invite.settings.timeControlName}
+                  rated={invite.settings.rated}
+                  onAccept={acceptInvite}
+                  onDecline={declineInvite}
+                />
+              ))}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <div className="flex gap-2">
-              <input
-                ref={codeInputRef}
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                placeholder="6-DIGIT CODE"
-                className="flex-1 glass-input font-mono text-center tracking-[0.5em] uppercase"
-                maxLength={6}
-                onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-              />
-              <button
-                onClick={handleJoin}
-                disabled={joining || inputCode.length !== 6}
-                className="px-6 rounded-xl font-black uppercase text-xs border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                  joining
-                    ? 'bg-white/5 text-white/30 border-white/10'
-                    : 'glass-button-gold'
-                }"
-              >
-                {joining ? (
-                  <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
-                ) : (
-                  'JOIN'
-                )}
-              </button>
+      {/* 3. Main Action Hub Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Create Card */}
+        <div className="room-glass-card p-6 sm:p-8 flex flex-col justify-between gap-6 hover:border-[#F5C453]/40 transition-all group">
+          <div className="flex flex-col gap-3">
+            <div className="w-12 h-12 rounded-xl bg-[#F5C453]/10 border border-[#F5C453]/20 flex items-center justify-center text-[#F5C453] group-hover:scale-105 transition-transform">
+              <Crown className="w-6 h-6" />
             </div>
-          </GlassCard>
+            <h3 className="text-lg font-black uppercase tracking-wider text-white">
+              Host a Battle
+            </h3>
+            <p className="text-xs text-white/60 leading-relaxed">
+              Create a custom private room, pick your desired time controls, preferred side, and rated status. Share your 6-digit code or invite friends from your social roster.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-3 text-xs text-white/50 font-mono">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-[#F5C453]" /> 1m - 30m formats
+              </span>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Shield className="w-3.5 h-3.5 text-[#F5C453]" /> Rated or Casual
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="w-full py-3.5 rounded-xl bg-[#F5C453] text-[#05070A] text-xs font-black uppercase tracking-widest hover:brightness-110 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Setup Waiting Room</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Join Card */}
+        <div className="room-glass-card p-6 sm:p-8 flex flex-col justify-between gap-6 hover:border-white/20 transition-all group">
+          <div className="flex flex-col gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+              <LogIn className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-black uppercase tracking-wider text-white">
+              Join with Code
+            </h3>
+            <p className="text-xs text-white/60 leading-relaxed">
+              Have a friend waiting for you? Enter their unique 6-character room code to instantly connect and take your seat as the challenger.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-3 text-xs text-white/50 font-mono">
+              <span>Instant synchronization</span>
+              <span>·</span>
+              <span>Sub-second match startup</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsJoinOpen(true)}
+              className="w-full py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Enter Room Code</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Error display if any */}
+      {joinError && (
+        <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{joinError}</span>
         </div>
       )}
 
-      {phase === 'create' && (
-        <GlassCard intensity="high" className="max-w-lg mx-auto w-full p-8 space-y-6">
-          <div className="space-y-2">
-            <h3 className="text-xl font-black uppercase text-white">Room Settings</h3>
-            <p className="text-xs text-white/50 font-bold">Choose how this battle will be fought.</p>
-          </div>
+      {/* Modals */}
+      <CreateRoomModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+      />
 
-          <RoomSettings value={settings} onChange={setSettings} />
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setPhase('choose')}
-              className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest text-xs border border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.08] transition-all cursor-pointer"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-black uppercase tracking-widest text-xs bg-gradient-to-r from-[#52673A] to-[#8C2425] hover:brightness-110 text-white border border-[#F5C453]/40 shadow-lg shadow-[#F5C453]/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  Create Room
-                </>
-              )}
-            </button>
-          </div>
-        </GlassCard>
-      )}
-
-      {phase === 'join' && (
-        <GlassCard intensity="high" className="max-w-md mx-auto w-full p-8 space-y-6">
-          <div className="space-y-2">
-            <h3 className="text-xl font-black uppercase text-white">Join a Room</h3>
-            <p className="text-xs text-white/50 font-bold">Enter the 6-character code your friend shared.</p>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              ref={codeInputRef}
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-              placeholder="6-DIGIT CODE"
-              className="flex-1 glass-input font-mono text-center tracking-[0.5em] uppercase"
-              maxLength={6}
-              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            />
-            <button
-              onClick={handleJoin}
-              disabled={joining || inputCode.length !== 6}
-              className="px-6 rounded-xl font-black uppercase text-xs border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                joining
-                  ? 'bg-white/5 text-white/30 border-white/10'
-                  : 'glass-button-gold'
-              }"
-            >
-              {joining ? (
-                <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
-              ) : (
-                'JOIN'
-              )}
-            </button>
-          </div>
-
-          {inputCode.length > 0 && inputCode.length !== 6 && (
-            <div className="flex items-center gap-2 text-[10px] font-bold text-rose-300">
-              <AlertCircle className="w-3.5 h-3.5" />
-              Code must be exactly 6 characters (letters and numbers only).
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setPhase('choose')}
-              className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest text-xs border border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.08] transition-all cursor-pointer"
-            >
-              Back
-            </button>
-          </div>
-        </GlassCard>
-      )}
-
-      {phase === 'waiting' && sharedCode && (
-        <>
-          <GlassCard intensity="high" className="max-w-md mx-auto w-full p-10 text-center space-y-8">
-            <div className="relative inline-block">
-              <div className="text-xs font-black text-[#FFD700] uppercase tracking-[0.3em] mb-4">
-                Room Secure
-              </div>
-              <div className="text-5xl font-mono font-black text-white tracking-[0.2em] py-4 border-y border-white/10">
-                {sharedCode}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-bold text-white uppercase tracking-widest animate-pulse">
-                Waiting for Challenger...
-              </p>
-              <p className="text-xs text-white/40">
-                Share this code with your opponent to start the battle.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  navigator.clipboard
-                    .writeText(sharedCode)
-                    .then(() => setCopyCopied(true))
-                    .catch(() => {});
-                }}
-                className="flex-1 flex items-center justify-center gap-2 py-3 glass-frost hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer"
-              >
-                {copyCopied ? (
-                  <>
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    Copy Code
-                  </>
-                )}
-              </button>
-              <button
-                onClick={async () => {
-                  const text = `Play chess with me! Room code: ${sharedCode}`;
-                  if (navigator.share) {
-                    try {
-                      await navigator.share({ title: 'Private Chess Room', text });
-                      setShareDone(true);
-                      return;
-                    } catch {
-                      // fall through
-                    }
-                  }
-                  setCopyCopied(true);
-                  try {
-                    await navigator.clipboard.writeText(text);
-                  } catch {}
-                }}
-                className="flex-1 flex items-center justify-center gap-2 py-3 glass-frost hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer"
-              >
-                {shareDone ? (
-                  <>
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    Shared
-                  </>
-                ) : (
-                  <>
-                    <Share2 size={14} />
-                    Share Link
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => setPhase('choose')}
-                className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white/70 transition-colors cursor-pointer"
-              >
-                Create another room
-              </button>
-            </div>
-          </GlassCard>
-
-          <WaitingRoom
-            showInvitePicker={showInvitePicker}
-            onShowInvitePickerChange={setShowInvitePicker}
-          />
-        </>
-      )}
-
-      {room.joinError && phase !== 'waiting' && (
-        <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-rose-500/10 text-rose-300 text-xs font-bold border border-rose-500/30">
-          <AlertCircle className="w-4 h-4" />
-          {room.joinError}
-        </div>
-      )}
+      <JoinRoomModal
+        isOpen={isJoinOpen}
+        onClose={() => setIsJoinOpen(false)}
+      />
     </div>
   );
 };
