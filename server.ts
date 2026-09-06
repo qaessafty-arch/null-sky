@@ -384,6 +384,7 @@ app.post('/api/friends/rate-limit-check', friendRateLimit, (req, res) => {
 import { Server as SocketIOServer } from 'socket.io';
 import http from 'http';
 import { MatchmakingEngine } from './server/matchmaking';
+import { mountMcp } from './mcp/chesskys-server.ts';
 
 // ----------------------------------------------------
 
@@ -495,6 +496,20 @@ async function startServer() {
   console.log('[Matchmaking] Enterprise Real-Time Engine Initialized.');
 
   
+
+  // ----------
+  // MCP server (Streamable HTTP) mounted alongside the REST API.
+  // Bounds to localhost origins only; sessionful by default.
+  // ----------
+  mountMcp(app, {
+    pathPrefix: '/mcp',
+    allowedOrigins: [
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ],
+  });
 
   // ==========================================
   // 7. REST API ENDPOINTS FOR CHESS GAMES

@@ -9,12 +9,16 @@ class SocketService {
     let authToken = token; try { authToken = authToken || localStorage.getItem('token') || localStorage.getItem('chess_jwt') || undefined; } catch (e) {}
     
     if (!this.socket) {
-      this.socket = io({
+      // Connect to the same origin that serves this page so the browser can reach
+      // the server's Socket.IO endpoint (http://host:port/socket.io/).
+      const origin = typeof window !== 'undefined' && window.location.origin;
+      this.socket = io(origin, {
         auth: { token: authToken },
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        transports: ['websocket', 'polling'],
       });
       
       this.socket.on('connect', () => {
