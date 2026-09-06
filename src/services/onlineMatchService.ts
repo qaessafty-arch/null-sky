@@ -312,6 +312,8 @@ export const joinWorldwideMatchmaking = async (
           onMatched(data.matchId, data.player, false);
         }
       }
+    }, err => {
+      console.warn('Matchmaking ticket stream:', err.message);
     });
 
     // 4. Also listen in real-time to the queue collection for incoming new players
@@ -330,6 +332,8 @@ export const joinWorldwideMatchmaking = async (
           }
         }
       });
+    }, err => {
+      console.warn('Matchmaking queue stream:', err.message);
     });
 
     // 5. If Human-First mode, start fallback timer

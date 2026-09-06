@@ -20,12 +20,18 @@ export const updateUserPresence = async (uid: string, status: 'online' | 'offlin
 export const listenToFriendsPresence = (uids: string[], callback: (presenceMap: Record<string, any>) => void) => {
   if (!uids.length) return () => {};
   const q = query(collection(db, 'users'), where('uid', 'in', uids));
-  return onSnapshot(q, (snap) => {
-    const map: Record<string, any> = {};
-    snap.forEach(d => {
-      const data = d.data();
-      map[d.id] = data.presence || { status: 'offline' };
-    });
-    callback(map);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const map: Record<string, any> = {};
+      snap.forEach(d => {
+        const data = d.data();
+        map[d.id] = data.presence || { status: 'offline' };
+      });
+      callback(map);
+    },
+    (err) => {
+      console.warn('Friends presence stream:', err.message);
+    }
+  );
 };

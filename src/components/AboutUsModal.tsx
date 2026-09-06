@@ -49,14 +49,22 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     if (!isOpen) return;
 
-    const unsubscribe = onSnapshot(doc(db, 'system_configs', 'aboutUs'), (docSnap) => {
-      if (docSnap.exists()) {
-        setConfig(docSnap.data() as AboutUsConfig);
-      } else {
+    const unsubscribe = onSnapshot(
+      doc(db, 'system_configs', 'aboutUs'),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setConfig(docSnap.data() as AboutUsConfig);
+        } else {
+          setConfig(FALLBACK_CONFIG);
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.warn('AboutUs config stream:', err.message);
         setConfig(FALLBACK_CONFIG);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribe();
   }, [isOpen]);

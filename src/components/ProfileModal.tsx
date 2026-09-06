@@ -138,6 +138,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
     if (user?.uid && isOpen && isActuallyOwnProfile) {
       const unsub = onSnapshot(collection(db, `users/${user.uid}/blocked`), snap => {
         setBlockedUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (err) => {
+        console.warn('Blocked list stream:', err.message);
       });
       return () => unsub();
     }

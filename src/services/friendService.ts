@@ -335,5 +335,7 @@ export const listenToBlockedUsers = (userId: string, callback: (blockedIds: stri
   const q = query(collection(db, `users/${userId}/blocked`));
   return onSnapshot(q, snap => {
     callback(snap.docs.map(d => d.id));
+  }, err => {
+    console.warn('Blocked users stream:', err.message);
   });
 };

@@ -21,6 +21,8 @@ export const listenToTournaments = (
     const t: Tournament[] = [];
     snap.forEach(d => t.push(d.data() as Tournament));
     callback(t);
+  }, err => {
+    console.warn('Tournaments stream:', err.message);
   });
 };
 

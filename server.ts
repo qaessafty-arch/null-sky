@@ -8,7 +8,14 @@ import { Chess } from 'chess.js';
 import fsSync from 'fs';
 import Redis from 'ioredis-mock';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, setLogLevel } from 'firebase/firestore';
+
+// Silence expected gRPC idle stream disconnect warnings
+try {
+  setLogLevel('error');
+} catch (e) {
+  // ignore if not supported
+}
 
 const firebaseConfig = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf-8'));
 const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
