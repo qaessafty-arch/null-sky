@@ -194,6 +194,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     },
     {
+      id: 'private-room',
+      label: 'Private Room',
+      icon: <Users className="w-5 h-5 text-[#F59E0B]" />,
+      action: () => {
+        onSelectMode('multiplayer');
+        onOpenFriends();
+        onClose();
+      }
+    },
+    {
       id: 'friends',
       label: t('sidebar.friends'),
       badge: formattedOnlineText(),

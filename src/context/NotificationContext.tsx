@@ -18,7 +18,7 @@ import { useAuth } from './AuthContext';
 import { Notification, NotificationType } from '../types/chess';
 import { soundManager } from '../utils/audio';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, X, Check, Swords, UserPlus, Trophy, Info } from 'lucide-react';
+import { Bell, X, Check, Swords, UserPlus, Trophy, Info, MessageSquare, ShieldAlert } from 'lucide-react';
 
 interface ToastOptions {
   id?: string;
@@ -320,6 +320,9 @@ const ToastItem: React.FC<{ toast: ToastOptions; onClose: () => void }> = ({ toa
       case 'challenge': return <Swords className="w-5 h-5 text-amber-400" />;
       case 'friend_request': return <UserPlus className="w-5 h-5 text-emerald-400" />;
       case 'achievement': return <Trophy className="w-5 h-5 text-yellow-400" />;
+      case 'room_join': return <MessageSquare className="w-5 h-5 text-[#F5C453]" />;
+      case 'room_invite': return <ShieldAlert className="w-5 h-5 text-emerald-400" />;
+      case 'chat_message': return <MessageSquare className="w-5 h-5 text-blue-400" />;
       default: return <Info className="w-5 h-5 text-blue-400" />;
     }
   };

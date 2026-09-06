@@ -185,6 +185,15 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         <button
+          type="button"
+          onClick={onOpenLogin}
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#52673A] to-[#8C2425] hover:brightness-110 text-white text-[10px] font-black uppercase tracking-widest border border-[#F5C453]/40 shadow-lg transition-all cursor-pointer"
+        >
+          <Swords className="w-3.5 h-3.5" />
+          Private Room
+        </button>
+
+        <button
           id="header-user-avatar-btn"
           type="button"
           onClick={user ? onOpenProfile : (onOpenLogin || onOpenProfile)}

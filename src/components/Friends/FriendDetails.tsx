@@ -1,7 +1,8 @@
 import React from 'react';
 import { FriendUser } from '../../types/chess';
 import { StatusBadge } from './StatusBadge';
-import { Swords, MessageSquare, Trash2, Shield, Award, Calendar, Trophy, Flame } from 'lucide-react';
+import { Swords, MessageSquare, Trash2, Shield, Award, Calendar, Trophy, Flame, Users } from 'lucide-react';
+import { useRoom } from '../../hooks/useRoom';
 
 interface FriendDetailsProps {
   friend: FriendUser | null;
@@ -9,6 +10,7 @@ interface FriendDetailsProps {
   onChat: (friend: FriendUser) => void;
   onRemove: (friend: FriendUser) => void;
   onBlock: (friend: FriendUser) => void;
+  onInviteToRoom?: (friend: FriendUser) => void;
 }
 
 export const FriendDetails: React.FC<FriendDetailsProps> = ({
@@ -16,8 +18,12 @@ export const FriendDetails: React.FC<FriendDetailsProps> = ({
   onChallenge,
   onChat,
   onRemove,
-  onBlock
+  onBlock,
+  onInviteToRoom,
 }) => {
+  const { currentRoom } = useRoom();
+  const hasRoom = !!(currentRoom && currentRoom.status === 'waiting');
+
   if (!friend) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 text-center glass-card-subtle rounded-3xl border border-white/5 space-y-3 min-h-[350px]">
@@ -118,6 +124,17 @@ export const FriendDetails: React.FC<FriendDetailsProps> = ({
             <Swords className="w-4 h-4 text-[#F5C453]" />
             <span>Challenge Match</span>
           </button>
+
+          {hasRoom && onInviteToRoom && (
+            <button
+              type="button"
+              onClick={() => onInviteToRoom(friend)}
+              className="py-2.5 px-3 rounded-xl bg-[#52673A] hover:bg-[#52673A]/80 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-lg border border-white/10 transition-all cursor-pointer active:scale-95"
+            >
+              <Users className="w-4 h-4 text-[#F5C453]" />
+              <span>Invite to Room</span>
+            </button>
+          )}
 
           <button
             type="button"

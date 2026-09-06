@@ -1,0 +1,59 @@
+name: Deploy Firestore rules
+
+# Publishes firestore.rules to the Firebase project.
+#
+# Requires one repository secret:
+#   FIREBASE_SERVICE_ACCOUNT — the JSON key of a service account with the
+#   "Firebase Rules Admin" (or "Editor") role on the project.
+#
+# Create it with:
+#   gcloud iam service-accounts keys create key.json \
+#     --iam-account=<name>@gen-lang-client-0398037098.iam.gserviceaccount.com
+# then paste the file contents into
+#   GitHub → Settings → Secrets and variables → Actions → New repository secret.
+#
+# Until that secret exists the job is skipped, so it never fails the branch.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'firebase.json'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: firebase deploy --only firestore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check for credentials
+        id: creds
+        run: |
+          if [ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::FIREBASE_SERVICE_ACCOUNT secret is not set — skipping deploy."
+          fi
+
+      - name: Write service account key
+        if: steps.creds.outputs.available == 'true'
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
+
+      - name: Deploy rules
+        if: steps.creds.outputs.available == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@13 deploy --only firestore --non-interactive
+
+      - name: Remove key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

@@ -23,5 +23,11 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "resolve-conflict.cjs",
+    "fix-server.cjs",
+    "fix-server.js",
+    "server.ts"
+  ]
 }

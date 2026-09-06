@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useRoom } from '../../hooks/useRoom';
 import { FriendUser, FriendRequestItem, TimeControl } from '../../types/chess';
 import { 
   searchUsersInDirectory, 
@@ -56,6 +57,7 @@ export const FriendPanel: React.FC<FriendPanelProps> = ({
 }) => {
   const { profile, updateProfileDetails } = useAuth();
   const { sendNotification } = useNotification();
+  const { currentRoom, inviteFriend, inviteFriendNotify } = useRoom();
 
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [friendsList, setFriendsList] = useState<FriendUser[]>([]);
@@ -179,6 +181,12 @@ export const FriendPanel: React.FC<FriendPanelProps> = ({
     setTimeout(() => setFeedback(null), 3000);
   };
 
+  const handleInviteToRoom = async (friend: FriendUser) => {
+    if (!currentRoom || !friend) return;
+    await inviteFriendNotify(friend.uid, friend.displayName, currentRoom.roomCode || '');
+    await inviteFriend(friend.uid, friend.displayName, friend.photoURL);
+  };
+
   const handleCopyHandle = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(`@${currentUsername}`);
@@ -291,6 +299,17 @@ export const FriendPanel: React.FC<FriendPanelProps> = ({
               <UserPlus className="w-3.5 h-3.5 text-[#F5C453]" />
               <span>Add Tactician</span>
             </button>
+
+            {currentRoom && currentRoom.status === 'waiting' && (
+              <button
+                type="button"
+                onClick={() => setSelectedFriend((prev) => prev || friendsList[0])}
+                className="px-3.5 py-2 rounded-xl bg-[#52673A] hover:bg-[#52673A]/80 text-white text-xs font-black shadow-lg border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Users className="w-3.5 h-3.5 text-[#F5C453]" />
+                <span>Invite to Room</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -501,6 +520,7 @@ export const FriendPanel: React.FC<FriendPanelProps> = ({
                       }}
                       onRemove={f => setFriendToRemove(f)}
                       onBlock={handleBlockUser}
+                      onInviteToRoom={handleInviteToRoom}
                     />
                     {selectedFriend && (
                       <FriendActivity friendName={selectedFriend.displayName} />
