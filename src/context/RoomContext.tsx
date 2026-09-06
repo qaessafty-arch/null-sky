@@ -8,6 +8,7 @@ import {
   updateDoc,
   getDoc,
   deleteDoc,
+  deleteField,
   onSnapshot,
   query,
   where,
@@ -129,6 +130,57 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const currentRoomRef = useRef<PrivateRoom | null>(null);
   currentRoomRef.current = currentRoom;
 
+  // Migration helper: Strip legacy bloated fields and backfill subcollections if present
+  const cleanUpLegacyRoomDoc = useCallback(async (roomCode: string, data: PrivateRoom) => {
+    try {
+      const roomRef = doc(db, 'rooms', roomCode);
+
+      // Backfill messages to subcollection if present on doc
+      if (Array.isArray(data.chat) && data.chat.length > 0) {
+        const msgColl = collection(db, 'rooms', roomCode, 'messages');
+        for (const msg of data.chat) {
+          if (msg && msg.message) {
+            await addDoc(msgColl, {
+              userId: msg.userId || 'system',
+              userName: msg.userName || 'System',
+              userPhotoURL: msg.userPhotoURL || null,
+              message: msg.message,
+              timestamp: msg.timestamp || serverTimestamp(),
+              isSystem: Boolean(msg.isSystem),
+              type: msg.isSystem ? 'system' : 'chat',
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Backfill invites to subcollection if present on doc
+      if (data.invites && typeof data.invites === 'object') {
+        const invitesColl = collection(db, 'rooms', roomCode, 'invites');
+        for (const inv of Object.values(data.invites) as any[]) {
+          if (inv && inv.userId) {
+            await addDoc(invitesColl, {
+              userId: inv.userId,
+              userName: inv.userName || 'Friend',
+              userPhotoURL: inv.userPhotoURL || null,
+              status: inv.status || 'pending',
+              invitedAt: inv.invitedAt || serverTimestamp(),
+              settings: inv.settings || null,
+              invitedBy: data.creatorId,
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Prune legacy fields so the document size drops under 1KB
+      await updateDoc(roomRef, {
+        chat: deleteField(),
+        invites: deleteField(),
+      });
+    } catch (err) {
+      console.warn('Could not auto-prune legacy room fields:', err);
+    }
+  }, []);
+
   // Real-time listener for current room
   useEffect(() => {
     if (!currentRoom?.roomCode) return;
@@ -148,6 +200,11 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = docSnap.data() as PrivateRoom;
         const prevStatus = currentRoomRef.current?.status;
         const prevOpponent = currentRoomRef.current?.opponentId;
+
+        // Auto-cleanup legacy bloated fields if found on existing room
+        if (data.chat || data.invites) {
+          cleanUpLegacyRoomDoc(currentRoom.roomCode, data);
+        }
 
         setCurrentRoom(data);
 
@@ -172,7 +229,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => unsub();
-  }, [currentRoom?.roomCode]);
+  }, [currentRoom?.roomCode, cleanUpLegacyRoomDoc]);
 
   // Real-time listener for incoming user invites
   useEffect(() => {
@@ -310,15 +367,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const creatorColor = settings.color;
       const opponentColor = creatorColor === 'white' ? 'black' : creatorColor === 'black' ? 'white' : 'black';
 
-      const initialChatMessage: RoomChatMessage = {
-        id: 'sys_' + Date.now(),
-        userId: 'system',
-        userName: 'System',
-        message: `Battle room created! Code: ${cleanCode}. Waiting for challenger.`,
-        timestamp: now,
-        isSystem: true,
-      };
-
+      // Keep main room document lean (essential metadata only) to strictly avoid 1MB document size limit
       const room: PrivateRoom = {
         roomId: cleanCode,
         roomCode: cleanCode,
@@ -335,8 +384,6 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         settings,
         createdAt: now,
         expiresAt,
-        chat: [initialChatMessage],
-        invites: {},
       };
 
       await setDoc(roomDoc, {
@@ -344,6 +391,21 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: serverTimestamp(),
         expiresAt: Timestamp.fromDate(expiresAt),
       });
+
+      // Write initial message into subcollection (rooms/{code}/messages)
+      try {
+        const msgColl = collection(db, 'rooms', cleanCode, 'messages');
+        await addDoc(msgColl, {
+          userId: 'system',
+          userName: 'System',
+          message: `Battle room created! Code: ${cleanCode}. Waiting for challenger.`,
+          timestamp: serverTimestamp(),
+          isSystem: true,
+          type: 'system',
+        });
+      } catch (err) {
+        console.warn('Could not write initial room message to subcollection:', err);
+      }
 
       // Mirror into online_matches collection so the room is instantly discoverable and joinable
       try {
@@ -457,26 +519,34 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const opponentPhotoURL = profile.photoURL || undefined;
       const opponentElo = typeof profile.elo === 'number' ? profile.elo : 1200;
 
-      const systemMessage: RoomChatMessage = {
-        id: 'sys_' + Date.now(),
-        userId: 'system',
-        userName: 'System',
-        message: `${opponentName} joined the room! 🎉`,
-        timestamp: new Date(),
-        isSystem: true,
-      };
+      // Write system announcement to messages subcollection
+      try {
+        const msgColl = collection(db, 'rooms', cleanCode, 'messages');
+        await addDoc(msgColl, {
+          userId: 'system',
+          userName: 'System',
+          message: `${opponentName} joined the room! 🎉`,
+          timestamp: serverTimestamp(),
+          isSystem: true,
+          type: 'system',
+        });
+      } catch (err) {
+        console.warn('Could not write join message to subcollection:', err);
+      }
 
-      const updatedChat = [...(data.chat || []), systemMessage].slice(-50);
-
-      await updateDoc(roomDoc, {
+      // Update room document with ONLY essential fields, explicitly pruning bloated legacy arrays to prevent 1MB limit failures
+      const updatePayload: Record<string, any> = {
         opponentId: profile.uid,
         opponentName,
         opponentPhotoURL,
         opponentElo,
         status: 'ready',
-        chat: updatedChat,
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (data.chat) updatePayload.chat = deleteField();
+      if (data.invites) updatePayload.invites = deleteField();
+
+      await updateDoc(roomDoc, updatePayload);
 
       // Also sync into online_matches
       try {
@@ -498,8 +568,9 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         opponentPhotoURL,
         opponentElo,
         status: 'ready',
-        chat: updatedChat,
       };
+      delete joinedRoom.chat;
+      delete joinedRoom.invites;
 
       setCurrentRoom(joinedRoom);
       setJoinError(null);
@@ -589,9 +660,10 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const inviteFriend = useCallback(
     async (friendUid: string, friendName: string, friendPhotoURL?: string) => {
       if (!currentRoom || !profile) return;
-      const roomDoc = doc(db, 'rooms', currentRoom.roomCode);
+      const roomCode = currentRoom.roomCode;
+      const roomDoc = doc(db, 'rooms', roomCode);
 
-      // Create invite in subcollection
+      // Create invite in subcollection ONLY
       const invitesColl = collection(roomDoc, 'invites');
       const inviteRef = await addDoc(invitesColl, {
         userId: friendUid,
@@ -608,8 +680,8 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setDoc(userInviteDoc, {
         id: inviteRef.id,
         userId: friendUid,
-        roomId: currentRoom.roomCode,
-        roomCode: currentRoom.roomCode,
+        roomId: roomCode,
+        roomCode: roomCode,
         invitedBy: profile.uid,
         invitedByName: profile.displayName || 'You',
         invitedByPhoto: profile.photoURL || undefined,
@@ -618,18 +690,12 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: serverTimestamp(),
       });
 
-      // Denormalize on room doc
-      await updateDoc(roomDoc, {
-        [`invites.${inviteRef.id}`]: {
-          id: inviteRef.id,
-          userId: friendUid,
-          userName: friendName,
-          userPhotoURL: friendPhotoURL,
-          status: 'pending',
-          invitedAt: serverTimestamp(),
-          settings: currentRoom.settings,
-        },
-      });
+      // If main room doc has legacy invites map, clean it up to prevent size issues
+      if (currentRoom.invites) {
+        try {
+          await updateDoc(roomDoc, { invites: deleteField() });
+        } catch {}
+      }
 
       soundManager.playChat();
     },
@@ -679,23 +745,27 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const text = message.trim();
       if (!text) return;
 
-      const newMsg: RoomChatMessage = {
-        id: 'msg_' + Date.now(),
+      const roomCode = currentRoom.roomCode;
+      const roomDoc = doc(db, 'rooms', roomCode);
+
+      // Write directly into subcollection: rooms/{roomCode}/messages
+      const msgColl = collection(roomDoc, 'messages');
+      await addDoc(msgColl, {
         userId: profile.uid,
         userName: profile.displayName || 'You',
         userPhotoURL: profile.photoURL || undefined,
         message: text,
-        timestamp: new Date().toISOString(),
-      };
-
-      const roomDoc = doc(db, 'rooms', currentRoom.roomCode);
-      const existingChat = currentRoom.chat || [];
-      const merged = [...existingChat, newMsg].slice(-50);
-
-      await updateDoc(roomDoc, {
-        chat: merged,
-        updatedAt: serverTimestamp(),
+        timestamp: serverTimestamp(),
+        isSystem: false,
+        type: 'chat',
       });
+
+      // If main room doc has legacy chat array, delete it to keep room document lean
+      if (currentRoom.chat) {
+        try {
+          await updateDoc(roomDoc, { chat: deleteField() });
+        } catch {}
+      }
 
       soundManager.playChat();
     },

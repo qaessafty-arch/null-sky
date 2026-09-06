@@ -8,6 +8,8 @@
 @import "./styles/notifications.css";
 @import "./styles/friends-panel.css";
 @import "./styles/friends-animations.css";
+@import "./styles/theme.css";
+@import "./styles/settings.css";
 
 :root {
   --app-bg: #05070a;

@@ -237,6 +237,10 @@ service cloud.firestore {
       match /chat/{chatId} {
         allow read, write: if isSignedIn();
       }
+
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn();
+      }
     }
 
     // User invites - for notifications and direct room invites

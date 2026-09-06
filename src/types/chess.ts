@@ -341,6 +341,19 @@ export interface GameResult {
   reason: string;
 }
 
+export type BackgroundMode = 'system' | 'dark' | 'high_contrast' | 'color' | 'gradient' | 'image';
+
+export interface CustomBackgroundConfig {
+  mode: BackgroundMode;
+  color?: string;
+  gradientStart?: string;
+  gradientEnd?: string;
+  gradientAngle?: number;
+  imageUrl?: string;
+  imageOpacity?: number;
+  blur?: number;
+}
+
 export interface AppSettings {
   sound: boolean;
   volume: number;
@@ -349,6 +362,7 @@ export interface AppSettings {
   flipBoard: boolean;
   boardTheme: BoardThemeId;
   uiThemeId?: string;
+  customBackground?: CustomBackgroundConfig;
   pieceTheme: PieceThemeId;
   whitePieceTheme?: PieceThemeId;
   blackPieceTheme?: PieceThemeId;

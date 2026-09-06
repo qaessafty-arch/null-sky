@@ -28,7 +28,8 @@ import {
   ExternalLink,
   HelpCircle,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   PRESET_THEMES, 
@@ -46,9 +47,10 @@ import { DeveloperSettingsModal } from './DeveloperSettingsModal';
 import { DatabaseView } from './DatabaseView';
 import { LoggingView } from './LoggingView';
 import { AuthoringView } from './AuthoringView';
+import { BackgroundSettings } from './Settings/BackgroundSettings';
 import { useAuth } from '../context/AuthContext';
 
-export type SettingsTab = 'themes' | 'board' | 'gameplay' | 'database' | 'logs' | 'authoring' | 'developer' | 'feedback';
+export type SettingsTab = 'themes' | 'background' | 'board' | 'gameplay' | 'database' | 'logs' | 'authoring' | 'developer' | 'feedback';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -269,6 +271,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   <Palette className="w-3.5 h-3.5" />
                   <span>UI Themes</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('background')}
+                  className={`flex-1 min-w-[110px] flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[10px] uppercase tracking-widest font-black transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'background'
+                      ? 'bg-[#FFD700] text-black shadow-xl shadow-[#FFD700]/20'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Background</span>
                 </button>
 
                 <button
@@ -561,6 +575,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* TAB: BACKGROUND & CONTRAST */}
+            {activeTab === 'background' && (
+              <div className="animate-in fade-in duration-150">
+                <BackgroundSettings />
               </div>
             )}
 

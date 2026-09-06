@@ -1,0 +1,107 @@
+/* ==========================================================================
+   THEME.CSS - Custom Background, Accessibility & High-Contrast Dark Theme
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Root Default Custom Background Properties
+   -------------------------------------------------------------------------- */
+:root {
+  /* Dynamic Custom Background Overrides */
+  --custom-bg-mode: 'system';
+  --custom-bg-color: #05070a;
+  --custom-bg-gradient: none;
+  --custom-bg-image: none;
+  --custom-bg-opacity: 1;
+  --custom-bg-blur: 0px;
+
+  /* High Contrast Accessibility Reference Tokens */
+  --hc-bg: #080C14;
+  --hc-surface: #161B22;
+  --hc-surface-raised: #1F242C;
+  --hc-panel: rgba(22, 27, 34, 0.98);
+  --hc-border: #4B5563;
+  --hc-border-focus: #38BDF8;
+  --hc-text-main: #FFFFFF;
+  --hc-text-muted: #CBD5E1;
+  --hc-accent: #38BDF8;
+  --hc-accent-gold: #FCD34D;
+  --hc-accent-red: #F87171;
+  --hc-accent-green: #4ADE80;
+  --hc-board-light: #F1F5F9;
+  --hc-board-dark: #1E293B;
+  --hc-board-border: #0284C7;
+}
+
+/* --------------------------------------------------------------------------
+   2. High Contrast Dark Theme Class / Data Attribute
+   Complies with WCAG 2.1 AA and AAA (contrast ratios >= 7:1 for text)
+   -------------------------------------------------------------------------- */
+[data-theme='high-contrast-dark'],
+.theme-high-contrast {
+  --app-bg: #080C14 !important;
+  --surface-base: #161B22 !important;
+  --surface-raised: #1F242C !important;
+  --panel-surface: rgba(22, 27, 34, 0.98) !important;
+  --panel-surface-2: rgba(14, 18, 24, 0.98) !important;
+  --panel-border: #4B5563 !important;
+  --panel-border-soft: #374151 !important;
+  --glass-panel: rgba(22, 27, 34, 0.98) !important;
+  --glass-bg: rgba(255, 255, 255, 0.08) !important;
+  --glass-border: #4B5563 !important;
+  --glass-border-hover: #38BDF8 !important;
+
+  --text-main: #FFFFFF !important;
+  --text-muted: #CBD5E1 !important;
+
+  --primary-accent: #38BDF8 !important;
+  --primary-accent-hover: #0EA5E9 !important;
+  --secondary-accent: #FCD34D !important;
+  --accent-gold: #FCD34D !important;
+  --accent-gold-soft: #FDE047 !important;
+  --accent-gold-deep: #D97706 !important;
+  --accent-glow: rgba(56, 189, 248, 0.4) !important;
+  --accent-red: #F87171 !important;
+  --accent-red-glow: rgba(248, 113, 113, 0.4) !important;
+
+  --mesh-1: rgba(56, 189, 248, 0.12) !important;
+  --mesh-2: rgba(252, 211, 77, 0.10) !important;
+  --mesh-3: rgba(14, 165, 233, 0.08) !important;
+
+  --board-light: #F1F5F9 !important;
+  --board-dark: #1E293B !important;
+  --board-border: #38BDF8 !important;
+}
+
+/* Accessibility Focus Ring Enhancements for High Contrast */
+[data-theme='high-contrast-dark'] button:focus-visible,
+[data-theme='high-contrast-dark'] input:focus-visible,
+[data-theme='high-contrast-dark'] select:focus-visible,
+[data-theme='high-contrast-dark'] a:focus-visible {
+  outline: 2px solid #38BDF8 !important;
+  outline-offset: 2px !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Custom Background Presentation Layer
+   -------------------------------------------------------------------------- */
+.custom-bg-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -5;
+  transition: opacity 0.4s ease, filter 0.4s ease, background-color 0.4s ease;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Shield overlay to preserve glassmorphism readability over vibrant custom images */
+.custom-bg-shield {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(5, 7, 10, 0.65) 0%, rgba(5, 7, 10, 0.85) 100%);
+  pointer-events: none;
+  z-index: -4;
+}

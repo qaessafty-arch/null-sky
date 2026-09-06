@@ -241,6 +241,64 @@
         "aboutUs": { "$ref": "#/entities/AboutUsConfig" }
       },
       "required": ["maintenanceMode"]
+    },
+    "PrivateRoom": {
+      "title": "PrivateRoom",
+      "description": "Lean private waiting room document with essential metadata only",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "maxLength": 128 },
+        "roomCode": { "type": "string", "maxLength": 10 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 100 },
+        "creatorPhotoURL": { "type": "string", "maxLength": 1000 },
+        "creatorElo": { "type": "number" },
+        "creatorColor": { "type": "string", "enum": ["white", "black", "random"] },
+        "opponentId": { "type": "string", "maxLength": 128 },
+        "opponentName": { "type": "string", "maxLength": 100 },
+        "opponentPhotoURL": { "type": "string", "maxLength": 1000 },
+        "opponentElo": { "type": "number" },
+        "opponentColor": { "type": "string", "enum": ["white", "black"] },
+        "status": { "type": "string", "enum": ["waiting", "ready", "in_progress", "ended", "expired"] },
+        "settings": { "type": "object" },
+        "createdAt": { "type": "any" },
+        "expiresAt": { "type": "any" },
+        "startedAt": { "type": "any" },
+        "gameId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["roomCode", "creatorId", "creatorName", "status", "settings"]
+    },
+    "RoomMessage": {
+      "title": "RoomMessage",
+      "description": "Room message in subcollection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userPhotoURL": { "type": "string", "maxLength": 1000 },
+        "message": { "type": "string", "maxLength": 1000 },
+        "timestamp": { "type": "any" },
+        "isSystem": { "type": "boolean" },
+        "type": { "type": "string" }
+      },
+      "required": ["userId", "userName", "message"]
+    },
+    "RoomInvite": {
+      "title": "RoomInvite",
+      "description": "Invite document in room subcollection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userPhotoURL": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "invitedAt": { "type": "any" },
+        "invitedBy": { "type": "string", "maxLength": 128 },
+        "settings": { "type": "object" }
+      },
+      "required": ["userId", "userName", "status"]
     }
   },
   "firestore": {
@@ -271,6 +329,18 @@
     "/online_matches/{matchId}/typing/{userId}": {
       "schema": "TypingStatus",
       "description": "Real-time typing indicators for players"
+    },
+    "/rooms/{roomId}": {
+      "schema": "PrivateRoom",
+      "description": "Lean private room configuration and status"
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": "RoomMessage",
+      "description": "Individual room chat messages in subcollection"
+    },
+    "/rooms/{roomId}/invites/{inviteId}": {
+      "schema": "RoomInvite",
+      "description": "Individual room invites in subcollection"
     },
     "/feedbacks/{feedbackId}": {
       "schema": "UserFeedback",

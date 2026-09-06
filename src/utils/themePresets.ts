@@ -1,6 +1,33 @@
 import { UITheme } from '../types/theme';
+import { CustomBackgroundConfig } from '../types/chess';
 
 export const PRESET_THEMES: UITheme[] = [
+  {
+    id: 'high-contrast-dark',
+    name: '⚡ High Contrast Dark (WCAG AAA)',
+    description: 'Ultra-accessible high-contrast palette: deep void obsidian (#080C14), crisp slate panels (#161B22), pure white text (#FFFFFF), and sky cyan accents (#38BDF8)',
+    category: 'dark',
+    colors: {
+      primary: '#38BDF8', // Sky Cyan Accent (AAA contrast)
+      primaryHover: '#0EA5E9',
+      secondary: '#FCD34D', // High Contrast Gold
+      accentGlow: 'rgba(56, 189, 248, 0.40)',
+      appBg: '#080C14', // Deep Void Obsidian
+      mesh1: 'rgba(56, 189, 248, 0.12)',
+      mesh2: 'rgba(252, 211, 77, 0.10)',
+      mesh3: 'rgba(14, 165, 233, 0.08)',
+      cardBg: 'rgba(22, 27, 34, 0.92)',
+      cardBorder: '#4B5563', // Solid high-contrast border
+      cardHoverBg: 'rgba(31, 36, 44, 0.95)',
+      cardHoverBorder: '#38BDF8',
+      panelBg: 'rgba(22, 27, 34, 0.98)',
+      textMain: '#FFFFFF', // 100% white, 18:1 contrast
+      textMuted: '#CBD5E1', // Slate 300, 12:1 contrast
+      boardLight: '#F1F5F9', // Crisp Off-White
+      boardDark: '#1E293B',  // Slate 800 (11:1 square contrast)
+      boardBorder: '#0284C7'
+    }
+  },
   {
     id: 'one-piece',
     name: '🏴‍☠️ One Piece (Straw Hats vs World Government)',
@@ -514,6 +541,12 @@ export function applyThemeToDOM(theme: UITheme) {
   const root = document.documentElement;
   const c = theme.colors;
 
+  if (theme.id === 'high-contrast-dark') {
+    root.setAttribute('data-theme', 'high-contrast-dark');
+  } else {
+    root.removeAttribute('data-theme');
+  }
+
   root.style.setProperty('--app-bg', c.appBg);
   root.style.setProperty('--primary-accent', c.primary);
   root.style.setProperty('--primary-accent-hover', c.primaryHover || c.primary);
@@ -538,6 +571,90 @@ export function applyThemeToDOM(theme: UITheme) {
     root.style.setProperty('--app-bg-image', `url(${theme.backgroundImage})`);
   } else {
     root.style.removeProperty('--app-bg-image');
+  }
+}
+
+export const LOCAL_STORAGE_KEY_CUSTOM_BG = 'chesskys_custom_bg';
+
+export const DEFAULT_CUSTOM_BG: CustomBackgroundConfig = {
+  mode: 'system',
+  color: '#05070a',
+  gradientStart: '#0f172a',
+  gradientEnd: '#1e1b4b',
+  gradientAngle: 135,
+  imageUrl: '',
+  imageOpacity: 0.65,
+  blur: 0,
+};
+
+export function applyCustomBackgroundToDOM(config: CustomBackgroundConfig) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.setAttribute('data-bg-mode', config.mode);
+
+  if (config.mode === 'high_contrast') {
+    root.setAttribute('data-theme', 'high-contrast-dark');
+    root.style.setProperty('--app-bg', '#080C14');
+    root.style.setProperty('--custom-bg-color', '#080C14');
+    root.style.removeProperty('--custom-bg-gradient');
+    root.style.removeProperty('--custom-bg-image');
+  } else if (config.mode === 'dark') {
+    root.removeAttribute('data-theme');
+    root.style.setProperty('--app-bg', '#05070a');
+    root.style.setProperty('--custom-bg-color', '#05070a');
+    root.style.removeProperty('--custom-bg-gradient');
+    root.style.removeProperty('--custom-bg-image');
+  } else if (config.mode === 'color') {
+    root.removeAttribute('data-theme');
+    const color = config.color || '#0d1117';
+    root.style.setProperty('--app-bg', color);
+    root.style.setProperty('--custom-bg-color', color);
+    root.style.removeProperty('--custom-bg-gradient');
+    root.style.removeProperty('--custom-bg-image');
+  } else if (config.mode === 'gradient') {
+    root.removeAttribute('data-theme');
+    const start = config.gradientStart || '#0f172a';
+    const end = config.gradientEnd || '#1e1b4b';
+    const angle = config.gradientAngle ?? 135;
+    const gradient = `linear-gradient(${angle}deg, ${start}, ${end})`;
+    root.style.setProperty('--app-bg', start);
+    root.style.setProperty('--custom-bg-color', start);
+    root.style.setProperty('--custom-bg-gradient', gradient);
+    root.style.removeProperty('--custom-bg-image');
+  } else if (config.mode === 'image' && config.imageUrl) {
+    root.removeAttribute('data-theme');
+    root.style.setProperty('--custom-bg-image', `url("${config.imageUrl}")`);
+    root.style.setProperty('--custom-bg-opacity', String(config.imageOpacity ?? 0.65));
+    root.style.setProperty('--custom-bg-blur', `${config.blur ?? 0}px`);
+  } else {
+    // 'system'
+    root.removeAttribute('data-theme');
+    root.style.removeProperty('--custom-bg-gradient');
+    root.style.removeProperty('--custom-bg-image');
+    // Restore base theme app-bg
+    const active = getActiveTheme();
+    root.style.setProperty('--app-bg', active.colors.appBg);
+  }
+}
+
+export function getSavedCustomBackground(): CustomBackgroundConfig {
+  if (typeof window === 'undefined') return DEFAULT_CUSTOM_BG;
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOM_BG);
+    if (!raw) return DEFAULT_CUSTOM_BG;
+    return { ...DEFAULT_CUSTOM_BG, ...JSON.parse(raw) };
+  } catch (e) {
+    return DEFAULT_CUSTOM_BG;
+  }
+}
+
+export function saveCustomBackground(config: CustomBackgroundConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY_CUSTOM_BG, JSON.stringify(config));
+    applyCustomBackgroundToDOM(config);
+  } catch (e) {
+    console.warn('Could not save custom background:', e);
   }
 }
 

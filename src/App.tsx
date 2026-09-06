@@ -20,6 +20,7 @@ import { socketService } from './utils/socket';
 import { getActiveTheme, applyThemeToDOM } from './utils/themePresets';
 import { getRespectProfile, recordVictory, recordMercy } from './utils/respectSystem';
 import { useAuth } from './context/AuthContext';
+import { useSettings } from './context/SettingsContext';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -85,22 +86,18 @@ export default function App() {
   const { user, profile: authProfile, updateRespectMetrics } = useAuth();
   const { t, i18n } = useTranslation();
 
-  // Global Settings with Obsidian default
-  const [settings, setSettings] = useState<AppSettings>({
-    sound: true,
-    volume: 0.7,
-    showLegalMoves: true,
-    autoQueen: false,
-    flipBoard: false,
-    boardTheme: 'obsidian',
-    pieceTheme: 'classic',
-    showCoordinates: true,
-    highlightLastMove: true,
-    showEvalBar: true,
-    showMoveArrows: true,
-    showTerritory: false,
-    showWeather: false
-  });
+  // Global Settings and Background managed via SettingsContext
+  const { settings, updateSettings } = useSettings();
+  const setSettings = useCallback(
+    (action: React.SetStateAction<AppSettings>) => {
+      if (typeof action === 'function') {
+        updateSettings(action(settings));
+      } else {
+        updateSettings(action);
+      }
+    },
+    [settings, updateSettings]
+  );
 
   // Respect System Profile
   const [respectProfile, setRespectProfile] = useState<RespectProfile>(() => getRespectProfile());

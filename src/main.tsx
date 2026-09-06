@@ -5,6 +5,7 @@ import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { RoomProvider } from './context/RoomContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -46,9 +47,11 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <NotificationProvider>
           <RoomProvider>
-            <I18nextProvider i18n={i18n}>
-              <App />
-            </I18nextProvider>
+            <SettingsProvider>
+              <I18nextProvider i18n={i18n}>
+                <App />
+              </I18nextProvider>
+            </SettingsProvider>
           </RoomProvider>
         </NotificationProvider>
       </AuthProvider>

@@ -21,17 +21,17 @@ export function useRoomChat() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  // Real-time chat messages from the rooms/{code}/chat subcollection OR room.chat array
+  // Real-time chat messages from the rooms/{code}/messages subcollection (or fallback /chat or room.chat)
   useEffect(() => {
     if (!currentRoom?.roomCode || authLoading) return;
 
-    // First use denormalized chat array if available
+    // Use denormalized chat array if available as initial placeholder
     if (currentRoom.chat && currentRoom.chat.length > 0) {
       setMessages(currentRoom.chat);
     }
 
-    const chatColl = collection(db, `rooms/${currentRoom.roomCode}/chat`);
-    const q = query(chatColl, orderBy('timestamp', 'asc'), limit(RECENT_LIMIT));
+    const messagesColl = collection(db, 'rooms', currentRoom.roomCode, 'messages');
+    const q = query(messagesColl, orderBy('timestamp', 'asc'), limit(RECENT_LIMIT));
 
     const unsub = onSnapshot(
       q,
@@ -43,11 +43,17 @@ export function useRoomChat() {
           setMessages(currentRoom.chat);
         }
       },
-      (err) => {
-        // If subcollection read fails or doesn't exist, fall back to denormalized array
-        if (currentRoom.chat) {
-          setMessages(currentRoom.chat);
-        }
+      () => {
+        // Fallback: check rooms/{code}/chat subcollection if present, or legacy chat array
+        const chatColl = collection(db, 'rooms', currentRoom.roomCode, 'chat');
+        const qFallback = query(chatColl, orderBy('timestamp', 'asc'), limit(RECENT_LIMIT));
+        onSnapshot(qFallback, (snap2) => {
+          if (!snap2.empty) {
+            setMessages(snap2.docs.map((d) => ({ id: d.id, ...d.data() } as RoomChatMessage)));
+          } else if (currentRoom.chat) {
+            setMessages(currentRoom.chat);
+          }
+        });
       }
     );
 
