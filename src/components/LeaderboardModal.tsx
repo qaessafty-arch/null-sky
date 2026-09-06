@@ -227,23 +227,28 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
               >
                 {leaderboard.map((entry, idx) => {
                   const isTop3 = Number(entry.rank) <= 3;
+                  const isCelestial = entry.id === 'sky_celestial_account_uid';
                   return (
                     <div
                       key={entry.id}
                       className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
-                        entry.isCurrentUser
-                          ? 'bg-[var(--glass-bg)] border-[var(--secondary-accent)] shadow-xl'
-                          : 'bg-[var(--app-bg)] border-[var(--glass-border)] hover:border-[var(--text-muted)]/30'
+                        isCelestial
+                          ? 'bg-gradient-to-r from-purple-500/10 to-sky-500/10 border-purple-400/50 shadow-xl shadow-purple-500/20'
+                          : entry.isCurrentUser
+                            ? 'bg-[var(--glass-bg)] border-[var(--secondary-accent)] shadow-xl'
+                            : 'bg-[var(--app-bg)] border-[var(--glass-border)] hover:border-[var(--text-muted)]/30'
                       }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
-                          entry.rank === 1 ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)]' :
-                          entry.rank === 2 ? 'bg-slate-300 text-[var(--app-bg)]' :
-                          entry.rank === 3 ? 'bg-amber-700 text-white' :
-                          'bg-[var(--glass-bg)] text-[var(--text-muted)] border border-[var(--glass-border)]'
+                          isCelestial
+                            ? 'bg-gradient-to-r from-purple-500 to-sky-500 text-white shadow-lg'
+                            : entry.rank === 1 ? 'bg-[var(--secondary-accent)] text-[var(--app-bg)]' :
+                            entry.rank === 2 ? 'bg-slate-300 text-[var(--app-bg)]' :
+                            entry.rank === 3 ? 'bg-amber-700 text-white' :
+                            'bg-[var(--glass-bg)] text-[var(--text-muted)] border border-[var(--glass-border)]'
                         }`}>
-                          {entry.rank}
+                          {isCelestial ? '∞' : entry.rank}
                         </div>
                         <div className="relative">
                           <img
@@ -259,18 +264,20 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ profile, onC
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[13px] font-black text-[var(--text-main)] uppercase tracking-tight">{entry.username}</span>
+                            <span className={`text-[13px] font-black uppercase tracking-tight ${isCelestial ? 'text-purple-300' : 'text-[var(--text-main)]'}`}>{entry.username}</span>
                             <span className="text-xs">{entry.flag}</span>
                           </div>
                           <div className="flex items-center gap-2 text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest">
-                            <span className="text-[var(--secondary-accent)]">{entry.title}</span>
+                            <span className={isCelestial ? 'text-purple-300' : 'text-[var(--secondary-accent)]'}>
+                              {isCelestial ? '🦋 CELESTIAL' : entry.title}
+                            </span>
                             <span>•</span>
                             <span>{entry.elo} ELO</span>
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-black text-[var(--text-main)]">
+                        <div className={`text-lg font-black ${isCelestial ? 'text-purple-300' : 'text-[var(--text-main)]'}`}>
                           {leaderboardType === 'elo' ? `⚔️ ${entry.elo}` : `✊ ${entry.respectPoints}`}
                         </div>
                         <div className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-tighter opacity-60">

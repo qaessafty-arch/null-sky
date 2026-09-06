@@ -2,6 +2,7 @@
 @import "./styles/glass-theme.css";
 @import "./styles/multiplayer.css";
 @import "./styles/watermark.css";
+@import "./styles/room-theme.css";
 
 :root {
   --app-bg: #05070a;

@@ -86,10 +86,21 @@ async function getCachedLeaderboard(mode: string, period: string = 'all', userId
   const leaderboard = filteredUsers.map((u, index) => {
     const rank = index + 1;
     let title = '';
-    if (rank <= 50) title = 'GM';
+    // Celestial account always gets special title
+    if (u.id === 'sky_celestial_account_uid') {
+      title = 'CELESTIAL';
+    } else if (rank <= 50) title = 'GM';
     else if (rank <= 200) title = 'IM';
     else if (rank <= 500) title = 'FM';
     else if (rank <= 1000) title = 'NM';
+
+    // Celestial account gets infinity display
+    const isCelestial = u.id === 'sky_celestial_account_uid';
+    const displayElo = isCelestial ? '∞' : u.sortElo;
+    const displayWins = isCelestial ? '∞' : u.wins;
+    const displayLosses = isCelestial ? '∞' : u.losses;
+    const displayDraws = isCelestial ? '∞' : u.draws;
+    const displayWinRate = isCelestial ? '∞' : u.winRate;
 
     return {
       uid: u.id,
@@ -99,11 +110,11 @@ async function getCachedLeaderboard(mode: string, period: string = 'all', userId
       avatar: u.avatar || '',
       country: u.country || 'Unknown',
       flag: u.flag || '🏳️',
-      elo: u.sortElo,
-      wins: u.wins,
-      losses: u.losses,
-      draws: u.draws,
-      winRate: u.winRate,
+      elo: displayElo,
+      wins: displayWins,
+      losses: displayLosses,
+      draws: displayDraws,
+      winRate: displayWinRate,
       streak: u.streak,
       streakType: u.streakType,
       rank,

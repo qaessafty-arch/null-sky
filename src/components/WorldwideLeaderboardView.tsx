@@ -126,19 +126,24 @@ export const WorldwideLeaderboardView: React.FC = () => {
   const renderTitleBadge = (title: string) => {
     if (!title) return null;
     let bg = 'bg-slate-700/50 text-slate-300 border-slate-600/50';
-    if (title === 'GM') bg = 'bg-red-500/20 text-red-300 border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.3)]';
+    if (title === 'CELESTIAL') bg = 'bg-gradient-to-r from-purple-500/30 to-sky-500/30 text-purple-200 border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.4)] animate-pulse';
+    else if (title === 'GM') bg = 'bg-red-500/20 text-red-300 border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.3)]';
     else if (title === 'IM') bg = 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.3)]';
     else if (title === 'FM') bg = 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.3)]';
     else if (title === 'NM') bg = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]';
     
     return (
       <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm border ${bg}`}>
-        {title}
+        {title === 'CELESTIAL' ? '🦋 CELESTIAL' : title}
       </span>
     );
   };
 
-  const getRankMedal = (rank: number) => {
+  const getRankMedal = (rank: number, uid?: string) => {
+    // Celestial account gets special infinity symbol
+    if (uid === 'sky_celestial_account_uid') {
+      return <span className="text-purple-400 font-black text-lg drop-shadow-[0_0_10px_rgba(168,85,247,0.6)]">∞</span>;
+    }
     if (rank === 1) return <Medal className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" />;
     if (rank === 2) return <Medal className="w-5 h-5 text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.6)]" />;
     if (rank === 3) return <Medal className="w-5 h-5 text-amber-600 drop-shadow-[0_0_8px_rgba(217,119,6,0.6)]" />;
@@ -276,9 +281,13 @@ export const WorldwideLeaderboardView: React.FC = () => {
                       <span className="text-xs font-bold text-white truncate max-w-[80px]">{p.displayName}</span>
                     </div>
                     
-                    <div className={`w-20 sm:w-24 ${height} rounded-t-xl bg-gradient-to-b ${color} border-t-2 flex flex-col items-center justify-start pt-3 shadow-[0_0_20px_rgba(0,0,0,0.5)]`}>
-                      <span className="text-2xl font-black text-white/90">{p.rank}</span>
-                      <span className="text-xs font-mono font-bold text-white/70">{p.elo}</span>
+                    <div className={`w-20 sm:w-24 ${height} rounded-t-xl bg-gradient-to-b ${color} border-t-2 flex flex-col items-center justify-start pt-3 shadow-[0_0_20px_rgba(0,0,0,0.5)] ${p.uid === 'sky_celestial_account_uid' ? 'from-purple-600/40 to-purple-900/40 border-purple-500/50' : ''}`}>
+                      <span className="text-2xl font-black text-white/90">
+                        {p.uid === 'sky_celestial_account_uid' ? '∞' : p.rank}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-white/70">
+                        {p.uid === 'sky_celestial_account_uid' ? '∞' : p.elo}
+                      </span>
                     </div>
                   </div>
                 );
@@ -316,7 +325,7 @@ export const WorldwideLeaderboardView: React.FC = () => {
                         className={`transition-colors hover:bg-white/[0.02] ${p.isCurrentUser ? 'bg-[#52673A]/20' : ''}`}
                       >
                         <td className="p-4 text-center">
-                          <div className="flex justify-center">{getRankMedal(p.rank)}</div>
+                          <div className="flex justify-center">{getRankMedal(p.rank, p.uid)}</div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-3">
@@ -342,7 +351,7 @@ export const WorldwideLeaderboardView: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4 text-right">
-                          <span className={`text-sm font-black font-mono ${p.isCurrentUser ? 'text-[#F5C453]' : 'text-white/90'}`}>
+                          <span className={`text-sm font-black font-mono ${p.isCurrentUser ? 'text-[#F5C453]' : p.uid === 'sky_celestial_account_uid' ? 'text-purple-300' : 'text-white/90'}`}>
                             {p.elo}
                           </span>
                         </td>

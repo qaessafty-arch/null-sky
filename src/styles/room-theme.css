@@ -1,0 +1,327 @@
+/* Room Theme — Kurdish Landscape Design System */
+
+:root {
+  /* Board colors — Zagros valley at dusk */
+  --room-board-dark: #3D4F32;
+  --room-board-light: #C4A882;
+
+  /* Surface hierarchy */
+  --room-bg-deep: #0A0E16;
+  --room-bg-mountain: #13192A;
+  --room-bg-raised: #1A2035;
+  --room-bg-overlay: rgba(10, 14, 22, 0.92);
+
+  /* Accent — Kurdish sun, earned not decorative */
+  --room-gold: #D4A843;
+  --room-gold-soft: rgba(212, 168, 67, 0.12);
+  --room-gold-border: rgba(212, 168, 67, 0.25);
+
+  /* Danger — Peshmerga red, muted */
+  --room-red: #7B2D2E;
+  --room-red-soft: rgba(123, 45, 46, 0.15);
+
+  /* Success — Mountain green */
+  --room-green: #4A7C59;
+  --room-green-soft: rgba(74, 124, 89, 0.15);
+  --room-green-border: rgba(74, 124, 89, 0.3);
+
+  /* Text — warm parchment, not cold blue */
+  --room-text: #E8E0D4;
+  --room-text-secondary: #A89B8C;
+  --room-text-muted: #6B6058;
+
+  /* Borders — subtle, warm */
+  --room-border: rgba(232, 224, 212, 0.08);
+  --room-border-strong: rgba(232, 224, 212, 0.15);
+}
+
+/* Card hierarchy — content cards are solid, not glass */
+.room-card-primary {
+  background: var(--room-bg-mountain);
+  border: 1px solid var(--room-border);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.room-card-secondary {
+  background: var(--room-bg-raised);
+  border: 1px solid var(--room-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.room-card-ghost {
+  background: transparent;
+  border: 1px dashed var(--room-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* Label — sentence case, not ALL-CAPS */
+.room-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--room-text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Status badge — restrained, not glowing */
+.room-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.room-status--open {
+  background: var(--room-green-soft);
+  color: var(--room-green);
+  border: 1px solid var(--room-green-border);
+}
+
+.room-status--waiting {
+  background: var(--room-gold-soft);
+  color: var(--room-gold);
+  border: 1px solid var(--room-gold-border);
+}
+
+.room-status--ready {
+  background: var(--room-green-soft);
+  color: var(--room-green);
+  border: 1px solid var(--room-green-border);
+}
+
+/* Player card — hierarchy through weight, not glass */
+.room-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--room-bg-raised);
+  border: 1px solid var(--room-border);
+}
+
+.room-player__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--room-border-strong);
+}
+
+.room-player__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--room-text);
+}
+
+.room-player__rating {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--room-text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Button hierarchy */
+.room-btn-primary {
+  background: linear-gradient(135deg, var(--room-gold), #B8922F);
+  color: var(--room-bg-deep);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.room-btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.room-btn-secondary {
+  background: var(--room-bg-raised);
+  color: var(--room-text);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--room-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.room-btn-secondary:hover {
+  background: var(--room-bg-mountain);
+  border-color: var(--room-border-strong);
+}
+
+/* Chat — warm, readable */
+.room-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.room-chat__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--room-border);
+}
+
+.room-chat__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-chat__message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.room-chat__message-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--room-gold);
+}
+
+.room-chat__message-time {
+  font-size: 10px;
+  color: var(--room-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.room-chat__message-text {
+  font-size: 13px;
+  color: var(--room-text);
+  line-height: 1.5;
+}
+
+.room-chat__input {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--room-border);
+}
+
+.room-chat__input input {
+  flex: 1;
+  background: var(--room-bg-deep);
+  border: 1px solid var(--room-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--room-text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.room-chat__input input:focus {
+  border-color: var(--room-gold-border);
+}
+
+.room-chat__input input::placeholder {
+  color: var(--room-text-muted);
+}
+
+/* Settings pills — distinct from glass */
+.room-setting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--room-bg-raised);
+  border: 1px solid var(--room-border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--room-text-secondary);
+}
+
+.room-setting svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+/* Room code — distinctive, memorable */
+.room-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--room-bg-mountain), var(--room-bg-raised));
+  border: 1px solid var(--room-gold-border);
+}
+
+.room-code__digits {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--room-gold);
+}
+
+.room-code__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.room-code__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--room-gold-soft);
+  border: 1px solid var(--room-gold-border);
+  color: var(--room-gold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.room-code__btn:hover {
+  background: rgba(212, 168, 67, 0.2);
+}
+
+/* Empty state — direction, not mood */
+.room-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  color: var(--room-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.room-empty__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--room-bg-raised);
+  border: 1px solid var(--room-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  color: var(--room-text-muted);
+}

@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
 import { listenToFriendsList } from '../../services/friendService';
 import { FriendUser } from '../../types/chess';
-import { GlassCard } from '../GlassUI';
 
 interface FriendInviteProps {
   onClose: () => void;
@@ -23,7 +22,6 @@ export const FriendInvite: React.FC<FriendInviteProps> = ({ onClose, onInvited }
   useEffect(() => {
     if (!profile) return;
     const unsub = listenToFriendsList(profile.uid, (list) => {
-      // Exclude the current user and the opponent if already joined
       const opponentId = currentRoom?.opponentId;
       setFriends(
         list.filter(
@@ -65,80 +63,87 @@ export const FriendInvite: React.FC<FriendInviteProps> = ({ onClose, onInvited }
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'var(--room-bg-overlay)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl border border-white/15 bg-[#0B0F19]/90 backdrop-blur-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl overflow-hidden"
+        style={{ background: 'var(--room-bg-mountain)', border: '1px solid var(--room-border-strong)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[#F5C453]/10 border border-[#F5C453]/30">
-              <Users className="w-4 h-4 text-[#F5C453]" />
+        {/* Header — sentence case */}
+        <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--room-border)' }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl" style={{ background: 'var(--room-gold-soft)', border: '1px solid var(--room-gold-border)' }}>
+              <Users style={{ width: 16, height: 16, color: 'var(--room-gold)' }} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-white uppercase tracking-widest">
-                Invite Allies
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--room-text)' }}>
+                Invite allies
               </h3>
-              <p className="text-[10px] text-white/40 font-bold">
-                Choose friends to join room {currentRoom?.roomCode || '...'}
+              <p style={{ fontSize: 12, color: 'var(--room-text-muted)' }}>
+                Choose friends to join room {currentRoom?.roomCode || '…'}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 transition-all flex items-center justify-center cursor-pointer"
+            className="p-2 rounded-xl"
+            style={{ background: 'var(--room-bg-raised)', border: '1px solid var(--room-border)', color: 'var(--room-text-muted)', cursor: 'pointer' }}
           >
-            <X className="w-4 h-4" />
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
+        {/* Friends list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {loading ? (
-            <div className="text-center py-8 text-white/40 text-xs font-bold">
-              Loading allies...
+            <div className="room-empty">
+              <span>Loading allies…</span>
             </div>
           ) : friends.length === 0 ? (
-            <div className="text-center py-8 text-white/40 text-xs font-bold">
-              No allies found. Add friends first from the Social panel.
+            <div className="room-empty">
+              <UserPlus style={{ width: 24, height: 24, color: 'var(--room-text-muted)', marginBottom: 12 }} />
+              <span>No allies found. Add friends first from the Social panel.</span>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               {friends.map((f) => (
                 <button
                   key={f.uid}
                   type="button"
                   onClick={() => toggle(f.uid)}
-                  className={`w-full flex items-center gap-3 p-2 rounded-xl border transition-all cursor-pointer ${
-                    selected.has(f.uid)
-                      ? 'border-[#F5C453]/40 bg-[#F5C453]/10'
-                      : 'border-transparent bg-white/[0.03] hover:bg-white/[0.06]'
-                  }`}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer"
+                  style={{
+                    background: selected.has(f.uid) ? 'var(--room-gold-soft)' : 'transparent',
+                    border: selected.has(f.uid) ? '1px solid var(--room-gold-border)' : '1px solid transparent',
+                  }}
                 >
                   <img
                     src={f.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
                     alt=""
-                    className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
+                    className="w-9 h-9 rounded-full object-cover"
+                    style={{ border: '2px solid var(--room-border-strong)' }}
                     loading="lazy"
                   />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white truncate">
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--room-text)' }}>
                         {f.displayName}
                       </span>
                       {f.isOnline && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--room-green)', display: 'inline-block' }} />
                       )}
                     </div>
-                    <div className="text-[10px] text-white/40 font-mono">
+                    <div style={{ fontSize: 11, color: 'var(--room-text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
                       {f.elo} ELO · {f.honorRank}
                     </div>
                   </div>
                   {selected.has(f.uid) && (
-                    <div className="w-5 h-5 rounded-full bg-[#F5C453] text-black flex items-center justify-center">
-                      <Sparkles className="w-3 h-3" />
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'var(--room-gold)', color: 'var(--room-bg-deep)' }}>
+                      <Sparkles style={{ width: 12, height: 12 }} />
                     </div>
                   )}
                 </button>
@@ -147,29 +152,27 @@ export const FriendInvite: React.FC<FriendInviteProps> = ({ onClose, onInvited }
           )}
         </div>
 
+        {/* Footer — action */}
         {selected.size > 0 && (
-          <div className="p-4 border-t border-white/10 shrink-0">
+          <div className="p-4 shrink-0" style={{ borderTop: '1px solid var(--room-border)' }}>
             <button
               type="button"
               onClick={handleSend}
               disabled={!!inviting}
-              className={`w-full py-3 rounded-xl font-black uppercase text-xs tracking-widest border transition-all cursor-pointer ${
-                inviting
-                  ? 'bg-white/5 text-white/30 cursor-not-allowed border-white/10'
-                  : 'bg-gradient-to-r from-[#52673A] to-[#8C2425] hover:brightness-110 text-white border-[#F5C453]/40 shadow-lg'
-              }`}
+              className="room-btn-primary w-full"
+              style={{ opacity: inviting ? 0.5 : 1, cursor: inviting ? 'not-allowed' : 'pointer' }}
             >
-              {inviting === 'batch' ? 'Sending invites...' : `Send ${selected.size} invite(s)`}
+              {inviting === 'batch' ? 'Sending invites…' : `Send ${selected.size} invite(s)`}
             </button>
           </div>
         )}
 
         {!selected.size && !loading && friends.length > 0 && (
-          <div className="p-4 border-t border-white/10 shrink-0">
+          <div className="p-4 shrink-0" style={{ borderTop: '1px solid var(--room-border)' }}>
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs font-bold uppercase tracking-widest border border-white/10 transition-all cursor-pointer"
+              className="room-btn-secondary w-full"
             >
               Cancel
             </button>

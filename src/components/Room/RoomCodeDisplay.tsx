@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Check, Share2, Link } from 'lucide-react';
+import { Copy, Check, Share2 } from 'lucide-react';
 
 interface RoomCodeDisplayProps {
   code: string;
@@ -18,7 +18,6 @@ export const RoomCodeDisplay: React.FC<RoomCodeDisplayProps> = ({
     try {
       await navigator.clipboard.writeText(code);
     } catch {
-      // fallback: select from an input
       const i = document.createElement('input');
       i.value = code;
       document.body.appendChild(i);
@@ -40,51 +39,48 @@ export const RoomCodeDisplay: React.FC<RoomCodeDisplayProps> = ({
         await navigator.share({ title: 'Private Chess Room', text });
         onShare?.();
         return;
-      } catch {
-        // fall through to copy
-      }
+      } catch {}
     }
     handleCopy();
     onShare?.();
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      {/* Label — sentence case, not ALL-CAPS */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#F5C453]">
-            Room Code
-          </span>
-        </div>
+        <span className="room-label" style={{ color: 'var(--room-gold)' }}>
+          Room code
+        </span>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/[0.05] hover:bg-white/[0.12] text-white/70 hover:text-white transition-all cursor-pointer"
+            className="room-btn-secondary flex items-center gap-1.5"
+            style={{ padding: '6px 12px', fontSize: 12 }}
           >
             {copied ? (
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <Check style={{ width: 14, height: 14, color: 'var(--room-green)' }} />
             ) : (
-              <Copy className="w-3.5 h-3.5" />
+              <Copy style={{ width: 14, height: 14 }} />
             )}
             {copied ? 'Copied' : 'Copy'}
           </button>
           <button
             type="button"
             onClick={handleShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/[0.05] hover:bg-white/[0.12] text-white/70 hover:text-white transition-all cursor-pointer"
+            className="room-btn-secondary flex items-center gap-1.5"
+            style={{ padding: '6px 12px', fontSize: 12 }}
           >
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 style={{ width: 14, height: 14 }} />
             Share
           </button>
         </div>
       </div>
 
-      <div className="text-center">
-        <div className="text-5xl sm:text-6xl font-mono font-black text-white tracking-[0.25em] select-all">
-          {code}
-        </div>
-        <div className="mt-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      {/* Code — distinctive, memorable */}
+      <div className="room-code">
+        <span className="room-code__digits">{code}</span>
       </div>
     </div>
   );

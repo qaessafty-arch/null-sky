@@ -8,7 +8,6 @@ import { RoomCodeDisplay } from './RoomCodeDisplay';
 import { RoomChat } from './RoomChat';
 import { FriendInvite } from './FriendInvite';
 import { RoomSettings } from './RoomSettings';
-import { GlassCard } from '../GlassUI';
 
 interface WaitingRoomProps {
   showInvitePicker: boolean;
@@ -37,20 +36,9 @@ export const WaitingRoom: React.FC<WaitingRoomProps> = ({
     return () => clearInterval(timer);
   }, [markRoomExpiredIfDue]);
 
-  React.useEffect(() => {
-    if (currentRoom?.status === 'ready') {
-      // When the opponent joins, notify them via the hook path.
-      if (currentRoom.opponentId) {
-        // If the current user is the host, the opponent has joined;
-        // if the current user is the opponent, the join already succeeded.
-      }
-    }
-  }, [currentRoom?.status]);
-
   if (!currentRoom) return null;
 
-  const host = currentRoom.creatorId === undefined ? null : currentRoom.creatorId;
-  const isHost = host && host === (currentRoom as any).creatorId;
+  const isHost = currentRoom.creatorId === (currentRoom as any).creatorId;
 
   return (
     <motion.div
@@ -58,34 +46,38 @@ export const WaitingRoom: React.FC<WaitingRoomProps> = ({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-6"
     >
-      {/* Header strip */}
+      {/* Header — sentence case, not ALL-CAPS */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-[#F5C453]/10 border border-[#F5C453]/30">
-            <Swords className="w-4 h-4 text-[#F5C453]" />
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl" style={{ background: 'var(--room-gold-soft)', border: '1px solid var(--room-gold-border)' }}>
+            <Swords style={{ width: 16, height: 16, color: 'var(--room-gold)' }} />
           </div>
           <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#F5C453]">
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--room-text)' }}>
               Private Room
             </div>
-            <div className="text-xs text-white/50 font-bold">Waiting for challenger...</div>
+            <div style={{ fontSize: 12, color: 'var(--room-text-muted)', fontWeight: 500 }}>
+              Waiting for challenger…
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {currentRoom.status === 'waiting' && (
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 animate-pulse">
+            <span className="room-status room-status--open">
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--room-green)', display: 'inline-block' }} />
               Open
             </span>
           )}
           {currentRoom.status === 'ready' && (
-            <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 text-[10px] font-black uppercase tracking-widest border border-amber-500/30">
+            <span className="room-status room-status--ready">
               Ready
             </span>
           )}
         </div>
       </div>
 
-      <GlassCard intensity="high" className="flex flex-col gap-6 p-6">
+      {/* Main content — primary card (solid, not glass) */}
+      <div className="room-card-primary flex flex-col gap-6">
         {/* Code display */}
         <RoomCodeDisplay
           code={currentRoom.roomCode}
@@ -93,149 +85,133 @@ export const WaitingRoom: React.FC<WaitingRoomProps> = ({
           onShare={() => {}}
         />
 
-        {/* Opponent card */}
+        {/* Player cards — hierarchy through weight, not glass */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Host card */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
-                Host
-              </span>
-              <Users className="w-3.5 h-3.5 text-[#F5C453]" />
+          {/* Host */}
+          <div className="room-player">
+            <img
+              src={currentRoom.creatorPhotoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+              alt=""
+              className="room-player__avatar"
+            />
+            <div>
+              <div className="room-player__name">{currentRoom.creatorName}</div>
+              <div className="room-player__rating">{currentRoom.creatorElo} ELO</div>
             </div>
-            <div className="flex items-center gap-3">
-              <img
-                src={
-                  currentRoom.creatorPhotoURL ||
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                }
-                alt=""
-                className="w-10 h-10 rounded-full object-cover border border-white/10"
-              />
-              <div>
-                <div className="text-sm font-bold text-white">
-                  {currentRoom.creatorName}
-                </div>
-                <div className="text-[10px] text-white/40 font-mono">
-                  {currentRoom.creatorElo} ELO
-                </div>
-              </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Users style={{ width: 12, height: 12, color: 'var(--room-text-muted)' }} />
+              <span style={{ fontSize: 11, color: 'var(--room-text-muted)', fontWeight: 500 }}>Host</span>
             </div>
           </div>
 
-          {/* Opponent card */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
-                Challenger
-              </span>
-              <Swords className="w-3.5 h-3.5 text-[#F5C453]" />
-            </div>
+          {/* Challenger */}
+          <div className={currentRoom.opponentId ? 'room-player' : 'room-card-ghost'}>
             {currentRoom.opponentId ? (
-              <div className="flex items-center gap-3">
+              <>
                 <img
-                  src={
-                    currentRoom.opponentPhotoURL ||
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                  }
+                  src={currentRoom.opponentPhotoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
                   alt=""
-                  className="w-10 h-10 rounded-full object-cover border border-white/10"
+                  className="room-player__avatar"
                 />
                 <div>
-                  <div className="text-sm font-bold text-white">
-                    {currentRoom.opponentName}
-                  </div>
-                  <div className="text-[10px] text-white/40 font-mono">
-                    {currentRoom.opponentElo ?? '—'} ELO
-                  </div>
+                  <div className="room-player__name">{currentRoom.opponentName}</div>
+                  <div className="room-player__rating">{currentRoom.opponentElo ?? '—'} ELO</div>
                 </div>
-              </div>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Swords style={{ width: 12, height: 12, color: 'var(--room-gold)' }} />
+                  <span style={{ fontSize: 11, color: 'var(--room-gold)', fontWeight: 500 }}>Challenger</span>
+                </div>
+              </>
             ) : (
-              <div className="flex items-center justify-center h-14 border border-dashed border-white/10 rounded-xl text-xs text-white/40 font-bold">
-                Waiting for challenger...
+              <div className="room-empty">
+                <Swords style={{ width: 20, height: 20, color: 'var(--room-text-muted)', marginBottom: 8 }} />
+                <span>Waiting for challenger…</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Settings summary */}
+        {/* Settings — restrained pills, not glass badges */}
         <div className="flex flex-wrap gap-2">
-          <span className="px-2.5 py-1 rounded-full bg-white/[0.05] text-white/70 text-[10px] font-black uppercase tracking-widest border border-white/10">
-            <Clock className="inline w-3 h-3 mr-1" />
+          <span className="room-setting">
+            <Clock />
             {currentRoom.settings.timeControlName} ({Math.floor(currentRoom.settings.initialSeconds / 60)}:{(currentRoom.settings.initialSeconds % 60).toString().padStart(2, '0')})
           </span>
-          <span className="px-2.5 py-1 rounded-full bg-white/[0.05] text-white/70 text-[10px] font-black uppercase tracking-widest border border-white/10">
-            <Gauge className="inline w-3 h-3 mr-1" />
-            {currentRoom.settings.color === 'white' ? 'Playing White' : currentRoom.settings.color === 'black' ? 'Playing Black' : 'Random Color'}
+          <span className="room-setting">
+            <Gauge />
+            {currentRoom.settings.color === 'white' ? 'Playing White' : currentRoom.settings.color === 'black' ? 'Playing Black' : 'Random color'}
           </span>
           {currentRoom.settings.rated && (
-            <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 text-[10px] font-black uppercase tracking-widest border border-amber-500/30">
-              Rated Match
+            <span className="room-setting" style={{ background: 'var(--room-gold-soft)', color: 'var(--room-gold)', borderColor: 'var(--room-gold-border)' }}>
+              Rated match
             </span>
           )}
         </div>
 
-        {/* Chat + Invites split */}
+        {/* Chat + Invites — secondary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
           <RoomChat />
-          <GlassCard intensity="medium" className="flex flex-col gap-3 p-4">
+          <div className="room-card-secondary flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-[#F5C453]" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/60">
-                  Invite Allies
-                </span>
+                <UserPlus style={{ width: 16, height: 16, color: 'var(--room-gold)' }} />
+                <span className="room-label">Invite allies</span>
               </div>
               <button
                 type="button"
                 onClick={() => onShowInvitePickerChange(true)}
-                className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#F5C453]/30 bg-[#F5C453]/10 text-[#F5C453] hover:bg-[#F5C453]/20 transition-all cursor-pointer"
+                className="room-btn-secondary"
+                style={{ padding: '6px 14px', fontSize: 12 }}
               >
-                Pick
+                Pick friends
               </button>
             </div>
 
             {invitesLoading ? (
-              <div className="text-center py-6 text-white/40 text-xs font-bold">
-                Checking invites...
+              <div className="room-empty">
+                <span>Checking invites…</span>
               </div>
             ) : invites.length === 0 ? (
-              <div className="text-center py-6 text-white/40 text-xs font-bold">
-                No pending invites. Invite friends to join you.
+              <div className="room-empty">
+                <UserPlus style={{ width: 20, height: 20, color: 'var(--room-text-muted)', marginBottom: 8 }} />
+                <span>No pending invites. Invite friends to join you.</span>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {invites.map((invite) => (
                   <div
                     key={invite.id}
-                    className="p-3 rounded-xl bg-white/[0.04] border border-white/10"
+                    className="flex items-center gap-3 p-3 rounded-xl"
+                    style={{ background: 'var(--room-bg-raised)', border: '1px solid var(--room-border)' }}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <img
-                        src={
-                          invite.userPhotoURL ||
-                          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                        }
-                        alt=""
-                        className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0"
-                      />
-                      <span className="text-xs font-bold text-white">{invite.userName}</span>
+                    <img
+                      src={invite.userPhotoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+                      alt=""
+                      className="w-8 h-8 rounded-full object-cover"
+                      style={{ border: '2px solid var(--room-border-strong)' }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--room-text)' }}>
+                        {invite.userName}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--room-text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                        {currentRoom.settings.timeControlName} · {invite.settings.color}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-white/40 font-mono">
-                      {currentRoom.settings.timeControlName} · {invite.settings.color}
-                    </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => accept(invite.id)}
-                        className="flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition-all cursor-pointer"
+                        className="room-btn-primary"
+                        style={{ padding: '6px 14px', fontSize: 12 }}
                       >
                         Accept
                       </button>
                       <button
                         type="button"
                         onClick={() => decline(invite.id)}
-                        className="flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all cursor-pointer"
+                        className="room-btn-secondary"
+                        style={{ padding: '6px 14px', fontSize: 12 }}
                       >
                         Decline
                       </button>
@@ -244,15 +220,19 @@ export const WaitingRoom: React.FC<WaitingRoomProps> = ({
                 ))}
               </div>
             )}
-          </GlassCard>
+          </div>
         </div>
 
+        {/* Error state — direction, not mood */}
         {joinError && (
-          <div className="p-3 rounded-xl bg-rose-500/10 text-rose-300 text-xs font-bold border border-rose-500/30">
+          <div
+            className="p-3 rounded-xl"
+            style={{ background: 'var(--room-red-soft)', color: '#D4A0A0', fontSize: 13, fontWeight: 600, border: '1px solid rgba(123, 45, 46, 0.3)' }}
+          >
             {joinError}
           </div>
         )}
-      </GlassCard>
+      </div>
 
       {/* Invite picker modal */}
       {showInvitePicker && (
