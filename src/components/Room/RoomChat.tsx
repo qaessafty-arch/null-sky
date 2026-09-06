@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, MessageSquare, Smile, Loader2, Crown } from 'lucide-react';
-// @ts-expect-error — no bundled types; the module is only used at runtime
-import EmojiPicker from 'emoji-picker-react';
-// EmojiClickData is inferred as Record<string, unknown> in the handler below.
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { useRoomChat } from '../../hooks/useRoomChat';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,7 +30,7 @@ export const RoomChat: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmoji]);
 
-  const onEmojiClick = (emojiData: Record<string, unknown>) => {
+  const onEmojiClick = (emojiData: EmojiClickData) => {
     setPending((prev) => prev + emojiData.emoji);
     setShowEmoji(false);
     inputRef.current?.focus();
@@ -166,7 +164,7 @@ export const RoomChat: React.FC = () => {
                 className="emoji-picker-anchor"
               >
                 <EmojiPicker
-                  theme="dark"
+                  theme={Theme.DARK}
                   onEmojiClick={onEmojiClick}
                   width={300}
                   height={360}
