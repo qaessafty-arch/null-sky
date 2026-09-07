@@ -384,7 +384,7 @@ app.post('/api/friends/rate-limit-check', friendRateLimit, (req, res) => {
 import { Server as SocketIOServer } from 'socket.io';
 import http from 'http';
 import { MatchmakingEngine } from './server/matchmaking';
-import { mountMcp } from './mcp/chesskys-server.ts';
+import { mountMcp } from './src/mcp/chesskys-server';
 
 // ----------------------------------------------------
 
@@ -458,7 +458,7 @@ app.get('/api/leaderboard/distribution', async (req, res) => {
     const mode = (req.query.mode as string) || 'blitz';
     const leaderboard = await getCachedLeaderboard(mode);
     
-    const brackets = {};
+    const brackets = {} as Record<string, number>;
     leaderboard.forEach(u => {
       const bracketStart = Math.floor(u.elo / 200) * 200;
       const bracketEnd = bracketStart + 200;
@@ -630,7 +630,7 @@ async function startServer() {
         contents: [
           {
             role: 'user',
-            parts: [{ text: `You are an enthusiastic manga/anime narrator. The following is a chess game PGN. Describe the dramatic flow of the game in 3-4 paragraphs, like a high-stakes manga battle. Highlight sacrifices, blunders, and the final checkmate (or draw).
+            parts: [{ text: `You are an enthusiastic manga/anime narrator. The following is a chess game PGN. Describe the dramatic flow of the game in 3-4 paragraphs, like a high-stakes manga ba[...]
 
 PGN: ${pgn}` }]
           }
