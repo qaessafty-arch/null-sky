@@ -384,7 +384,7 @@ app.post('/api/friends/rate-limit-check', friendRateLimit, (req, res) => {
 import { Server as SocketIOServer } from 'socket.io';
 import http from 'http';
 import { MatchmakingEngine } from './server/matchmaking';
-import { mountMcp } from './src/mcp/chesskys-server';
+import { mountMcp } from './mcp/chesskys-server';
 
 // ----------------------------------------------------
 
