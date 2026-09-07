@@ -1,3 +1,4 @@
+import { AiAnalysisService } from './src/services/aiAnalysisService';
 import { GoogleGenAI } from '@google/genai';
 import express from 'express';
 import path from 'path';
@@ -614,6 +615,19 @@ async function startServer() {
     const moves = matchmaking.getGameMoves(req.params.id);
     if (!moves) return res.status(404).json({ error: 'Game not found' });
     res.json({ moves });
+  });
+
+  // AI Live Coach Endpoint
+  app.post('/api/ai/coach', async (req, res) => {
+    try {
+      const { fen, pgn } = req.body;
+      if (!fen) return res.status(400).json({ error: 'FEN required' });
+      
+      const analysis = await AiAnalysisService.analyzePosition(fen, pgn || "");
+      res.json({ success: true, analysis });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // AI Game Recap Endpoint

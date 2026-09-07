@@ -20,7 +20,7 @@
         "./*"
       ]
     },
-    "allowImportingTsExtensions": false,
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "noEmit": true
   },
