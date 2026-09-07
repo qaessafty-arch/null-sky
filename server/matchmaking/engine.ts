@@ -42,6 +42,21 @@ export class MatchmakingEngine {
     // Process the queue every 2 seconds.
     setInterval(() => this.processQueue(), 2000);
 
+    // Middleware to extract and validate auth token from handshake
+    this.io.use((socket, next) => {
+      const token = socket.handshake.auth?.token;
+      const uid = socket.handshake.auth?.uid;
+
+      if (!token && !uid) {
+        return next(new Error('Authentication error: Missing credentials.'));
+      }
+
+      // Attach credentials to socket.data for secure lifecycle use
+      socket.data = { ...socket.data, token, uid };
+      
+      next();
+    });
+
     this.io.on('connection', (socket) => this.onConnect(socket));
   }
 
@@ -50,14 +65,13 @@ export class MatchmakingEngine {
   private onConnect(socket: Socket): void {
     console.log(`[Socket] Connection: ${socket.id}`);
 
+    const authUid = socket.data.uid || socket.handshake.auth?.uid;
+    if (authUid) {
+      this.handleIdentify(socket, authUid);
+    }
+
     socket.on('ping', (cb) => {
       if (typeof cb === 'function') cb(Date.now());
-    });
-
-    socket.on('identify', (data) => {
-      const { uid } = data;
-      if (!uid) return;
-      this.handleIdentify(socket, uid);
     });
 
     socket.on('createGame', (data, cb) =>
@@ -320,6 +334,8 @@ export class MatchmakingEngine {
       blackSecondsRemaining: Math.round(match.blackSecondsRemaining),
       movesCount: match.movesCount,
       status: match.status,
+      whitePlayer: { uid: match.whiteUid, name: match.whiteName, rating: match.whiteRating },
+      blackPlayer: { uid: match.blackUid, name: match.blackName, rating: match.blackRating },
     };
 
     socket.emit('match_joined', roomState);
@@ -539,12 +555,16 @@ export class MatchmakingEngine {
         clearTimeout(match.reconnectTimeout);
       match.reconnectTimeout = setTimeout(() => {
         if (LIVE_STATUSES.includes(match.status)) {
-          const winner = isWhite ? 'b' : 'w';
-          this.io.to(match.matchId).emit('playerAbandoned', {
-            uid: disconnectedUid,
-            winner,
-          });
-          this.finishGameOver(match, 'abandoned', winner);
+          if (match.movesCount === 0) {
+            this.doAbort(match, 'system');
+          } else {
+            const winner = isWhite ? 'b' : 'w';
+            this.io.to(match.matchId).emit('playerAbandoned', {
+              uid: disconnectedUid,
+              winner,
+            });
+            this.finishGameOver(match, 'abandoned', winner);
+          }
         }
       }, 30000);
     }

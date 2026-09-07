@@ -85,6 +85,7 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isPendingMove, setIsPendingMove] = useState(false);
   const [socketStatus, setSocketStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
+  const [isOpponentPresent, setIsOpponentPresent] = useState<boolean>(true);
   const [chatMessages, setChatMessages] = useState<InGameMessage[]>([]);
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [typingMap, setTypingMap] = useState<Record<string, boolean>>({});
@@ -148,11 +149,35 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
 
     const onConnect = () => {
       setSocketStatus('connected');
-      socket.emit('identify', { uid: myUid });
       socket.emit('join_match', { matchId, uid: myUid });
     };
     const onDisconnect = () => setSocketStatus('reconnecting');
     const onConnectError = () => setSocketStatus('error');
+
+    const onMatchJoined = (data: any) => {
+      if (data.success) {
+        setLoadState(prev => prev === 'loading' ? 'ready' : prev);
+        setSession(prev => {
+          if (prev) return prev; // Keep the authoritative Firestore one if we have it
+          return {
+            id: data.matchId,
+            hostId: data.whitePlayer?.uid || '',
+            whitePlayer: { uid: data.whitePlayer?.uid || '', displayName: data.whitePlayer?.name || 'Player 1', elo: data.whitePlayer?.rating || 1200 },
+            blackPlayer: { uid: data.blackPlayer?.uid || '', displayName: data.blackPlayer?.name || 'Player 2', elo: data.blackPlayer?.rating || 1200 },
+            fen: data.fen,
+            pgn: '',
+            turn: data.turn,
+            status: data.status,
+            winner: null,
+            timeControl: { name: 'Rapid', initialSeconds: data.whiteSecondsRemaining, incrementSeconds: 0 },
+            whiteSecondsRemaining: data.whiteSecondsRemaining,
+            blackSecondsRemaining: data.blackSecondsRemaining,
+            moves: [],
+            moveCount: data.movesCount || 0
+          } as any;
+        });
+      }
+    };
 
     const onMoveMade = (data: any) => {
       console.log('[Socket] Move made:', data.san);
@@ -213,6 +238,15 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       }
     };
     
+    const onOpponentDisconnected = () => {
+      setIsOpponentPresent(false);
+    };
+    
+    const onOpponentReconnected = () => {
+      setIsOpponentPresent(true);
+    };
+    
+    socket.on('match_joined', onMatchJoined);
     socket.on('move_made', onMoveMade);
     socket.on('moveMade', onMoveMade);
     socket.on('move_rejected', onMoveRejected);
@@ -224,13 +258,15 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
+    socket.on('opponentDisconnected', onOpponentDisconnected);
+    socket.on('playerReconnected', onOpponentReconnected);
 
-    // Initial identify and join match room
-    socket.emit('identify', { uid: myUid });
+    // Initial join match room
     socket.emit('join_match', { matchId, uid: myUid });
 
     return () => {
       if (unsub) unsub();
+      socket.off('match_joined', onMatchJoined);
       socket.off('move_made', onMoveMade);
       socket.off('moveMade', onMoveMade);
       socket.off('move_rejected', onMoveRejected);
@@ -242,6 +278,8 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onConnectError);
+      socket.off('opponentDisconnected', onOpponentDisconnected);
+      socket.off('playerReconnected', onOpponentReconnected);
     };
   }, [matchId, onClose, myUid]);
 
@@ -305,6 +343,14 @@ export const OnlineMatchView: React.FC<OnlineMatchViewProps> = ({
   // Active clock countdown
   useEffect(() => {
     if (session?.status !== 'in_progress') return;
+    
+    // Guard clause: Check for player presence.
+    // If a player disconnects before the first move, ensure the match timer remains in its idle/paused state
+    // and does not begin counting down.
+    const isDisconnectedBeforeFirstMove = (!session.moves || session.moves.length === 0) && (!isOpponentPresent || socketStatus !== 'connected');
+    if (isDisconnectedBeforeFirstMove) return;
+
+    if (!session.moves || session.moves.length === 0) return; // Wait for first move
 
     const interval = setInterval(() => {
       if (session.turn === 'w') {

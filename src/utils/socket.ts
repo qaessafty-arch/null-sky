@@ -13,19 +13,16 @@ class SocketService {
       // the server's Socket.IO endpoint (http://host:port/socket.io/).
       const origin = typeof window !== 'undefined' && window.location.origin;
       this.socket = io(origin, {
-        auth: { token: authToken },
+        auth: { token: authToken, uid: this.uid },
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'],
       });
       
       this.socket.on('connect', () => {
         console.log('[Matchmaking] Connected to Real-time Engine:', this.socket?.id);
-        if (this.uid) {
-          this.socket?.emit('identify', { uid: this.uid });
-        }
       });
 
       this.socket.on('reconnect_success', (data) => {

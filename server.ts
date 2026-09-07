@@ -489,7 +489,8 @@ async function startServer() {
     cors: {
       origin: '*', // Customize in production
       methods: ['GET', 'POST']
-    }
+    },
+    transports: ['websocket']
   });
 
   // Initialize Enterprise Matchmaking Engine

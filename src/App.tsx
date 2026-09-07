@@ -328,6 +328,13 @@ export default function App() {
 
 
   useEffect(() => {
+    // Guard clause: Check for player presence. If a player disconnects before the first move,
+    // ensure the match timer remains in its idle/paused state and does not begin counting down.
+    const isPlayerDisconnected = socketService.getSocket()?.disconnected;
+    if ((activeMode === 'online_match' || activeMode === 'multiplayer') && moveLogs.length === 0 && isPlayerDisconnected) {
+      return;
+    }
+
     if (!isClockRunning || gameResult || timeControl.category === 'unlimited') return;
 
     const timer = setInterval(() => {
